@@ -1,0 +1,6 @@
+apiVersion: substratus.ai/v1
+kind: ModelServer
+metadata:
+  name: facebook-opt-125m
+spec:
+  modelName: facebook-opt-125m

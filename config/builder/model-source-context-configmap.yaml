@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: builder-model-source-context
+  namespace: default
+data:
+  "Dockerfile": |
+    ARG SRC_IMG
+    FROM $SRC_IMG
+    COPY trained /model/saved
+    COPY logs /model/logs
+    RUN rm -rf /model/trained

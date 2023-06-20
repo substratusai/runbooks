@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allow-bundled-registry-script
+  namespace: kube-system
+data:
+  allow-bundled-registry.sh: |
+    #!/usr/bin/env bash
+    set -x
+
+    if ! grep -q $IMAGE_REGISTRY /mnt/etc/containerd/config.toml; then
+        containerd_version=$(nsenter --target 1 --mount bash -c "containerd --version | awk '{ print substr(\$3,0,4) }'")
+        if [ "$containerd_version" = "1.3." ] || [ "$containerd_version" = "1.4." ]; then
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins.cri.registry.configs."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        else
+            # Correct config for containerd 1.5 and above
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        fi
+        nsenter --target 1 --mount bash -c "systemctl is-active --quiet containerd && echo 'Restarting containerd' && systemctl restart containerd"
+    fi
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: allow-bundled-registry
+  namespace: kube-system
+  labels:
+    app: allow-bundled-registry
+spec:
+  selector:
+    matchLabels:
+      app: allow-bundled-registry
+  template:
+    metadata:
+      labels:
+        app: allow-bundled-registry
+    spec:
+      hostPID: true
+      initContainers:
+      - name: allow-bundled-registry
+        image: ubuntu:22.04
+        command: ["/scripts/allow-bundled-registry.sh"]
+        env:
+          - name: IMAGE_REGISTRY
+            value: $IMAGE_REGISTRY
+        volumeMounts:
+        - name: etc
+          mountPath: "/mnt/etc"
+        - mountPath: /scripts
+          name: scripts
+        securityContext:
+          privileged: true
+      volumes:
+      - name: etc
+        hostPath:
+          path: /etc
+      - name: scripts
+        configMap:
+          name: allow-bundled-registry-script
+          defaultMode: 0744
+      containers:
+      - name: pause
+        image: gcr.io/google_containers/pause
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists

@@ -1,0 +1,6 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: my-model-notebook
+spec:
+  modelName: my-model

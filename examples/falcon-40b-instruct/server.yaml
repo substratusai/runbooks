@@ -1,0 +1,6 @@
+apiVersion: substratus.ai/v1
+kind: ModelServer
+metadata:
+  name: falcon-40b-instruct
+spec:
+  modelName: falcon-40b-instruct

@@ -1,0 +1,14 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: facebook-opt-125m
+spec:
+  version: v1.0.0
+  source:
+    git:
+      url: github.com/substratusai/models
+      path: facebook-opt-125m
+      branch: main
+  size:
+    parameterBits: 32
+    parameterCount: 125000000

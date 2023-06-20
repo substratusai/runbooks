@@ -1,0 +1,31 @@
+# permissions for end users to edit notebooks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: notebook-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/part-of: substratus
+    app.kubernetes.io/managed-by: kustomize
+  name: notebook-editor-role
+rules:
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - notebooks
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - notebooks/status
+    verbs:
+      - get

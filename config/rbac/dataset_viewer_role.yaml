@@ -1,0 +1,27 @@
+# permissions for end users to view datasets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: dataset-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/part-of: substratus
+    app.kubernetes.io/managed-by: kustomize
+  name: dataset-viewer-role
+rules:
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/status
+  verbs:
+  - get

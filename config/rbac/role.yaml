@@ -1,0 +1,159 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - modelservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - modelservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - modelservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update

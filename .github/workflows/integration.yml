@@ -1,0 +1,56 @@
+name: Integration tests
+run-name: ${{ github.actor }} triggered integration tests 🚀
+on: [pull_request]
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - run: make test
+  run-integration-test-kind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.4.0
+        with:
+          cluster_name: substratus
+      - run: kubectl apply -f config/extra/registry.yaml
+      - name: Expose registry on node
+        run: kubectl patch svc docker-registry --patch-file config/patches/nodeport.yaml
+      - run: |
+          export NODE_IP=$(kubectl get node substratus-control-plane -o json | \
+            jq -r '.status.addresses[] | select(.type == "InternalIP").address')
+          export NODE_PORT=$(kubectl get svc docker-registry -o json | \
+            jq '.spec.ports[0].nodePort')
+          export IMAGE_REGISTRY=$NODE_IP:$NODE_PORT
+          export IMG=$IMAGE_REGISTRY/controller
+          echo "IMAGE_REGISTRY=$IMAGE_REGISTRY" >> $GITHUB_ENV
+          echo "IMG=substratus-controller:dev" >> $GITHUB_ENV
+      - run: |
+          kubectl wait pods -l app=docker-registry \
+            --for condition=Ready --timeout=90s
+      - run: cat config/extra/allow-bundled-registry-ds.yaml | envsubst | kubectl apply -f -
+      - run: kubectl logs -l app=docker-registry
+      - run: curl -v --retry 5 --retry-connrefused --fail http://$IMAGE_REGISTRY
+      - run: kubectl apply -f config/extra/
+      - run: make install
+      - run: make docker-build
+      - run: kind load docker-image $IMG --name substratus
+      - run: make deploy
+      - run: kubectl apply -f config/samples/gpt2.yaml
+      - run: sleep 30 && kubectl get events -n substratus-system
+      - run: kubectl get events -n default
+      - run: kubectl describe pod -l control-plane=controller-manager -n substratus-system
+      - run: kubectl logs -l control-plane=controller-manager -n substratus-system
+      - run: kubectl get events
+      - run: kubectl get pods
+      - run: kubectl describe pod -l job-name=gpt2-sample-image-builder
+      - run: kubectl logs -l job-name=gpt2-sample-image-builder
+      - run: kubectl wait model gpt2-sample --for condition=Ready --timeout=420s
+      - run: sleep 5 && kubectl get events && kubectl describe pod -l modelserver=gpt2-sample-api
+      - run: |
+          kubectl wait pods -l modelserver=gpt2-sample-api \
+            --for condition=Ready --timeout=300s

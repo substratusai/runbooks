@@ -1,0 +1,10 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: my-model
+spec:
+  version: v1.0.0
+  source:
+    modelName: falcon-7b-instruct
+  training:
+    datasetName: k8s-instructions

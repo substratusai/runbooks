@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Dataset
+metadata:
+  name: favorite-colors
+spec:
+  source:
+    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/sample-data/favorite-color-blue.jsonl
+    filename: fav-colors.jsonl
+  size: 1Gi
