@@ -4,18 +4,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // NotebookSpec defines the desired state of Notebook
 type NotebookSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Notebook. Edit notebook_types.go to remove/update
 	ModelName string `json:"modelName,omitempty"`
-
-	Suspend bool `json:"suspend,omitempty"`
+	Suspend   bool   `json:"suspend,omitempty"`
 }
 
 // NotebookStatus defines the observed state of Notebook

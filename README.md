@@ -100,7 +100,7 @@ spec:
 
 ### Notebook API
 
-The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration. 
+The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration.
 
 Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin).
 

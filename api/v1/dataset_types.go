@@ -5,17 +5,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // DatasetSpec defines the desired state of Dataset
 type DatasetSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	Source DatasetSource `json:"source,omitempty"`
-
-	Size resource.Quantity `json:"size"`
+	Source DatasetSource     `json:"source,omitempty"`
+	Size   resource.Quantity `json:"size"`
 }
 
 type DatasetSource struct {
@@ -26,10 +19,7 @@ type DatasetSource struct {
 
 // DatasetStatus defines the observed state of Dataset
 type DatasetStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	PVCName string `json:"pvcName,omitempty"`
-
+	PVCName    string             `json:"pvcName,omitempty"`
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
