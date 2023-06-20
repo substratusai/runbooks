@@ -62,9 +62,10 @@ spec:
     modelName: facebook-opt-125m
   training:
     datasetName: favorite-colors
+  # TODO: This should be copied from the source Model.
   size:
-    runtime: 1.6Gi
-    container: 9Gi
+    parameterBits: 32
+    parameterCount: 125000000
 ```
 
 ### ModelServer API
@@ -85,7 +86,6 @@ spec:
 
 The Dataset API snapshots and locally caches remote datasets to facilitate efficient and reproducable training results. Use Datasets to curate an internal catalog of data available to data scientists with fine-grained access control.
 
-[embedmd]:# (config/base-datasets/favorite-colors.yaml)
 ```yaml
 apiVersion: substratus.ai/v1
 kind: Dataset
@@ -100,7 +100,7 @@ spec:
 
 ### Notebook API
 
-The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration. 
+The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration.
 
 Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin).
 
@@ -111,5 +111,14 @@ kind: Notebook
 metadata:
   name: my-notebook
 spec:
-  modelName: my-model
+  modelName: facebook-opt-125m
+```
+
+### Readme snippet generation
+
+We use [embedmd](https://github.com/campoy/embedmd) to help keep documentation
+up to date with snippets. Run the following to generate new doc snippets:
+
+```bash
+make docs
 ```

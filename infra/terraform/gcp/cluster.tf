@@ -1,4 +1,45 @@
-data "google_container_engine_versions" "us-central1" {
+locals {
+  node_pools = merge(
+    {
+      "builder-1" = {
+        local_ssd_count = 1
+      },
+    },
+    local.g2_machine_types,
+  )
+  g2_machine_size_count = {
+    "4"  = 1,
+    "8"  = 1,
+    "12" = 1,
+    "16" = 1,
+    "24" = 2,
+    # "32" = 2, # 4 doesnt work, 8 doesnt work
+    "48" = 4,
+    "96" = 8,
+  }
+  g2_machine_types = {
+    # The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
+    for size, cnt in local.g2_machine_size_count : "g2-standard-${size}" => {
+      machine_type            = "g2-standard-${size}"
+      local_ssd_count         = cnt
+      guest_accelerator_count = cnt
+    }
+  }
+  node_pool_defaults = {
+    max_node_count          = 3
+    initial_node_count      = 0
+    machine_type            = "n1-standard-4"
+    node_locations          = [var.zone]
+    guest_accelerator_count = 0
+  }
+  _node_pools = { for np_name, config_vals in local.node_pools : np_name => merge(
+    local.node_pool_defaults,
+    config_vals
+  ) }
+
+}
+
+data "google_container_engine_versions" "main" {
   provider = google-beta
   location = var.region
 }
@@ -10,7 +51,7 @@ resource "google_container_cluster" "main" {
   project = var.project_id
 
   location           = var.region
-  min_master_version = data.google_container_engine_versions.us-central1.release_channel_latest_version["REGULAR"]
+  min_master_version = data.google_container_engine_versions.main.release_channel_latest_version["REGULAR"]
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
@@ -70,6 +111,10 @@ resource "google_container_cluster" "main" {
       }
       disk_size = 100
       disk_type = "pd-ssd"
+      shielded_instance_config {
+        enable_secure_boot          = true
+        enable_integrity_monitoring = true
+      }
     }
 
     resource_limits {
@@ -102,211 +147,30 @@ resource "google_container_cluster" "main" {
   }
 }
 
-resource "google_container_node_pool" "builder_1" {
-  name = "builder-1"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
+resource "google_container_node_pool" "main" {
+  for_each       = local._node_pools
+  name           = each.key
+  cluster        = google_container_cluster.main.id
+  node_locations = each.value.node_locations
   autoscaling {
-    min_node_count = 0
-    max_node_count = 5
+    min_node_count  = 0
+    max_node_count  = each.value.max_node_count
+    location_policy = "ANY"
   }
-
-  node_config {
-    machine_type = "n2d-standard-4"
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [
-      initial_node_count
-    ]
-  }
-}
-
-# The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
-resource "google_container_node_pool" "g2-standard-4" {
-  name = "g2-standard-4"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
-  autoscaling {
-    min_node_count = 0
-    max_node_count = 3
-  }
-
   node_config {
     spot         = true
-    machine_type = "g2-standard-4"
+    machine_type = each.value.machine_type
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = each.value.local_ssd_count
+    }
     guest_accelerator {
       type  = "nvidia-l4"
-      count = 1
+      count = try(each.value.guest_accelerator_count, 0)
     }
-
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
-    }
-
-    // gcs_config enables image streaming
-    gcfs_config {
-      enabled = true
-    }
-
-  }
-
-  lifecycle {
-    ignore_changes = [
-      initial_node_count
-    ]
-  }
-}
-
-resource "google_container_node_pool" "g2-standard-8" {
-  name = "g2-standard-8"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
-  autoscaling {
-    min_node_count = 0
-    max_node_count = 3
-  }
-
-  node_config {
-    spot         = true
-    machine_type = "g2-standard-8"
-    guest_accelerator {
-      type  = "nvidia-l4"
-      count = 1
-    }
-
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
-    }
-
-    // gcs_config enables image streaming
     gcfs_config {
       enabled = true
     }
   }
-
-  lifecycle {
-    ignore_changes = [
-      initial_node_count
-    ]
-  }
-}
-
-
-resource "google_container_node_pool" "g2-standard-24" {
-  name = "g2-standard-24"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
-  autoscaling {
-    min_node_count = 0
-    max_node_count = 3
-  }
-
-  node_config {
-    spot         = true
-    machine_type = "g2-standard-24"
-    guest_accelerator {
-      type  = "nvidia-l4"
-      count = 2
-    }
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 2
-    }
-
-    // gcs_config enables image streaming
-    gcfs_config {
-      enabled = true
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [
-      initial_node_count
-    ]
-  }
-}
-
-resource "google_container_node_pool" "g2-standard-48" {
-  name = "g2-standard-48"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
-  autoscaling {
-    min_node_count = 0
-    max_node_count = 3
-  }
-
-  node_config {
-    spot         = true
-    machine_type = "g2-standard-48"
-    guest_accelerator {
-      type  = "nvidia-l4"
-      count = 4
-    }
-
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 4
-    }
-    // gcs_config enables image streaming
-    gcfs_config {
-      enabled = true
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [
-      initial_node_count
-    ]
-  }
-}
-
-
-resource "google_container_node_pool" "g2-standard-96" {
-  name = "g2-standard-96"
-
-  cluster            = google_container_cluster.main.id
-  initial_node_count = 0
-  node_locations     = [var.zone]
-
-  autoscaling {
-    min_node_count = 0
-    max_node_count = 3
-  }
-
-  node_config {
-    spot         = true
-    machine_type = "g2-standard-96"
-    guest_accelerator {
-      type  = "nvidia-l4"
-      count = 8
-    }
-
-    ephemeral_storage_local_ssd_config {
-      local_ssd_count = 8
-    }
-    // gcs_config enables image streaming
-    gcfs_config {
-      enabled = true
-    }
-  }
-
   lifecycle {
     ignore_changes = [
       initial_node_count

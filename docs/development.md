@@ -10,7 +10,7 @@ docker build ./infra -t substratus-infra && docker run -it \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
     -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-infra gcp-up
+    substratus-infra gcp-up.sh
 ```
 
 Setup controller for running locally.
@@ -23,6 +23,7 @@ source ./hack/dev/nick-gcp.sh
 Run controller locally.
 
 ```sh
+make install
 make dev
 ```
 
@@ -60,7 +61,7 @@ docker build ./infra -t substratus-infra && docker run -it \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
     -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-infra gcp-down
+    substratus-infra gcp-down.sh
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
@@ -70,42 +71,48 @@ TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for 
 **This flow is probably broken right now**
 
 Install a local cluster using kind:
-```
+
+```bash
 kind create cluster
 ```
 
 Deploy the self-contained registry:
-```
+
+```bash
 kubectl apply -f config/extra/registry.yaml
 kubectl patch svc docker-registry -p '{"spec": {"type": "NodePort"}}'
 ```
 
 Get the node IP address of the kind node:
-```
+
+```bash
 export NODE_IP=$(kubectl get node kind-control-plane -o json | \
   jq -r '.status.addresses[] | select(.type == "InternalIP").address')
 ```
 
 Get the nodeport of the registry service:
-```
+
+```bash
 export NODE_PORT=$(kubectl get svc docker-registry -o json | jq '.spec.ports[0].nodePort')
 ```
 
 Verify that you get an HTTP 200 OK response:
-```
+
+```bash
 export IMAGE_REGISTRY=$NODE_IP:$NODE_PORT
 curl http://$IMAGE_REGISTRY -v
 ```
 
 Deploy the DaemonSet that modifies containerd config to allow
 bundled registry:
-```
+
+```bash
 cat config/extra/allow-bundled-registry-ds.yaml | envsubst | kubectl apply -f -
 ```
 
 You should now be able to follow the steps to test it out locally:
-```
+
+```bash
 make install
 make run
 ```
-

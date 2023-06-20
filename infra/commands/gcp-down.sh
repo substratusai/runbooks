@@ -18,12 +18,11 @@ bucket=${PROJECT}-substratus
 
 # Delete infrastructure.
 cd terraform/gcp
-echo "bucket = \"${bucket}\""      >> backend.tfvars
-echo "project_id = \"${PROJECT}\"" >> terraform.tfvars
-echo "region = \"${REGION}\""      >> terraform.tfvars
-echo "zone = \"${ZONE}\""          >> terraform.tfvars
+echo "bucket = \"${bucket}\"" >>backend.tfvars
+echo "project_id = \"${PROJECT}\"" >>terraform.tfvars
+echo "region = \"${REGION}\"" >>terraform.tfvars
+echo "zone = \"${ZONE}\"" >>terraform.tfvars
 terraform init -upgrade --backend-config=backend.tfvars
-terraform destroy
+terraform destroy --auto-approve
 cluster=$(terraform output --raw cluster_name)
 cd -
-
