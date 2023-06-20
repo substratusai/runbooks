@@ -40,17 +40,18 @@ jobs:
       - run: make docker-build
       - run: kind load docker-image $IMG --name substratus
       - run: make deploy
-      - run: kubectl apply -f config/samples/gpt2.yaml
+      - run: kubectl apply -f examples/facebook-opt-125m/model.yaml
+      - run: kubectl apply -f examples/facebook-opt-125m/server.yaml
       - run: sleep 30 && kubectl get events -n substratus-system
       - run: kubectl get events -n default
       - run: kubectl describe pod -l control-plane=controller-manager -n substratus-system
       - run: kubectl logs -l control-plane=controller-manager -n substratus-system
       - run: kubectl get events
       - run: kubectl get pods
-      - run: kubectl describe pod -l job-name=gpt2-sample-image-builder
-      - run: kubectl logs -l job-name=gpt2-sample-image-builder
-      - run: kubectl wait model gpt2-sample --for condition=Ready --timeout=420s
-      - run: sleep 5 && kubectl get events && kubectl describe pod -l modelserver=gpt2-sample-api
+      - run: kubectl describe pod -l job-name=facebook-opt-125m-image-builder
+      - run: kubectl logs -l job-name=facebook-opt-125m-image-builder
+      - run: kubectl wait model facebook-opt-125m --for condition=Ready --timeout=420s
+      - run: sleep 5 && kubectl get events && kubectl describe pod -l modelserver=facebook-opt-125m
       - run: |
-          kubectl wait pods -l modelserver=gpt2-sample-api \
+          kubectl wait pods -l modelserver=facebook-opt-125m \
             --for condition=Ready --timeout=300s
