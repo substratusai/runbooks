@@ -6,4 +6,3 @@ spec:
   source:
     url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/hack/sample-data.jsonl
     filename: fav-colors.jsonl
-  size: 1Gi

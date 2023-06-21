@@ -9,7 +9,6 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -27,7 +26,6 @@ func TestDataset(t *testing.T) {
 				URL:      "https://test.internal/does/not/exist.jsonl",
 				Filename: "does-not-exist.jsonl",
 			},
-			Size: resource.MustParse("1Gi"),
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset")

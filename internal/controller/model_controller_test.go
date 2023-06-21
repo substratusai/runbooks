@@ -11,7 +11,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,7 +87,6 @@ func TestModelFromModel(t *testing.T) {
 				URL:      "https://test.internal/does/not/exist.jsonl",
 				Filename: "does-not-exist.jsonl",
 			},
-			Size: resource.MustParse("1Gi"),
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset to be referenced by the trained model")
