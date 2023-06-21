@@ -12,7 +12,6 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -70,7 +69,14 @@ func TestMain(m *testing.M) {
 	})
 	requireNoError(err)
 
-	cloudContext := &mockCloudContext{}
+	cloudContext := &controller.CloudContext{
+		CloudType: controller.CloudTypeGCP,
+		GCP: &controller.GCPCloudContext{
+			ProjectID:       "test-project-id",
+			ClusterName:     "test-cluster-name",
+			ClusterLocation: "us-central1",
+		},
+	}
 
 	gpuType := controller.GPUTypeNone
 
@@ -138,17 +144,4 @@ func slurpTestFile(t *testing.T, filename string) string {
 	require.NoError(t, err)
 
 	return string(contents)
-}
-
-// Assert that the mock implements the interface.
-var _ controller.CloudContext = &mockCloudContext{}
-
-type mockCloudContext struct{}
-
-func (m *mockCloudContext) AuthNServiceAccount(runtime controller.Runtime, sa *corev1.ServiceAccount) error {
-	if sa.Annotations == nil {
-		sa.Annotations = map[string]string{}
-	}
-	sa.Annotations["test-cloud-authn"] = "set-by-mock-cloud-context"
-	return nil
 }

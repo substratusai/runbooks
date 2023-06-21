@@ -24,7 +24,11 @@ func TestModelServer(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{},
+			Source: apiv1.ModelSource{
+				Git: &apiv1.GitSource{
+					URL: "test.com/test/test.git",
+				},
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the modelserver")

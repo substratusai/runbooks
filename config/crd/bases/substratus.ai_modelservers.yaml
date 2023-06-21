@@ -43,8 +43,6 @@ spec:
             description: ModelServerSpec defines the desired state of ModelServer
             properties:
               modelName:
-                description: Foo is an example field of ModelServer. Edit modelserver_types.go
-                  to remove/update
                 type: string
             type: object
           status:

@@ -34,6 +34,9 @@ resource "google_container_cluster" "main" {
     config_connector_config {
       enabled = false
     }
+    gcs_fuse_csi_driver_config {
+      enabled = true
+    }
   }
 
   maintenance_policy {
@@ -97,6 +100,7 @@ resource "google_container_cluster" "main" {
   lifecycle {
     ignore_changes = [
       initial_node_count,
+      node_config,
       maintenance_policy["maintenance_exclusion"]
     ]
   }

@@ -102,7 +102,7 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 
 	switch runtime {
 	case RuntimeNotebook, RuntimeTrainer, RuntimeServer:
-		cpuCount := int64(4)
+		cpuCount := int64(3)
 		if gpuType != GPUTypeNone {
 			cpuCount = 2 * gpuCount
 		}

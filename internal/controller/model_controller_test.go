@@ -41,7 +41,7 @@ func TestModelFromGit(t *testing.T) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "image-builder"}, &sa)
 		assert.NoError(t, err, "getting the model builder serviceaccount")
 	}, timeout, interval, "waiting for the image builder serviceaccount to be created")
-	require.Equal(t, sa.Annotations["test-cloud-authn"], "set-by-mock-cloud-context")
+	require.Equal(t, "substratus-image-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a model builder Job gets created by the controller.
 	var job batchv1.Job
@@ -61,7 +61,11 @@ func TestModelFromModel(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{},
+			Source: apiv1.ModelSource{
+				Git: &apiv1.GitSource{
+					URL: "test.com/test/test.git",
+				},
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, baseModel), "create a model to be referenced by the trained model")
@@ -89,7 +93,7 @@ func TestModelFromModel(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset to be referenced by the trained model")
 	datasetWithUpdatedStatus := dataset.DeepCopy()
-	datasetWithUpdatedStatus.Status.PVCName = "test"
+	datasetWithUpdatedStatus.Status.URL = "gs://test-bucket/test.jsonl"
 	meta.SetStatusCondition(&datasetWithUpdatedStatus.Status.Conditions, metav1.Condition{
 		Type:   controller.ConditionReady,
 		Status: metav1.ConditionTrue,

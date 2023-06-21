@@ -19,8 +19,9 @@ type DatasetSource struct {
 
 // DatasetStatus defines the observed state of Dataset
 type DatasetStatus struct {
-	PVCName    string             `json:"pvcName,omitempty"`
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	URL string `json:"url,omitempty"`
 }
 
 //+kubebuilder:object:root=true

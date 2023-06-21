@@ -43,8 +43,6 @@ spec:
             description: NotebookSpec defines the desired state of Notebook
             properties:
               modelName:
-                description: Foo is an example field of Notebook. Edit notebook_types.go
-                  to remove/update
                 type: string
               suspend:
                 type: boolean

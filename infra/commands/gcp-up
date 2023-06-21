@@ -13,6 +13,7 @@ export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
 
 # Enable required services.
 gcloud services enable --project ${PROJECT} container.googleapis.com
+gcloud services enable --project ${PROJECT} artifactregistry.googleapis.com
 
 # Create terraform state bucket.
 bucket=${PROJECT}-substratus
@@ -27,6 +28,4 @@ echo "zone = \"${ZONE}\""          >> terraform.tfvars
 terraform init --backend-config=backend.tfvars
 terraform apply
 cluster=$(terraform output --raw cluster_name)
-# I did not see a configuration option for setting NAP locations in terraform:
-gcloud container clusters update --project ${PROJECT} ${cluster} --region ${REGION} --enable-autoprovisioning --autoprovisioning-locations=$ZONE
 cd -
