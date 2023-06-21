@@ -145,10 +145,7 @@ spec:
                   - type
                   type: object
                 type: array
-              pvcName:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
+              url:
                 type: string
             type: object
         type: object
@@ -310,9 +307,6 @@ spec:
                   type: object
                 type: array
               containerImage:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 type: string
               servers:
                 items:
@@ -369,8 +363,6 @@ spec:
             description: ModelServerSpec defines the desired state of ModelServer
             properties:
               modelName:
-                description: Foo is an example field of ModelServer. Edit modelserver_types.go
-                  to remove/update
                 type: string
             type: object
           status:
@@ -495,8 +487,6 @@ spec:
             description: NotebookSpec defines the desired state of Notebook
             properties:
               modelName:
-                description: Foo is an example field of Notebook. Edit notebook_types.go
-                  to remove/update
                 type: string
               suspend:
                 type: boolean
@@ -992,9 +982,10 @@ spec:
         - --leader-elect
         command:
         - /manager
-        env:
-        - name: IMAGE_REGISTRY
-          value: 
+        envFrom:
+        - configMapRef:
+            name: controller-manager
+            optional: true
         image: docker.io/substratusai/controller-manager:latest
         livenessProbe:
           httpGet:

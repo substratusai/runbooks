@@ -162,7 +162,7 @@ func (r *DatasetReconciler) pullerJob(ctx context.Context, dataset *apiv1.Datase
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "data",
 							MountPath: "/data",
-							SubPath:   dataset.Name,
+							SubPath:   string(dataset.UID),
 						}},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
@@ -198,7 +198,8 @@ func (r *DatasetReconciler) pullerJob(ctx context.Context, dataset *apiv1.Datase
 				},
 			},
 		})
-		dataset.Status.URL = "gcs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets/" + dataset.Name + "/" + dataset.Spec.Source.Filename
+		dataset.Status.URL = "gcs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
+			"/" + string(dataset.UID) + "/" + dataset.Spec.Source.Filename
 	}
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {

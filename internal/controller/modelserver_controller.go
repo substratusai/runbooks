@@ -62,7 +62,8 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 	if !isRegistered {
-		// TODO: Remove from this list on deletion.
+		// TODO: Stop using this, switch to cache index for enqueueing.
+		// NOTE: There is no cleanup of this list at the moment.
 		model.Status.Servers = append(model.Status.Servers, server.Name)
 		if err := r.Status().Update(ctx, &model); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)

@@ -38,15 +38,15 @@ func TestModelFromGit(t *testing.T) {
 	// Test that a model builder ServiceAccount gets created by the controller.
 	var sa corev1.ServiceAccount
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "image-builder"}, &sa)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "model-builder"}, &sa)
 		assert.NoError(t, err, "getting the model builder serviceaccount")
 	}, timeout, interval, "waiting for the image builder serviceaccount to be created")
-	require.Equal(t, "substratus-image-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+	require.Equal(t, "substratus-model-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a model builder Job gets created by the controller.
 	var job batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Name + "-image-builder"}, &job)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Name + "-model-builder"}, &job)
 		assert.NoError(t, err, "getting the model builder job")
 	}, timeout, interval, "waiting for the image builder job to be created")
 	require.Equal(t, "builder", job.Spec.Template.Spec.Containers[0].Name)
@@ -117,12 +117,22 @@ func TestModelFromModel(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(ctx, trainedModel), "creating a model that references another model for training")
 
+	// Test that a model trainer ServiceAccount gets created by the controller.
+	var sa corev1.ServiceAccount
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: trainedModel.Namespace, Name: "model-trainer"}, &sa)
+		assert.NoError(t, err, "getting the model trainer serviceaccount")
+	}, timeout, interval, "waiting for the image trainer serviceaccount to be created")
+	require.Equal(t, "substratus-model-trainer@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+
 	// Test that a trainer Pod gets created by the controller.
 	var job batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: trainedModel.Namespace, Name: trainedModel.Name + "-image-builder"}, &job)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: trainedModel.Namespace, Name: trainedModel.Name + "-model-trainer"}, &job)
 		assert.NoError(t, err, "getting the model training job")
 	}, timeout, interval, "waiting for the model training job to be created")
-	require.Equal(t, "trainer", job.Spec.Template.Spec.InitContainers[0].Name)
-	require.Contains(t, strings.Join(job.Spec.Template.Spec.InitContainers[0].Command, " "), "train.sh")
+	require.Equal(t, "trainer", job.Spec.Template.Spec.Containers[0].Name)
+	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Command, " "), "train.sh")
+
+	// TODO: Test build Job after training Job.
 }
