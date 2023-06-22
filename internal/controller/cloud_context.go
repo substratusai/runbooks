@@ -31,8 +31,8 @@ func (gcp *GCPCloudContext) Region() string {
 }
 
 func ConfigureCloud() (*CloudContext, error) {
-	// If CONFIGURE_CLOUD is set, then pull configuration from environment variables.
-	envCloud, ok := os.LookupEnv("CONFIGURE_CLOUD")
+	// If CLOUD is set, then pull configuration from environment variables.
+	envCloud, ok := os.LookupEnv("CLOUD")
 	if ok {
 		switch CloudType(envCloud) {
 		case CloudTypeGCP:
