@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/kelseyhightower/envconfig"
@@ -21,8 +22,17 @@ type GCPCloudContext struct {
 	ClusterLocation string `envconfig:"CLUSTER_LOCATION" required:"true"`
 }
 
-func NewCloudContext() (*CloudContext, error) {
-	envCloud, ok := os.LookupEnv("CLOUD")
+func (gcp *GCPCloudContext) Region() string {
+	split := strings.Split(gcp.ClusterLocation, "-")
+	if len(split) < 2 {
+		panic("invalid cluster location: " + gcp.ClusterLocation)
+	}
+	return strings.Join(split[:2], "-")
+}
+
+func ConfigureCloud() (*CloudContext, error) {
+	// If CONFIGURE_CLOUD is set, then pull configuration from environment variables.
+	envCloud, ok := os.LookupEnv("CONFIGURE_CLOUD")
 	if ok {
 		switch CloudType(envCloud) {
 		case CloudTypeGCP:
@@ -49,6 +59,7 @@ func NewCloudContext() (*CloudContext, error) {
 			GCP:       gcp,
 		}, nil
 	}
+
 	return nil, fmt.Errorf("unable to determine cloud")
 }
 

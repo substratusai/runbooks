@@ -54,12 +54,6 @@ spec:
           spec:
             description: DatasetSpec defines the desired state of Dataset
             properties:
-              size:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
               source:
                 properties:
                   filename:
@@ -71,8 +65,6 @@ spec:
                 - filename
                 - url
                 type: object
-            required:
-            - size
             type: object
           status:
             description: DatasetStatus defines the observed state of Dataset
@@ -229,9 +221,6 @@ spec:
                 required:
                 - datasetName
                 type: object
-              version:
-                default: latest
-                type: string
             required:
             - source
             type: object
@@ -890,6 +879,14 @@ subjects:
   namespace: substratus
 ---
 apiVersion: v1
+data:
+  GPU_TYPE: none
+kind: ConfigMap
+metadata:
+  name: system
+  namespace: substratus
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
@@ -984,8 +981,7 @@ spec:
         - /manager
         envFrom:
         - configMapRef:
-            name: controller-manager
-            optional: true
+            name: system
         image: docker.io/substratusai/controller-manager:latest
         livenessProbe:
           httpGet:

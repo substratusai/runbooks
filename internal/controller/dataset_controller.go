@@ -79,7 +79,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Status:             metav1.ConditionFalse,
 		Reason:             ReasonPulling,
 		ObservedGeneration: dataset.Generation,
-		Message:            "Waiting for dataset to be stored in the PersistentVolume by the data puller Job.",
+		Message:            "Waiting for dataset data puller Job to complete.",
 	})
 	if err := r.Status().Update(ctx, &dataset); err != nil {
 		return ctrl.Result{}, err
@@ -99,7 +99,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Status:             metav1.ConditionTrue,
 		Reason:             ReasonPulled,
 		ObservedGeneration: dataset.Generation,
-		Message:            "Dataset is ready (pulled and cloned into the ReadOnlyMany PersistentVolume).",
+		Message:            "Dataset is ready.",
 	})
 	if err := r.Status().Update(ctx, &dataset); err != nil {
 		return ctrl.Result{}, err
@@ -113,7 +113,6 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Dataset{}).
 		Owns(&batchv1.Job{}).
-		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }
 

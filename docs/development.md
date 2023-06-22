@@ -65,6 +65,25 @@ docker build ./infra -t substratus-infra && docker run -it \
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
 
+## Remote Deployment
+
+```sh
+# Use your project's registry.
+export IMAGE=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/substratus/controller-manager
+
+# Docker build and push image.
+make docker-build docker-push IMG=$IMAGE
+
+# Build manifests
+make config/install.yaml IMG=$IMAGE
+
+# Edit GPU type as needed.
+# Search for "GPU_TYPE" in ./config/install.yaml
+
+# Install on the cluster.
+kubectl apply -f ./config/install.yaml
+```
+
 ## Local Development
 
 **This flow is probably broken right now**

@@ -42,7 +42,6 @@ type ModelReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Config       ModelReconcilerConfig
 	CloudContext *CloudContext
 	GPUType      GPUType
 }
@@ -193,7 +192,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		Reason:             ReasonBuiltAndPushed,
 		ObservedGeneration: model.Generation,
 	})
-	model.Status.ContainerImage = modelImage(&model, r.Config.ImageRegistry)
+	model.Status.ContainerImage = r.modelImage(&model)
 
 	if err := r.Status().Update(ctx, &model); err != nil {
 		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
@@ -223,8 +222,14 @@ func (r *ModelReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
 	return nil
 }
 
-func modelImage(m *apiv1.Model, registry string) string {
-	return registry + "/" + m.Namespace + "-" + m.Name + ":" + m.Spec.Version
+func (r *ModelReconciler) modelImage(m *apiv1.Model) string {
+	switch typ := r.CloudContext.CloudType; typ {
+	case CloudTypeGCP:
+		// Assuming this is Google Artifact Registry named "substratus".
+		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, m.Namespace, m.Name)
+	default:
+		panic("unsupported cloud type: " + typ)
+	}
 }
 
 func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sourceModel *apiv1.Model) (*batchv1.Job, error) {
@@ -235,7 +240,7 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 
 	buildArgs := []string{
 		"--dockerfile=Dockerfile",
-		"--destination=" + modelImage(model, r.Config.ImageRegistry),
+		"--destination=" + r.modelImage(model),
 		// Cache will default to the image registry.
 		"--cache=true",
 		// Disable compressed caching to decrease memory usage.
@@ -243,14 +248,39 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 		"--compressed-caching=false",
 	}
 
+	var initContainers []corev1.Container
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
 
 	if model.Spec.Training != nil {
+		const trainedDockerfile = `# Dockerfile for copying trained model into a new image.
+ARG SRC_IMG
+FROM $SRC_IMG
+COPY trained /model/saved
+COPY logs /model/logs
+RUN rm -rf /model/trained
+`
+		// Add an init container that will create a Dockerfile.
+		initContainers = append(initContainers, corev1.Container{
+			Name:  "dockerfile-templater",
+			Image: "busybox",
+			Args: []string{
+				"sh",
+				"-c",
+				"echo '" + trainedDockerfile + "' > /workspace/Dockerfile",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "dockerfile",
+					MountPath: "/workspace",
+				},
+			},
+		})
+
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=SRC_IMG=%v", sourceModel.Status.ContainerImage))
 		volumeMounts = []corev1.VolumeMount{
 			{
-				Name:      "builder-model-source-context",
+				Name:      "dockerfile",
 				MountPath: "/workspace/Dockerfile",
 				SubPath:   "Dockerfile",
 			},
@@ -268,11 +298,9 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 
 		volumes = []corev1.Volume{
 			{
-				Name: "builder-model-source-context",
+				Name: "dockerfile",
 				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "builder-model-source-context"},
-					},
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
@@ -314,6 +342,7 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
+					InitContainers: initContainers,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  int64Ptr(0),
 						RunAsGroup: int64Ptr(0),

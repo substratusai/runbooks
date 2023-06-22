@@ -3,7 +3,6 @@ kind: Model
 metadata:
   name: falcon-7b-instruct
 spec:
-  version: v1.0.0
   source:
     git:
       url: github.com/substratusai/models

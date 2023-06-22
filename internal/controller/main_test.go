@@ -81,11 +81,8 @@ func TestMain(m *testing.M) {
 	gpuType := controller.GPUTypeNone
 
 	err = (&controller.ModelReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Config: controller.ModelReconcilerConfig{
-			ImageRegistry: "test.internal",
-		},
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
 		GPUType:      gpuType,
 	}).SetupWithManager(mgr)

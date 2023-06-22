@@ -74,9 +74,6 @@ spec:
                 required:
                 - datasetName
                 type: object
-              version:
-                default: latest
-                type: string
             required:
             - source
             type: object
