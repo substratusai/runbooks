@@ -1,7 +1,7 @@
 // Package cp uses kubectl to copy the files.
 // Its probably OK to rely on the kubectl binary being present since
-// this is currently implemented as a plugin. In the case where it gets
-// implemented as a standalone binary, this should be switch to Go code.
+// this is currently implemented as a plugin. In the case where this binary gets
+// implemented as a standalone cli tool, this should be switched to Go code.
 package cp
 
 import (
