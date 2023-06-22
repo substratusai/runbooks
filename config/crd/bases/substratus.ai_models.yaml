@@ -74,9 +74,6 @@ spec:
                 required:
                 - datasetName
                 type: object
-              version:
-                default: latest
-                type: string
             required:
             - source
             type: object
@@ -152,9 +149,6 @@ spec:
                   type: object
                 type: array
               containerImage:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 type: string
               servers:
                 items:

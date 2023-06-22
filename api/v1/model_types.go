@@ -6,9 +6,6 @@ import (
 
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=latest
-	Version  string      `json:"version,omitempty"`
 	Source   ModelSource `json:"source"`
 	Training *Training   `json:"training,omitempty"`
 	Size     ModelSize   `json:"size,omitempty"`

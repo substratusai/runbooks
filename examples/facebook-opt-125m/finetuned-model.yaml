@@ -3,7 +3,6 @@ kind: Model
 metadata:
   name: my-model
 spec:
-  version: v1.0.0
   source:
     modelName: facebook-opt-125m
   training:

@@ -62,9 +62,10 @@ spec:
     modelName: facebook-opt-125m
   training:
     datasetName: favorite-colors
+  # TODO: This should be copied from the source Model.
   size:
-    runtime: 1.6Gi
-    container: 9Gi
+    parameterBits: 32
+    parameterCount: 125000000
 ```
 
 ### ModelServer API
@@ -85,7 +86,7 @@ spec:
 
 The Dataset API snapshots and locally caches remote datasets to facilitate efficient and reproducable training results. Use Datasets to curate an internal catalog of data available to data scientists with fine-grained access control.
 
-[embedmd]:# (config/base-datasets/favorite-colors.yaml)
+[embedmd]:# (examples/facebook-opt-125m/dataset.yaml)
 ```yaml
 apiVersion: substratus.ai/v1
 kind: Dataset
@@ -93,9 +94,8 @@ metadata:
   name: favorite-colors
 spec:
   source:
-    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/sample-data/favorite-color-blue.jsonl
+    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/hack/sample-data.jsonl
     filename: fav-colors.jsonl
-  size: 1Gi
 ```
 
 ### Notebook API
@@ -111,5 +111,5 @@ kind: Notebook
 metadata:
   name: my-notebook
 spec:
-  modelName: my-model
+  modelName: facebook-opt-125m
 ```

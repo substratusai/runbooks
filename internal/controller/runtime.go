@@ -102,7 +102,7 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 
 	switch runtime {
 	case RuntimeNotebook, RuntimeTrainer, RuntimeServer:
-		cpuCount := int64(4)
+		cpuCount := int64(3)
 		if gpuType != GPUTypeNone {
 			cpuCount = 2 * gpuCount
 		}
@@ -149,7 +149,10 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 		// Model is already stored in the container.
 		// Ephemeral storage is just needed for what the user downloads.
 		ephStorage = 10 * gigabyte
-	case RuntimeTrainer, RuntimeBuilder:
+	case RuntimeTrainer:
+		// Model artifacts are stored using volumes outside of container.
+		ephStorage = 10 * gigabyte
+	case RuntimeBuilder:
 		// Use 2x the model size because kaniko takes snapshots
 		// Add a fixed cushion.
 		ephStorage = int64(2*float64(modelBytes)) + 40*gigabyte

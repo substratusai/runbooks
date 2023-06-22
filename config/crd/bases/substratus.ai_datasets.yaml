@@ -42,12 +42,6 @@ spec:
           spec:
             description: DatasetSpec defines the desired state of Dataset
             properties:
-              size:
-                anyOf:
-                - type: integer
-                - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
               source:
                 properties:
                   filename:
@@ -59,8 +53,6 @@ spec:
                 - filename
                 - url
                 type: object
-            required:
-            - size
             type: object
           status:
             description: DatasetStatus defines the observed state of Dataset
@@ -133,10 +125,7 @@ spec:
                   - type
                   type: object
                 type: array
-              pvcName:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
+              url:
                 type: string
             type: object
         type: object

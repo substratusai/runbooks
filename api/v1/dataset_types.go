@@ -1,14 +1,12 @@
 package v1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DatasetSpec defines the desired state of Dataset
 type DatasetSpec struct {
-	Source DatasetSource     `json:"source,omitempty"`
-	Size   resource.Quantity `json:"size"`
+	Source DatasetSource `json:"source,omitempty"`
 }
 
 type DatasetSource struct {
@@ -19,8 +17,9 @@ type DatasetSource struct {
 
 // DatasetStatus defines the observed state of Dataset
 type DatasetStatus struct {
-	PVCName    string             `json:"pvcName,omitempty"`
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	URL string `json:"url,omitempty"`
 }
 
 //+kubebuilder:object:root=true

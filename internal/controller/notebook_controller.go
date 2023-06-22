@@ -22,7 +22,7 @@ const (
 	ReasonSuspended = "Suspended"
 )
 
-// NotebookReconciler reconciles a Notebook object
+// NotebookReconciler reconciles a Notebook object.
 type NotebookReconciler struct {
 	client.Client
 	Scheme  *runtime.Scheme
@@ -32,6 +32,7 @@ type NotebookReconciler struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
@@ -140,8 +141,6 @@ func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }
-
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model) (*corev1.Pod, error) {
 	pod := &corev1.Pod{

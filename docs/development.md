@@ -65,47 +65,21 @@ docker build ./infra -t substratus-infra && docker run -it \
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
 
-## Local Development
+## Remote Deployment
 
-**This flow is probably broken right now**
+```sh
+# Use your project's registry.
+export IMAGE=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/substratus/controller-manager
 
-Install a local cluster using kind:
-```
-kind create cluster
-```
+# Docker build and push image.
+make docker-build docker-push IMG=$IMAGE
 
-Deploy the self-contained registry:
-```
-kubectl apply -f config/extra/registry.yaml
-kubectl patch svc docker-registry -p '{"spec": {"type": "NodePort"}}'
-```
+# Build manifests
+make config/install.yaml IMG=$IMAGE
 
-Get the node IP address of the kind node:
-```
-export NODE_IP=$(kubectl get node kind-control-plane -o json | \
-  jq -r '.status.addresses[] | select(.type == "InternalIP").address')
-```
+# Edit GPU type as needed.
+# Search for "GPU_TYPE" in ./config/install.yaml
 
-Get the nodeport of the registry service:
+# Install on the cluster.
+kubectl apply -f ./config/install.yaml
 ```
-export NODE_PORT=$(kubectl get svc docker-registry -o json | jq '.spec.ports[0].nodePort')
-```
-
-Verify that you get an HTTP 200 OK response:
-```
-export IMAGE_REGISTRY=$NODE_IP:$NODE_PORT
-curl http://$IMAGE_REGISTRY -v
-```
-
-Deploy the DaemonSet that modifies containerd config to allow
-bundled registry:
-```
-cat config/extra/allow-bundled-registry-ds.yaml | envsubst | kubectl apply -f -
-```
-
-You should now be able to follow the steps to test it out locally:
-```
-make install
-make run
-```
-

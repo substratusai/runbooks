@@ -32,16 +32,15 @@ func Test_setRuntimeResources(t *testing.T) {
 			},
 			expected: map[Runtime]string{
 				RuntimeTrainer: `
-containers: null
-initContainers:
+containers:
 - name: trainer
   resources:
     limits:
-      ephemeral-storage: 41Gi
+      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 41Gi
+      ephemeral-storage: 10Gi
       memory: 3Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -120,16 +119,15 @@ containers:
 			},
 			expected: map[Runtime]string{
 				RuntimeTrainer: `
-containers: null
-initContainers:
+containers:
 - name: trainer
   resources:
     limits:
-      ephemeral-storage: 67Gi
+      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 67Gi
+      ephemeral-storage: 10Gi
       memory: 17Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -225,17 +223,9 @@ containers:
 
 func testSpec(t *testing.T, runtime Runtime) *corev1.PodSpec {
 	switch runtime {
-	case RuntimeNotebook, RuntimeServer, RuntimeBuilder:
+	case RuntimeNotebook, RuntimeServer, RuntimeBuilder, RuntimeTrainer:
 		return &corev1.PodSpec{
 			Containers: []corev1.Container{
-				{
-					Name: string(runtime),
-				},
-			},
-		}
-	case RuntimeTrainer:
-		return &corev1.PodSpec{
-			InitContainers: []corev1.Container{
 				{
 					Name: string(runtime),
 				},

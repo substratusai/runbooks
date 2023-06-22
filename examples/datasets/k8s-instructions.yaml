@@ -3,7 +3,6 @@ kind: Dataset
 metadata:
   name: k8s-instructions
 spec:
-  size: 1Gi
   source:
     filename: k8s-instructions.jsonl
     url: https://huggingface.co/datasets/samos123/k8s-instructions/raw/main/k8s-instructions.jsonl
