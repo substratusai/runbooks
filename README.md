@@ -102,7 +102,7 @@ spec:
 
 The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration.
 
-Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin).
+Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin). Local directories can be 2-way synced with remote Notebook environments using the `--sync` flag. This allows users to quickly iterate on model source code.
 
 [embedmd]:# (examples/facebook-opt-125m/notebook.yaml)
 ```yaml

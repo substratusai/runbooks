@@ -35,9 +35,10 @@ Must be located in `$PATH`:
 
 ```
 /model/
-  saved/   # Model artifacts from build jobs (to be loaded for inference).
-  trained/ # Model artifacts from training job.
-  logs/    # Output of building/training jobs.
+  src/     # Model source code
+  saved/   # Model artifacts from build jobs (to be loaded for inference)
+  trained/ # Model artifacts from training job
+  logs/    # Output of building/training jobs
 ```
 
 Images should have the following python packages installed:
