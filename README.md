@@ -25,7 +25,7 @@ docker build ./install -t substratus-installer && docker run -it \
     substratus-installer gcp-up
 ```
 
-Kubectl should not be pointing at your newly created cluster.
+Kubectl should now be pointing at your newly created cluster.
 
 Install an example model.
 
