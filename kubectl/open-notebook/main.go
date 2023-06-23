@@ -39,6 +39,7 @@ func run() error {
 		filename      string
 		namespace     string
 		noOpenBrowser bool
+		sync          bool
 		timeout       time.Duration
 	}
 	if home := homeDir(); home != "" {
@@ -48,6 +49,7 @@ func run() error {
 	}
 	pflag.StringVarP(&flags.filename, "filename", "f", "", "Filename of Notebook manifest (i.e. notebook.yaml)")
 	pflag.StringVarP(&flags.namespace, "namespace", "n", "default", "Namespace of Notebook")
+	pflag.BoolVar(&flags.sync, "sync", false, "Sync local directory with Notebook")
 	pflag.BoolVar(&flags.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	pflag.DurationVarP(&flags.timeout, "timeout", "t", 10*time.Minute, "Timeout for Notebook to become ready")
 	pflag.Usage = func() {
@@ -147,12 +149,9 @@ func run() error {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	ready := make(chan struct{})
-
+	// Use a new context to avoid using the cancelled one.
+	cleanupCtx := context.Background()
 	cleanup := func() {
-		// Use a new context to avoid using the cancelled one.
-		cleanupCtx := context.Background()
-
 		// Suspend notebook.
 		fmt.Println("Cleanup: Suspending notebook...")
 		if _, err := client.suspend(cleanupCtx, notebook); err != nil {
@@ -160,9 +159,26 @@ func run() error {
 		}
 	}
 
+	fmt.Print("Waiting for Notebook to be ready...\n")
+	if err := client.waitReady(ctx, notebook); err != nil {
+		cleanup()
+		log.Fatal(err)
+	}
+	fmt.Println("\nNotebook: Ready")
+
+	if flags.sync {
+		fmt.Println("Syncing local directory with Notebook...")
+		if err := client.copyTo(ctx, notebook); err != nil {
+			cleanup()
+			log.Fatal(err)
+		}
+		fmt.Println("Sync: Done")
+	}
+
+	serveReady := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		if err := client.waitAndServe(ctx, notebook, ready); err != nil {
+		if err := client.serve(ctx, notebook, serveReady); err != nil {
 			cleanup()
 			if errors.Is(err, context.Canceled) {
 				os.Exit(0)
@@ -172,12 +188,12 @@ func run() error {
 		}
 	}()
 
-	fmt.Print("Waiting for Notebook to be ready...\n")
+	fmt.Print("Waiting for connection to be ready to serve...\n")
 	select {
-	case <-ready:
+	case <-serveReady:
 		break
 	}
-	fmt.Println("\nNotebook: Ready")
+	fmt.Println("\nConnection: Ready")
 
 	url := "http://localhost:8888"
 	if !flags.noOpenBrowser {
@@ -187,8 +203,17 @@ func run() error {
 		fmt.Printf("Notebook serving on: %s\n", url)
 	}
 
-	fmt.Println("Waiting for clean shutdown...")
+	// Wait for clean shutdown...
 	wg.Wait()
+
+	if flags.sync {
+		fmt.Println("Syncing Notebook to local directory...")
+		if err := client.copyFrom(cleanupCtx, notebook); err != nil {
+			cleanup()
+			log.Fatal(err)
+		}
+		fmt.Println("Sync: Done")
+	}
 
 	cleanup()
 
