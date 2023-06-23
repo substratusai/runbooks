@@ -29,3 +29,9 @@ terraform init --backend-config=backend.tfvars
 terraform apply
 cluster=$(terraform output --raw cluster_name)
 cd -
+
+# Configure kubectl.
+gcloud container clusters get-credentials --project ${PROJECT} --region ${REGION} ${cluster}
+
+# Install cluster components.
+kubectl apply -f kubernetes/system.yaml
