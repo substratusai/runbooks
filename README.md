@@ -27,7 +27,7 @@ docker build ./install -t substratus-installer && docker run -it \
 
 Kubectl should now be pointing at your newly created cluster.
 
-Install an example model.
+Substratus comes with some state of the art models ready to go. For now we will just install a small model to test things out.
 
 ```sh
 kubectl apply -f ./examples/facebook-opt-125m/model.yaml
