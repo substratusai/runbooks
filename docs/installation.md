@@ -17,5 +17,6 @@ The Terraform and Kubernetes configurations do not attempt to export every optio
 
 | Configuration | File                                     |
 | ------------- | ---------------------------------------- |
+| Project ID    | `scripts/gcp-up.sh`                      |
 | Region/Zone   | `terraform/terraform.tfvars`             |
 | GPU Types     | `kubernetes/config.yaml`                 |

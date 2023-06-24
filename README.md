@@ -13,7 +13,7 @@ Substratus is a cross cloud substrate for training and serving AI models. Substr
 
 ## Quickstart
 
-Stand up a Kubernetes cluster with Substratus installed (for more configuration options see [installation guide](./docs/installation.md).
+Stand up a Kubernetes cluster with Substratus installed (for more configuration options see [installation guide](./docs/installation.md)).
 
 ```sh
 docker build ./install -t substratus-installer && \
