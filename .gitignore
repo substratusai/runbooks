@@ -60,4 +60,5 @@ override.tf.json
 terraform.rc
 
 open-notebook
-brandon-gcp.sh
+secrets/*
+!secrets/.gitkeep
