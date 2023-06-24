@@ -1,21 +1,3 @@
-locals {
-  g2_machine_size_count = {
-    "4"  = 1,
-    "8"  = 1,
-    "12" = 1,
-    "16" = 1,
-    "24" = 2,
-    # "32" = 2, # 4 doesnt work, 8 doesnt work
-    "48" = 4,
-    "96" = 8,
-  }
-  node_pool_defaults = {
-    max_node_count     = 3
-    initial_node_count = 0
-    machine_type       = "n1-standard-4"
-  }
-}
-
 data "google_container_engine_versions" "main" {
   provider = google-beta
   location = var.region
