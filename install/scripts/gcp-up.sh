@@ -37,4 +37,6 @@ cd -
 gcloud container clusters get-credentials --project ${PROJECT} --region ${cluster_region} ${cluster_name}
 
 # Install cluster components.
+kubectl apply -f kubernetes/namespace.yaml
+kubectl apply -f kubernetes/config.yaml
 kubectl apply -f kubernetes/system.yaml

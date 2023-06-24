@@ -1,6 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: substratus
   labels:
     control-plane: controller-manager
     app.kubernetes.io/name: namespace
@@ -9,4 +10,3 @@ metadata:
     app.kubernetes.io/created-by: substratus
     app.kubernetes.io/part-of: substratus
     app.kubernetes.io/managed-by: kustomize
-  name: system
