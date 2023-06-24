@@ -16,10 +16,10 @@ install/
 
 ## Configuration Lookup
 
-The Terraform and Kubernetes configurations do not attempt to export every option as a variable. In order to keep the configurations simple, most options are set directly in the `.tf` and `.yaml` files. You will likely need to adopt and modify these files for your environment. A few common configurations items are exposed at variables (`terraform.tfvars` for Terraform, and `kind: ConfigMap` for Kubernetes).
+The Terraform and Kubernetes configurations do not attempt to export every option as a variable. In order to keep the configurations simple, most options are set directly in the `.tf` and `.yaml` files. You will likely need to adopt and modify these files for your environment.
 
 | Configuration | File                                     |
 | ------------- | ---------------------------------------- |
 | Project ID    | `scripts/gcp-up.sh`                      |
-| Region/Zone   | `terraform/terraform.tfvars`             |
+| Region/Zone   | `terraform/variables.tf`                 |
 | GPU Types     | `kubernetes/config.yaml`                 |
