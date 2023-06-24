@@ -23,7 +23,6 @@ source ./hack/dev/nick-gcp.sh
 Run controller locally.
 
 ```sh
-make install
 make dev
 ```
 

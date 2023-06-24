@@ -20,7 +20,7 @@ resource "google_project_iam_member" "model_builder_gar_repo_admin" {
 
 resource "google_storage_bucket_iam_member" "model_builder_training_storage_admin" {
   bucket = google_storage_bucket.training.name
-  role = "roles/storage.admin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.model_builder.email}"
 }
 
