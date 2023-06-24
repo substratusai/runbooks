@@ -16,13 +16,14 @@ Substratus is a cross cloud substrate for training and serving AI models. Substr
 Stand up a Kubernetes cluster with Substratus installed.
 
 ```sh
-docker build ./install -t substratus-installer && docker run -it \
-    -v $HOME/.kube:/root/.kube \
-    -e REGION=us-central1 \
-    -e ZONE=us-central1-a \
-    -e PROJECT=$(gcloud config get project) \
-    -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-installer gcp-up
+docker build ./install -t substratus-installer && \
+docker run -it \
+  -v $HOME/.kube:/root/.kube \
+  -e REGION=us-central1 \
+  -e ZONE=us-central1-a \
+  -e PROJECT=$(gcloud config get project) \
+  -e TOKEN=$(gcloud auth print-access-token) \
+  substratus-installer gcp-up.sh
 ```
 
 Kubectl should now be pointing at your newly created cluster.
@@ -46,7 +47,7 @@ kubectl port-forward service <TODO>
 curl localhost:8080/generate -d '{"prompt": "Where should I eat for dinner in San Francisco?"}'
 ```
 
-Read more about how to finetune your model **<TODO: link to longer quickstart>**.
+Read more about how to fine-tune your model **<TODO: link to longer quickstart>**.
 
 ## Understanding the API
 

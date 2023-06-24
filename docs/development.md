@@ -5,13 +5,14 @@
 Create a GCP environment.
 
 ```sh
-docker build ./install -t substratus-installer && docker run -it \
-    -v $HOME/.kube:/root/.kube \
-    -e REGION=us-central1 \
-    -e ZONE=us-central1-a \
-    -e PROJECT=$(gcloud config get project) \
-    -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-infra gcp-up.sh
+docker build ./install -t substratus-installer && \
+docker run -it \
+  -v $HOME/.kube:/root/.kube \
+  -e REGION=us-central1 \
+  -e ZONE=us-central1-a \
+  -e PROJECT=$(gcloud config get project) \
+  -e TOKEN=$(gcloud auth print-access-token) \
+  substratus-installer gcp-up.sh
 ```
 
 Setup controller for running locally.
