@@ -1,6 +1,8 @@
 # Installation
 
-The `install/` directory contains the cluster and infrastructure configuration needed to get Substratus up and running. The base set of configurations are intended to work in a brand new cloud project free of any significant organizational policies. These configurations will need to be modified to fit within a typical enterprise's cloud environment.
+The `install/` directory contains the cluster and infrastructure configuration needed to get Substratus up and running. All configuration is documented in delarative formats (`.yaml`, `.tf`, `Dockerfile`).
+
+The base set of configurations are intended to work in a brand new cloud project free of any significant organizational policies. These configurations will need to be modified to fit within a typical enterprise's cloud environment.
 
 ## Directory structure
 
