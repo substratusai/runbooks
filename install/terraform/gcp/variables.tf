@@ -1,4 +1,4 @@
-# Avoid setting defualts in variables to avoid multiple levels
+# Avoid setting defaults here to avoid multiple levels
 # of defaults. Defaults are set in `terraform.tfvars`.
 
 variable "project_id" {
