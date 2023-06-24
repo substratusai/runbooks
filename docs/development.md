@@ -11,14 +11,14 @@ docker build ./install -t substratus-installer && docker run -it \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
     -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-installer gcp-up
+    substratus-infra gcp-up.sh
 ```
 
 Setup controller for running locally.
 
 ```sh
 # Example only: use your own script.
-source ./hack/dev/nick-gcp.sh
+source ./hack/dev/example-gcp-env.sh
 ```
 
 Turn off the controller in the cluster.
@@ -33,9 +33,10 @@ Run controller locally.
 make dev
 ```
 
-Create an example server.
+Create an example model and server.
 
 ```sh
+kubectl apply -f examples/facebook-opt-125m/model.yaml
 kubectl apply -f examples/facebook-opt-125m/server.yaml
 kubectl get pods
 # NOTE: Use port 8000 on localhost b/c the controller is likely running locally serving metrics on :8080 which will result in a 404 not found.
@@ -46,14 +47,15 @@ open localhost:8000
 Create an example notebook.
 
 ```sh
-go build ./kubectl/open-notebook && mv open-notebook /usr/local/bin/kubectl-open-notebook
+go build ./kubectl/open-notebook
+sudo mv open-notebook /usr/local/bin/kubectl-open-notebook
 ```
 
 ```sh
 kubectl open notebook -f examples/facebook-opt-125m/notebook.yaml
 ```
 
-Finetune a new model.
+Fine-tune a new model.
 
 ```sh
 kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
@@ -67,8 +69,7 @@ docker build ./install -t substratus-installer && docker run -it \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
     -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-installer gcp-down
+    substratus-infra gcp-down.sh
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
-

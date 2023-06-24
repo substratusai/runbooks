@@ -116,3 +116,12 @@ metadata:
 spec:
   modelName: facebook-opt-125m
 ```
+
+### Readme snippet generation
+
+We use [embedmd](https://github.com/campoy/embedmd) to help keep documentation
+up to date with snippets. Run the following to generate new doc snippets:
+
+```bash
+make docs
+```

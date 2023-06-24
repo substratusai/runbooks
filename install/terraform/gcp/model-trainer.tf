@@ -14,13 +14,13 @@ resource "google_service_account_iam_member" "model_trainer_workload_identity" {
 
 resource "google_storage_bucket_iam_member" "model_trainer_datasets_storage_admin" {
   bucket = google_storage_bucket.datasets.name
-  role = "roles/storage.admin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.model_trainer.email}"
 }
 
 resource "google_storage_bucket_iam_member" "model_trainer_training_storage_admin" {
   bucket = google_storage_bucket.training.name
-  role = "roles/storage.admin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.model_trainer.email}"
 }
 
