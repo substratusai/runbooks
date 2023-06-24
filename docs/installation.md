@@ -8,8 +8,9 @@ The base set of configurations are intended to work in a brand new cloud project
 
 ```
 install/
-  scripts/    # Helper scripts for streamlining the install process into single commands.
-  terraform/  # Stands up a cluster and supporting infrastructure (such as buckets, image resgistries, etc.).
+  Dockerfile  # Packages all installation dependencies.
+  scripts/    # Helper scripts for streamlining the install process.
+  terraform/  # Provisions a cluster and supporting infrastructure (buckets, image registries, etc.).
   kubernetes/ # Installs custom resources, controllers, etc. into a running cluster.
 ```
 
