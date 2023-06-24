@@ -15,22 +15,25 @@ Substratus is a cross cloud substrate for training and serving AI models. Substr
 
 Stand up a Kubernetes cluster with Substratus installed.
 
-**TODO: Implement deployment of substratus... this doesnt work yet**
-
 ```sh
-docker build ./infra -t substratus-infra && docker run -it \
+docker build ./install -t substratus-installer && docker run -it \
+    -v $HOME/.kube:/root/.kube \
     -e REGION=us-central1 \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
     -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-infra gcp-up
+    substratus-installer gcp-up
 ```
 
-**TODO: How can we facilitate the user getting their Kubeconfig credentials without adding a step?**
+Kubectl should now be pointing at your newly created cluster.
 
-**TODO: Direct the user to a more capable model**
+Substratus comes with some state of the art models ready to go. For now we will just install a small model to test things out.
 
-Substratus comes with some popular models pre-installed. Getting an API up and running that serves a model can be done in a single command. NOTE: This will NOT automatically expose the API outside of your cluster.
+```sh
+kubectl apply -f ./examples/facebook-opt-125m/model.yaml
+```
+
+Run a model server.
 
 ```sh
 kubectl apply -f ./examples/facebook-opt-125m/server.yaml
@@ -40,9 +43,10 @@ Test out your model.
 
 ```sh
 kubectl port-forward service <TODO>
-
 curl localhost:8080/generate -d '{"prompt": "Where should I eat for dinner in San Francisco?"}'
 ```
+
+Read more about how to finetune your model **<TODO: link to longer quickstart>**.
 
 ## Understanding the API
 
@@ -57,7 +61,6 @@ kind: Model
 metadata:
   name: my-model
 spec:
-  version: v1.0.0
   source:
     modelName: facebook-opt-125m
   training:
@@ -109,7 +112,7 @@ Notebooks can be opened using the `kubectl open notebook` command (which is a su
 apiVersion: substratus.ai/v1
 kind: Notebook
 metadata:
-  name: my-notebook
+  name: nick-fb-opt-125m
 spec:
   modelName: facebook-opt-125m
 ```

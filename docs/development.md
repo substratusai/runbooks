@@ -5,7 +5,8 @@
 Create a GCP environment.
 
 ```sh
-docker build ./infra -t substratus-infra && docker run -it \
+docker build ./install -t substratus-installer && docker run -it \
+    -v $HOME/.kube:/root/.kube \
     -e REGION=us-central1 \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
@@ -20,13 +21,19 @@ Setup controller for running locally.
 source ./hack/dev/example-gcp-env.sh
 ```
 
+Turn off the controller in the cluster.
+
+```sh
+kubectl scale deployments -n substratus controller-manager --replicas 0
+```
+
 Run controller locally.
 
 ```sh
 make dev
 ```
 
-Create an example server.
+Create an example model and server.
 
 ```sh
 kubectl apply -f examples/facebook-opt-125m/model.yaml
@@ -40,14 +47,15 @@ open localhost:8000
 Create an example notebook.
 
 ```sh
-go build ./kubectl/open-notebook && mv open-notebook /usr/local/bin/kubectl-open-notebook
+go build ./kubectl/open-notebook
+sudo mv open-notebook /usr/local/bin/kubectl-open-notebook
 ```
 
 ```sh
 kubectl open notebook -f examples/facebook-opt-125m/notebook.yaml
 ```
 
-Finetune a new model.
+Fine-tune a new model.
 
 ```sh
 kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
@@ -56,7 +64,7 @@ kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
 Cleanup.
 
 ```sh
-docker build ./infra -t substratus-infra && docker run -it \
+docker build ./install -t substratus-installer && docker run -it \
     -e REGION=us-central1 \
     -e ZONE=us-central1-a \
     -e PROJECT=$(gcloud config get project) \
@@ -65,22 +73,3 @@ docker build ./infra -t substratus-infra && docker run -it \
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
-
-## Remote Deployment
-
-```sh
-# Use your project's registry.
-export IMAGE=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/substratus/controller-manager
-
-# Docker build and push image.
-make docker-build docker-push IMG=$IMAGE
-
-# Build manifests
-make config/install.yaml IMG=$IMAGE
-
-# Edit GPU type as needed.
-# Search for "GPU_TYPE" in ./config/install.yaml
-
-# Install on the cluster.
-kubectl apply -f ./config/install.yaml
-```
