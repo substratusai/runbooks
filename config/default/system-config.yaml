@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: system
-data:
-  # TODO: Perhaps this can be auto-configured.
-  GPU_TYPE: none

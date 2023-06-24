@@ -13,14 +13,12 @@ Substratus is a cross cloud substrate for training and serving AI models. Substr
 
 ## Quickstart
 
-Stand up a Kubernetes cluster with Substratus installed.
+Stand up a Kubernetes cluster with Substratus installed (for more configuration options see [installation guide](./docs/installation.md).
 
 ```sh
 docker build ./install -t substratus-installer && \
 docker run -it \
   -v $HOME/.kube:/root/.kube \
-  -e REGION=us-central1 \
-  -e ZONE=us-central1-a \
   -e PROJECT=$(gcloud config get project) \
   -e TOKEN=$(gcloud auth print-access-token) \
   substratus-installer gcp-up.sh
@@ -48,6 +46,15 @@ curl localhost:8080/generate -d '{"prompt": "Where should I eat for dinner in Sa
 ```
 
 Read more about how to fine-tune your model **<TODO: link to longer quickstart>**.
+
+To cleanup all created resources:
+
+```
+docker run -it \
+  -e PROJECT=$(gcloud config get project) \
+  -e TOKEN=$(gcloud auth print-access-token) \
+  substratus-installer gcp-down.sh
+```
 
 ## Understanding the API
 
@@ -118,11 +125,3 @@ spec:
   modelName: facebook-opt-125m
 ```
 
-### Readme snippet generation
-
-We use [embedmd](https://github.com/campoy/embedmd) to help keep documentation
-up to date with snippets. Run the following to generate new doc snippets:
-
-```bash
-make docs
-```

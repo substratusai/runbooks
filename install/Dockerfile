@@ -1,5 +1,7 @@
 FROM ubuntu:23.04
 
+WORKDIR /workspace
+
 # Common
 RUN apt-get update && \
   apt-get install -y \
@@ -36,7 +38,7 @@ RUN chmod 700 /tmp/get_helm.sh
 RUN /tmp/get_helm.sh
 
 # Local files
-COPY terraform /terraform
-COPY commands /commands
-COPY kubernetes /kubernetes
-ENV PATH $PATH:/commands
+COPY terraform terraform
+COPY kubernetes kubernetes
+COPY scripts scripts
+ENV PATH $PATH:/workspace/scripts

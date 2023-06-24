@@ -1,6 +1,6 @@
 resource "google_service_account" "model_builder" {
   project    = var.project_id
-  account_id = "${var.name}-model-builder"
+  account_id = "${local.name}-model-builder"
 }
 
 resource "google_service_account_iam_member" "model_builder_workload_identity" {

@@ -1,7 +1,7 @@
 terraform {
   backend "gcs" {
     #bucket  = ""
-    prefix = "tfstate"
+    prefix = "primary" # Allow for multiple instances of substratus with the same state bucket later.
   }
   required_providers {
     google = {
@@ -21,16 +21,7 @@ provider "google-beta" {
 }
 
 locals {
-  enabled_service_apis = [
-    "artifactregistry.googleapis.com",
-    "container.googleapis.com",
-  ]
-}
-
-resource "google_project_service" "main" {
-  for_each                   = toset(local.enabled_service_apis)
-  project                    = var.project_id
-  service                    = each.key
-  disable_dependent_services = false
-  disable_on_destroy         = false
+  # Don't expose the name as an environment variable until the substratus controllers
+  # support configurable names for buckets, service accounts, registries, etc.
+  name = "substratus"
 }
