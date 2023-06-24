@@ -32,4 +32,5 @@ RUN /tmp/get_helm.sh
 # Local files
 COPY terraform /terraform
 COPY commands /commands
+COPY kubernetes /kubernetes
 ENV PATH $PATH:/commands
