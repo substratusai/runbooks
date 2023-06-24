@@ -21,7 +21,7 @@ provider "google-beta" {
 }
 
 locals {
-  # Don't expose the name as an environment variable until the substratus controllers
+  # Don't expose the name as a configurable variable until the substratus controllers
   # support configurable names for buckets, service accounts, registries, etc.
   name = "substratus"
 }
