@@ -148,20 +148,19 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 	case RuntimeNotebook:
 		// Model is already stored in the container.
 		// Ephemeral storage is just needed for what the user downloads.
-		ephStorage = 10 * gigabyte
+		ephStorage = 100 * gigabyte
 	case RuntimeTrainer:
 		// Model artifacts are stored using volumes outside of container.
-		ephStorage = 10 * gigabyte
+		ephStorage = 100 * gigabyte
 	case RuntimeBuilder:
 		// Use 2x the model size because kaniko takes snapshots
 		// Add a fixed cushion.
-		ephStorage = int64(2*float64(modelBytes)) + 40*gigabyte
+		ephStorage = int64(2*float64(modelBytes)) + 100*gigabyte
 	case RuntimeServer:
 		// Model is already stored in the container. Server should need minimal ephemeral storage.
-		ephStorage = 10 * gigabyte
+		ephStorage = 100 * gigabyte
 	}
 	resources.Requests[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(roundUpGB(ephStorage), resource.BinarySI)
-	resources.Limits[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(roundUpGB(ephStorage), resource.BinarySI)
 
 	setRes := func(i int, containers []corev1.Container) {
 		if containers[i].Resources.Requests == nil {
