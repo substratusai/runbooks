@@ -17,7 +17,7 @@ Setup controller for running locally.
 
 ```sh
 # Example only: use your own script.
-source ./hack/dev/nick-gcp.sh
+source ./hack/dev/example-gcp-env.sh
 ```
 
 Run controller locally.
@@ -29,6 +29,7 @@ make dev
 Create an example server.
 
 ```sh
+kubectl apply -f examples/facebook-opt-125m/model.yaml
 kubectl apply -f examples/facebook-opt-125m/server.yaml
 kubectl get pods
 # NOTE: Use port 8000 on localhost b/c the controller is likely running locally serving metrics on :8080 which will result in a 404 not found.

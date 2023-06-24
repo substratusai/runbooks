@@ -1,14 +1,20 @@
 FROM ubuntu:23.04
 
 # Common
-RUN apt-get update && apt-get install -y gnupg software-properties-common
-RUN apt-get install -y unzip wget curl git
+RUN apt-get update && \
+  apt-get install -y \
+  gnupg \
+  software-properties-common \
+  unzip \
+  wget \
+  curl \
+  git
 
 # Terraform
 RUN wget https://releases.hashicorp.com/terraform/1.4.5/terraform_1.4.5_linux_amd64.zip
 RUN unzip terraform_1.4.5_linux_amd64.zip
 RUN mv terraform /usr/local/bin/
-RUN terraform --version 
+RUN terraform --version
 
 # Google Cloud (gcloud)
 RUN curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz
