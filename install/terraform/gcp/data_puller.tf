@@ -1,6 +1,6 @@
 resource "google_service_account" "data_puller" {
   project    = var.project_id
-  account_id = "${var.name}-data-puller"
+  account_id = "${local.name}-data-puller"
 }
 
 resource "google_service_account_iam_member" "data_puller_workload_identity" {

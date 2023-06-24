@@ -1,8 +1,3 @@
-variable "name" {
-  type    = string
-  default = "substratus"
-}
-
 variable "project_id" {
   type = string
 }

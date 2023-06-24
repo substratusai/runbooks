@@ -6,10 +6,9 @@ Create a GCP environment.
 
 ```sh
 docker build ./install -t substratus-installer && \
+
 docker run -it \
   -v $HOME/.kube:/root/.kube \
-  -e REGION=us-central1 \
-  -e ZONE=us-central1-a \
   -e PROJECT=$(gcloud config get project) \
   -e TOKEN=$(gcloud auth print-access-token) \
   substratus-installer gcp-up.sh
@@ -65,12 +64,10 @@ kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
 Cleanup.
 
 ```sh
-docker build ./install -t substratus-installer && docker run -it \
-    -e REGION=us-central1 \
-    -e ZONE=us-central1-a \
-    -e PROJECT=$(gcloud config get project) \
-    -e TOKEN=$(gcloud auth print-access-token) \
-    substratus-infra gcp-down.sh
+docker run -it \
+  -e PROJECT=$(gcloud config get project) \
+  -e TOKEN=$(gcloud auth print-access-token) \
+  substratus-installer gcp-down.sh
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
