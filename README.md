@@ -86,6 +86,7 @@ spec:
 
 The Dataset API snapshots and locally caches remote datasets to facilitate efficient and reproducable training results. Use Datasets to curate an internal catalog of data available to data scientists with fine-grained access control.
 
+[embedmd]:# (examples/facebook-opt-125m/dataset.yaml)
 ```yaml
 apiVersion: substratus.ai/v1
 kind: Dataset
@@ -93,16 +94,15 @@ metadata:
   name: favorite-colors
 spec:
   source:
-    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/sample-data/favorite-color-blue.jsonl
+    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/hack/sample-data.jsonl
     filename: fav-colors.jsonl
-  size: 1Gi
 ```
 
 ### Notebook API
 
 The Notebook API allows data scientists to quickly spin up a Jupyter Notebook from an existing Model to allow for quick iteration.
 
-Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin).
+Notebooks can be opened using the `kubectl open notebook` command (which is a substratus kubectl plugin). Local directories can be 2-way synced with remote Notebook environments using the `--sync` flag. This allows users to quickly iterate on model source code.
 
 [embedmd]:# (examples/facebook-opt-125m/notebook.yaml)
 ```yaml

@@ -4,36 +4,62 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/kelseyhightower/envconfig"
-	corev1 "k8s.io/api/core/v1"
 )
 
-type CloudContext interface {
-	// AuthNServiceAccount adds the annotations necessary to run the given runtime with the given service account.
-	// For example: On GKE, this will add the "iam.gke.io/gcp-service-account" annotation.
-	AuthNServiceAccount(Runtime, *corev1.ServiceAccount) error
+// CloudContext carries information about the cloud the controller is running in.
+type CloudContext struct {
+	CloudType CloudType
+	GCP       *GCPCloudContext
 }
 
-func NewCloudContext() (CloudContext, error) {
+type GCPCloudContext struct {
+	ProjectID       string `envconfig:"PROJECT_ID" required:"true"`
+	ClusterName     string `envconfig:"CLUSTER_NAME" required:"true"`
+	ClusterLocation string `envconfig:"CLUSTER_LOCATION" required:"true"`
+}
+
+func (gcp *GCPCloudContext) Region() string {
+	split := strings.Split(gcp.ClusterLocation, "-")
+	if len(split) < 2 {
+		panic("invalid cluster location: " + gcp.ClusterLocation)
+	}
+	return strings.Join(split[:2], "-")
+}
+
+func ConfigureCloud() (*CloudContext, error) {
+	// If CLOUD is set, then pull configuration from environment variables.
 	envCloud, ok := os.LookupEnv("CLOUD")
 	if ok {
 		switch CloudType(envCloud) {
 		case CloudTypeGCP:
-			var c GCPCloudContext
-			if err := envconfig.Process("GCP", &c); err != nil {
+			var gcp GCPCloudContext
+			if err := envconfig.Process("GCP", &gcp); err != nil {
 				return nil, fmt.Errorf("failed to process GCP environment variables: %w", err)
 			}
-			return &c, nil
+			return &CloudContext{
+				CloudType: CloudTypeGCP,
+				GCP:       &gcp,
+			}, nil
 		default:
 			return nil, fmt.Errorf("unsupported cloud: %s", envCloud)
 		}
 	}
 
 	if metadata.OnGCE() {
-		return lookupGCPCloudContext()
+		gcp, err := lookupGCPCloudContext()
+		if err != nil {
+			return nil, fmt.Errorf("looking up in cluster cloud context: %w", err)
+		}
+		return &CloudContext{
+			CloudType: CloudTypeGCP,
+			GCP:       gcp,
+		}, nil
 	}
+
 	return nil, fmt.Errorf("unable to determine cloud")
 }
 
@@ -57,29 +83,4 @@ func lookupGCPCloudContext() (*GCPCloudContext, error) {
 	}
 
 	return &c, nil
-}
-
-type GCPCloudContext struct {
-	ProjectID       string `envconfig:"PROJECT_ID" required:"true"`
-	ClusterName     string `envconfig:"CLUSTER_NAME" required:"true"`
-	ClusterLocation string `envconfig:"CLUSTER_LOCATION" required:"true"`
-}
-
-func (c *GCPCloudContext) AuthNServiceAccount(runtime Runtime, sa *corev1.ServiceAccount) error {
-	switch runtime {
-	case RuntimeBuilder:
-		if sa.Annotations == nil {
-			sa.Annotations = map[string]string{}
-		}
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-image-builder@%s.iam.gserviceaccount.com", c.ProjectID)
-	case RuntimeDataPuller:
-		if sa.Annotations == nil {
-			sa.Annotations = map[string]string{}
-		}
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-data-puller@%s.iam.gserviceaccount.com", c.ProjectID)
-	default:
-		return fmt.Errorf("unsupported runtime: %s", runtime)
-	}
-
-	return nil
 }

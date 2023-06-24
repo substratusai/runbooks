@@ -4,19 +4,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=latest
-	Version string `json:"version,omitempty"`
-
 	Source   ModelSource `json:"source"`
 	Training *Training   `json:"training,omitempty"`
-
-	Size ModelSize `json:"size,omitempty"`
+	Size     ModelSize   `json:"size,omitempty"`
 }
 
 type ModelSize struct {
@@ -31,7 +23,6 @@ type Training struct {
 type ModelSource struct {
 	Git       *GitSource `json:"git,omitempty"`
 	ModelName string     `json:"modelName,omitempty"`
-
 	// TODO:
 	//Container
 }
@@ -63,8 +54,6 @@ type GitSource struct {
 
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	ContainerImage string             `json:"containerImage,omitempty"`
 	Conditions     []metav1.Condition `json:"conditions,omitempty"`
 	Servers        []string           `json:"servers,omitempty"`

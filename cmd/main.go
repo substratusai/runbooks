@@ -83,26 +83,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	imageRegistry := os.Getenv("IMAGE_REGISTRY")
-	if imageRegistry == "" {
-		setupLog.Error(err, "missing required environment variable IMAGE_REGISTRY")
-		os.Exit(1)
-	}
-
 	// NOTE: NewCloudContext() will look up environment variables (intended for local development)
 	// and if they are not specified, it will try to use metadata servers on the cloud.
-	cloudContext, err := controller.NewCloudContext()
+	cloudContext, err := controller.ConfigureCloud()
 	if err != nil {
 		setupLog.Error(err, "unable to determine cloud context")
 		os.Exit(1)
 	}
 
 	if err = (&controller.ModelReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Config: controller.ModelReconcilerConfig{
-			ImageRegistry: imageRegistry,
-		},
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
 		GPUType:      gpuType,
 	}).SetupWithManager(mgr); err != nil {

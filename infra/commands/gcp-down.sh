@@ -13,8 +13,7 @@ export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
 
 bucket=${PROJECT}-substratus
 
-# TODO:
-# Delete workspaces and wait for resources to be deleted before deleting cluster.
+# TODO: Delete workspaces and wait for resources to be deleted before deleting cluster.
 
 # Delete infrastructure.
 cd terraform/gcp
@@ -23,6 +22,6 @@ echo "project_id = \"${PROJECT}\"" >>terraform.tfvars
 echo "region = \"${REGION}\"" >>terraform.tfvars
 echo "zone = \"${ZONE}\"" >>terraform.tfvars
 terraform init -upgrade --backend-config=backend.tfvars
-terraform destroy --auto-approve
+terraform destroy
 cluster=$(terraform output --raw cluster_name)
 cd -

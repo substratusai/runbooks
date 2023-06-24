@@ -23,7 +23,7 @@ provider "google-beta" {
 locals {
   enabled_service_apis = [
     "artifactregistry.googleapis.com",
-    # "container.googleapis.com",
+    "container.googleapis.com",
   ]
 }
 

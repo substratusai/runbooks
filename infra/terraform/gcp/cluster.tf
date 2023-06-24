@@ -1,12 +1,4 @@
 locals {
-  node_pools = merge(
-    {
-      "builder-1" = {
-        local_ssd_count = 1
-      },
-    },
-    local.g2_machine_types,
-  )
   g2_machine_size_count = {
     "4"  = 1,
     "8"  = 1,
@@ -17,26 +9,11 @@ locals {
     "48" = 4,
     "96" = 8,
   }
-  g2_machine_types = {
-    # The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
-    for size, cnt in local.g2_machine_size_count : "g2-standard-${size}" => {
-      machine_type            = "g2-standard-${size}"
-      local_ssd_count         = cnt
-      guest_accelerator_count = cnt
-    }
-  }
   node_pool_defaults = {
-    max_node_count          = 3
-    initial_node_count      = 0
-    machine_type            = "n1-standard-4"
-    node_locations          = [var.zone]
-    guest_accelerator_count = 0
+    max_node_count     = 3
+    initial_node_count = 0
+    machine_type       = "n1-standard-4"
   }
-  _node_pools = { for np_name, config_vals in local.node_pools : np_name => merge(
-    local.node_pool_defaults,
-    config_vals
-  ) }
-
 }
 
 data "google_container_engine_versions" "main" {
@@ -74,6 +51,9 @@ resource "google_container_cluster" "main" {
   addons_config {
     config_connector_config {
       enabled = false
+    }
+    gcs_fuse_csi_driver_config {
+      enabled = true
     }
   }
 
@@ -127,13 +107,45 @@ resource "google_container_cluster" "main" {
       minimum       = 0
       maximum       = 1048
     }
+    # from https://cloud.google.com/compute/docs/gpus/#nvidia_gpus_for_compute_workloads
     resource_limits {
       resource_type = "nvidia-l4"
       minimum       = 0
       maximum       = 8
     }
     resource_limits {
+      resource_type = "nvidia-a100-40gb"
+      minimum       = 0
+      maximum       = 4
+    }
+    resource_limits {
+      resource_type = "nvidia-a100-80gb"
+      minimum       = 0
+      maximum       = 4
+    }
+    resource_limits {
       resource_type = "nvidia-tesla-t4"
+      minimum       = 0
+      maximum       = 4
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-v100"
+      minimum       = 0
+      maximum       = 4
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-p100"
+      minimum       = 0
+      maximum       = 4
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-p4"
+      minimum       = 0
+      maximum       = 4
+    }
+    # EOL on GCP May 1, 2024: https://cloud.google.com/compute/docs/eol/k80-eol
+    resource_limits {
+      resource_type = "nvidia-tesla-k80"
       minimum       = 0
       maximum       = 4
     }
@@ -142,30 +154,363 @@ resource "google_container_cluster" "main" {
   lifecycle {
     ignore_changes = [
       initial_node_count,
+      node_config,
       maintenance_policy["maintenance_exclusion"]
     ]
   }
 }
 
-resource "google_container_node_pool" "main" {
-  for_each       = local._node_pools
-  name           = each.key
-  cluster        = google_container_cluster.main.id
-  node_locations = each.value.node_locations
+resource "google_container_node_pool" "builder_1" {
+  name = "builder-1"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 1
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 5
+  }
+
+  node_config {
+    machine_type = "n2d-standard-8"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 1
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+# The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
+resource "google_container_node_pool" "g2-standard-4" {
+  name = "g2-standard-4"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
   autoscaling {
     min_node_count  = 0
-    max_node_count  = each.value.max_node_count
+    max_node_count  = 3
     location_policy = "ANY"
   }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
   node_config {
     spot         = true
-    machine_type = each.value.machine_type
+    machine_type = "g2-standard-4"
     ephemeral_storage_local_ssd_config {
-      local_ssd_count = each.value.local_ssd_count
+      local_ssd_count = 1
     }
     guest_accelerator {
       type  = "nvidia-l4"
-      count = try(each.value.guest_accelerator_count, 0)
+      count = 1
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-8" {
+  name = "g2-standard-8"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-8"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 1
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-12" {
+  name = "g2-standard-12"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-12"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 1
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-16" {
+  name = "g2-standard-16"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-16"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 1
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-24" {
+  name = "g2-standard-24"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-24"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 2
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 2
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-32" {
+  name = "g2-standard-32"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-32"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 1
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-48" {
+  name = "g2-standard-48"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-48"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 4
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 4
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
+    }
+    gcfs_config {
+      enabled = true
+    }
+  }
+  lifecycle {
+    ignore_changes = [
+      initial_node_count
+    ]
+  }
+}
+
+resource "google_container_node_pool" "g2-standard-96" {
+  name = "g2-standard-96"
+
+  cluster            = google_container_cluster.main.id
+  initial_node_count = 0
+  node_locations     = [var.zone]
+
+  autoscaling {
+    min_node_count  = 0
+    max_node_count  = 3
+    location_policy = "ANY"
+  }
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    spot         = true
+    machine_type = "g2-standard-96"
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 8
+    }
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 8
+      gpu_sharing_config {
+        gpu_sharing_strategy       = "TIME_SHARING"
+        max_shared_clients_per_gpu = 4
+      }
     }
     gcfs_config {
       enabled = true

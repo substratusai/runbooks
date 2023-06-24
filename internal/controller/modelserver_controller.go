@@ -26,7 +26,7 @@ const (
 	ReasonDeploymentNotReady = "DeploymentNotReady"
 )
 
-// ModelServerReconciler reconciles a ModelServer object
+// ModelServerReconciler reconciles a ModelServer object.
 type ModelServerReconciler struct {
 	client.Client
 	Scheme  *runtime.Scheme
@@ -36,16 +36,8 @@ type ModelServerReconciler struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ModelServer object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
 func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
 
@@ -70,6 +62,8 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 	if !isRegistered {
+		// TODO: Stop using this, switch to cache index for enqueueing.
+		// NOTE: There is no cleanup of this list at the moment.
 		model.Status.Servers = append(model.Status.Servers, server.Name)
 		if err := r.Status().Update(ctx, &model); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
@@ -145,8 +139,6 @@ func modelServerForModel(obj client.Object) []reconcile.Request {
 	}
 	return reqs
 }
-
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 func (r *ModelServerReconciler) buildDeployment(server *apiv1.ModelServer, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)

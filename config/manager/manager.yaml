@@ -72,9 +72,6 @@ spec:
             - --leader-elect
           image: controller:latest
           name: manager
-          env:
-            - name: IMAGE_REGISTRY
-              value: $IMAGE_REGISTRY
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

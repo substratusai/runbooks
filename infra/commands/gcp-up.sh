@@ -11,6 +11,10 @@ export CLOUDSDK_AUTH_ACCESS_TOKEN=${TOKEN}
 # Used by terraform:
 export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
 
+# Enable required services.
+gcloud services enable --project ${PROJECT} container.googleapis.com
+gcloud services enable --project ${PROJECT} artifactregistry.googleapis.com
+
 # Create terraform state bucket.
 bucket=${PROJECT}-substratus
 gcloud storage buckets describe gs://${bucket} >/dev/null || gcloud storage buckets create --project ${PROJECT} gs://${bucket}
@@ -22,8 +26,6 @@ echo "project_id = \"${PROJECT}\"" >>terraform.tfvars
 echo "region = \"${REGION}\"" >>terraform.tfvars
 echo "zone = \"${ZONE}\"" >>terraform.tfvars
 terraform init --backend-config=backend.tfvars
-terraform apply --auto-approve
+terraform apply
 cluster=$(terraform output --raw cluster_name)
-# I did not see a configuration option for setting NAP locations in terraform:
-gcloud container clusters update --project ${PROJECT} ${cluster} --region ${REGION} --enable-autoprovisioning --autoprovisioning-locations=$ZONE
 cd -

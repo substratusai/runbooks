@@ -19,6 +19,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+
+	"github.com/substratusai/substratus/kubectl/open-notebook/internal/cp"
 )
 
 type notebookClient struct {
@@ -47,7 +49,15 @@ func (c *notebookClient) create(ctx context.Context, nb *unstructured.Unstructur
 	return c.dclientset.Resource(gvr(nb)).Namespace(nb.GetNamespace()).Create(ctx, nb, metav1.CreateOptions{})
 }
 
-func (c *notebookClient) waitAndServe(ctx context.Context, nb *unstructured.Unstructured, ready chan struct{}) error {
+func (c *notebookClient) copyTo(ctx context.Context, nb *unstructured.Unstructured) error {
+	return cp.ToPod(ctx, "./src", "/model/", podForNotebook(nb))
+}
+
+func (c *notebookClient) copyFrom(ctx context.Context, nb *unstructured.Unstructured) error {
+	return cp.FromPod(ctx, "/model/src", "./src", podForNotebook(nb))
+}
+
+func (c *notebookClient) waitReady(ctx context.Context, nb *unstructured.Unstructured) error {
 	if err := wait.PollImmediateInfiniteWithContext(ctx, time.Second,
 		func(ctx context.Context) (bool, error) {
 			fmt.Printf(".") // progress bar!
@@ -63,6 +73,18 @@ func (c *notebookClient) waitAndServe(ctx context.Context, nb *unstructured.Unst
 		return fmt.Errorf("waiting for notebook to be ready: %w", err)
 	}
 
+	return nil
+}
+
+func podForNotebook(nb *unstructured.Unstructured) types.NamespacedName {
+	// TODO: Pull Pod info from status of Notebook.
+	return types.NamespacedName{
+		Namespace: nb.GetNamespace(),
+		Name:      nb.GetName() + "-notebook",
+	}
+}
+
+func (c *notebookClient) serve(ctx context.Context, nb *unstructured.Unstructured, ready chan struct{}) error {
 	// TODO: Pull Pod info from status of Notebook.
 	podName, podNamespace := nb.GetName()+"-notebook", nb.GetNamespace()
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
