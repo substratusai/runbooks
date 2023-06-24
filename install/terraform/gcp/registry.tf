@@ -4,5 +4,8 @@ resource "google_artifact_registry_repository" "main" {
   repository_id = var.name
   description   = "Substratus Docker Registry"
   format        = "DOCKER"
-  depends_on    = [google_project_service.main]
+  docker_config {
+    immutable_tags = true
+  }
+  depends_on = [google_project_service.main]
 }
