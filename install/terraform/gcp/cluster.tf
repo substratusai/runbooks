@@ -196,10 +196,6 @@ resource "google_container_node_pool" "g2-standard-4" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 1
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -238,10 +234,6 @@ resource "google_container_node_pool" "g2-standard-8" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 1
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -280,10 +272,6 @@ resource "google_container_node_pool" "g2-standard-12" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 1
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -322,10 +310,6 @@ resource "google_container_node_pool" "g2-standard-16" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 1
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -364,10 +348,6 @@ resource "google_container_node_pool" "g2-standard-24" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 2
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -406,10 +386,6 @@ resource "google_container_node_pool" "g2-standard-32" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 1
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -448,10 +424,6 @@ resource "google_container_node_pool" "g2-standard-48" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 4
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
@@ -490,10 +462,6 @@ resource "google_container_node_pool" "g2-standard-96" {
     guest_accelerator {
       type  = "nvidia-l4"
       count = 8
-      gpu_sharing_config {
-        gpu_sharing_strategy       = "TIME_SHARING"
-        max_shared_clients_per_gpu = 4
-      }
     }
     gcfs_config {
       enabled = true
