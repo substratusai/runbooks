@@ -35,7 +35,8 @@ cd -
 
 # Configure kubectl.
 gcloud container clusters get-credentials --project ${PROJECT} --region ${cluster_region} ${cluster_name}
-
+# Install nvidia driver
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml
 # Install cluster components.
 kubectl apply -f kubernetes/namespace.yaml
 kubectl apply -f kubernetes/config.yaml
