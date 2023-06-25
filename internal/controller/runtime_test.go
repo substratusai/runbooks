@@ -36,11 +36,10 @@ containers:
 - name: trainer
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 3Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -57,11 +56,10 @@ containers:
 - name: notebook
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 3Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -78,11 +76,10 @@ containers:
 - name: server
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 3Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -98,11 +95,9 @@ tolerations:
 containers:
 - name: builder
   resources:
-    limits:
-      ephemeral-storage: 41Gi
     requests:
       cpu: "2"
-      ephemeral-storage: 41Gi
+      ephemeral-storage: 101Gi
       memory: 12Gi
 				`,
 			},
@@ -123,11 +118,10 @@ containers:
 - name: trainer
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 17Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -144,11 +138,10 @@ containers:
 - name: notebook
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 17Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -165,11 +158,10 @@ containers:
 - name: server
   resources:
     limits:
-      ephemeral-storage: 10Gi
       nvidia.com/gpu: "1"
     requests:
       cpu: "2"
-      ephemeral-storage: 10Gi
+      ephemeral-storage: 100Gi
       memory: 17Gi
       nvidia.com/gpu: "1"
 nodeSelector:
@@ -185,11 +177,9 @@ tolerations:
 containers:
 - name: builder
   resources:
-    limits:
-      ephemeral-storage: 67Gi
     requests:
       cpu: "2"
-      ephemeral-storage: 67Gi
+      ephemeral-storage: 127Gi
       memory: 12Gi
 				`,
 			},
