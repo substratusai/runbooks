@@ -10,7 +10,10 @@ resource "google_container_cluster" "main" {
   project = var.project_id
 
   location           = var.region
-  min_master_version = data.google_container_engine_versions.main.release_channel_latest_version["REGULAR"]
+  min_master_version = data.google_container_engine_versions.main.release_channel_latest_version["STABLE"]
+  release_channel {
+    channel = "STABLE"
+  }
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
