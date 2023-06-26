@@ -16,12 +16,15 @@ func Test_setRuntimeResources(t *testing.T) {
 	cases := []struct {
 		name string
 
+		gpuType GPUType
+
 		model *apiv1.Model
 
 		expected map[Runtime]string
 	}{
 		{
-			name: "125m-32bit",
+			name:    "125m-32bit",
+			gpuType: GPUTypeNvidiaL4,
 			model: &apiv1.Model{
 				Spec: apiv1.ModelSpec{
 					Size: apiv1.ModelSize{
@@ -103,7 +106,8 @@ containers:
 			},
 		},
 		{
-			name: "7b-16bit",
+			name:    "7b-16bit",
+			gpuType: GPUTypeNvidiaL4,
 			model: &apiv1.Model{
 				Spec: apiv1.ModelSpec{
 					Size: apiv1.ModelSize{
@@ -190,8 +194,11 @@ containers:
 		t.Run(c.name, func(t *testing.T) {
 			for runtime, expectedSpecYAML := range c.expected {
 				t.Run(string(runtime), func(t *testing.T) {
+					mgr, err := NewRuntimeManager(c.gpuType)
+					require.NoError(t, err)
+
 					spec := testSpec(t, runtime)
-					require.NoError(t, setRuntimeResources(c.model, spec, GPUTypeNvidiaL4, runtime))
+					require.NoError(t, mgr.SetResources(c.model, spec, runtime))
 
 					// Use YAML for comparison because it's easier to read
 					// and makes generating expected output easier.

@@ -73,13 +73,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Do something a little more fancy, for example:
-	// * Determine available GPU types in cluster location.
-	// * Determine current quota of GPUs.
-	// * Calculate lowest cost GPU or highest performance GPU based on some sort of profile.
-	gpuType, err := controller.ToGPUType(os.Getenv("GPU_TYPE"))
+	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUType(os.Getenv("GPU_TYPE")))
 	if err != nil {
-		setupLog.Error(err, "invalid environment variable GPU_TYPE")
+		setupLog.Error(err, "unable to configure runtime manager")
 		os.Exit(1)
 	}
 
@@ -92,26 +88,26 @@ func main() {
 	}
 
 	if err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
-		GPUType:      gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		CloudContext:   cloudContext,
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
 		os.Exit(1)
 	}
 	if err = (&controller.ModelServerReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		GPUType: gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelServer")
 		os.Exit(1)
 	}
 	if err = (&controller.NotebookReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		GPUType: gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)

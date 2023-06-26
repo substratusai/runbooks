@@ -42,6 +42,17 @@ spec:
           spec:
             description: ModelSpec defines the desired state of Model
             properties:
+              compute:
+                properties:
+                  types:
+                    items:
+                      enum:
+                      - CPU
+                      - GPU
+                      type: string
+                    minItems: 1
+                    type: array
+                type: object
               size:
                 properties:
                   parameterBits:

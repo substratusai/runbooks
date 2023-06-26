@@ -43,7 +43,7 @@ type ModelReconciler struct {
 	Scheme *runtime.Scheme
 
 	CloudContext *CloudContext
-	GPUType      GPUType
+	*RuntimeManager
 }
 
 type ModelReconcilerConfig struct {
@@ -362,7 +362,7 @@ RUN rm -rf /model/trained
 		},
 	}
 
-	if err := setRuntimeResources(model, &job.Spec.Template.Spec, r.GPUType, RuntimeBuilder); err != nil {
+	if err := r.SetResources(model, &job.Spec.Template.Spec, RuntimeBuilder); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 
@@ -497,7 +497,7 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 		},
 	}
 
-	if err := setRuntimeResources(model, &job.Spec.Template.Spec, r.GPUType, RuntimeTrainer); err != nil {
+	if err := r.SetResources(model, &job.Spec.Template.Spec, RuntimeTrainer); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 

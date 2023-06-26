@@ -27,15 +27,6 @@ const (
 	GPUTypeNvidiaL4      = GPUType("nvidia-l4")
 )
 
-func ToGPUType(s string) (GPUType, error) {
-	switch typ := GPUType(s); typ {
-	case GPUTypeNone, GPUTypeNvidiaTeslaT4, GPUTypeNvidiaL4:
-		return typ, nil
-	default:
-		return "", fmt.Errorf("unknown GPU type: %q", s)
-	}
-}
-
 type GPUInfo struct {
 	Memory       int64
 	ResourceName corev1.ResourceName
@@ -48,7 +39,7 @@ const (
 	CloudTypeGCP = CloudType("gcp")
 )
 
-var gpus = map[CloudType]map[GPUType]GPUInfo{
+var cloudGPUs = map[CloudType]map[GPUType]*GPUInfo{
 	CloudTypeGCP: {
 		// https://cloud.google.com/compute/docs/gpus#nvidia_t4_gpus
 		GPUTypeNvidiaTeslaT4: {
@@ -69,7 +60,27 @@ var gpus = map[CloudType]map[GPUType]GPUInfo{
 	},
 }
 
-func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUType, runtime Runtime) error {
+func NewRuntimeManager(gpuType GPUType) (*RuntimeManager, error) {
+	// TODO: Do something a little more fancy, for example:
+	// * Determine available GPU types in cluster location.
+	// * Determine current quota of GPUs.
+	// * Calculate lowest cost GPU or highest performance GPU based on some sort of profile.
+	switch gpuType {
+	case GPUTypeNone, GPUTypeNvidiaTeslaT4, GPUTypeNvidiaL4:
+	default:
+		return nil, fmt.Errorf("unknown GPU type: %q", gpuType)
+	}
+
+	return &RuntimeManager{
+		GPUType: gpuType,
+	}, nil
+}
+
+type RuntimeManager struct {
+	GPUType GPUType
+}
+
+func (r *RuntimeManager) SetResources(model *apiv1.Model, spec *corev1.PodSpec, runtime Runtime) error {
 	// TODO: On failure, keep track of previous values and add more resources
 	// base on OOM, etc.
 
@@ -84,10 +95,16 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 	// TODO: Determine GPU from configured profiles / some sort of quota query.
 	// NOTE: L4 does not appear to be supported by GKE NAP yet. So nodepools have
 	//       to be precreated in order to use L4
-	gpu := gpus[CloudTypeGCP][gpuType]
+	var gpu *GPUInfo
+	for _, typ := range model.Spec.Compute.Types {
+		switch typ {
+		case apiv1.ComputeTypeGPU:
+			gpu = cloudGPUs[CloudTypeGCP][r.GPUType]
+		}
+	}
 
 	var gpuMemory, gpuCount int64
-	if gpuType != GPUTypeNone {
+	if gpu != nil {
 		// Use a 10% threshold.
 		gpuMemory = int64(1.1 * float64(modelBytes))
 
@@ -103,7 +120,7 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 	switch runtime {
 	case RuntimeNotebook, RuntimeTrainer, RuntimeServer:
 		cpuCount := int64(3)
-		if gpuType != GPUTypeNone {
+		if gpu != nil {
 			cpuCount = 2 * gpuCount
 		}
 		// Set requests for CPU and Memory, but don't limit.
@@ -111,7 +128,7 @@ func setRuntimeResources(model *apiv1.Model, spec *corev1.PodSpec, gpuType GPUTy
 		resources.Requests[corev1.ResourceMemory] = *resource.NewQuantity(roundUpGB(ramMemory), resource.BinarySI)
 
 		// GPU
-		if gpuType != GPUTypeNone {
+		if gpu != nil {
 			resources.Requests[gpu.ResourceName] = *resource.NewQuantity(gpuCount, resource.DecimalSI)
 			resources.Limits[gpu.ResourceName] = *resource.NewQuantity(gpuCount, resource.DecimalSI)
 			if spec.NodeSelector == nil {

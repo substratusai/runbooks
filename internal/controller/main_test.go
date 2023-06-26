@@ -78,25 +78,26 @@ func TestMain(m *testing.M) {
 		},
 	}
 
-	gpuType := controller.GPUTypeNone
+	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNone)
+	requireNoError(err)
 
 	err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
-		GPUType:      gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		CloudContext:   cloudContext,
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.ModelServerReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		GPUType: gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.NotebookReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		GPUType: gpuType,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		RuntimeManager: runtimeMgr,
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
