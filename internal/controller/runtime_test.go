@@ -23,13 +23,69 @@ func Test_setRuntimeResources(t *testing.T) {
 		expected map[Runtime]string
 	}{
 		{
-			name:    "125m-32bit",
+			name:    "125m-32bit-cpu",
 			gpuType: GPUTypeNvidiaL4,
 			model: &apiv1.Model{
 				Spec: apiv1.ModelSpec{
 					Size: apiv1.ModelSize{
 						ParameterBits:  32,
 						ParameterCount: 125 * million,
+					},
+					Compute: apiv1.ModelCompute{
+						Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
+					},
+				},
+			},
+			expected: map[Runtime]string{
+				RuntimeTrainer: `
+containers:
+- name: trainer
+  resources:
+    requests:
+      cpu: "3"
+      ephemeral-storage: 100Gi
+      memory: 3Gi
+				`,
+				RuntimeNotebook: `
+containers:
+- name: notebook
+  resources:
+    requests:
+      cpu: "3"
+      ephemeral-storage: 100Gi
+      memory: 3Gi
+				`,
+				RuntimeServer: `
+containers:
+- name: server
+  resources:
+    requests:
+      cpu: "3"
+      ephemeral-storage: 100Gi
+      memory: 3Gi
+				`,
+				RuntimeBuilder: `
+containers:
+- name: builder
+  resources:
+    requests:
+      cpu: "2"
+      ephemeral-storage: 101Gi
+      memory: 12Gi
+				`,
+			},
+		},
+		{
+			name:    "125m-32bit-gpu",
+			gpuType: GPUTypeNvidiaL4,
+			model: &apiv1.Model{
+				Spec: apiv1.ModelSpec{
+					Size: apiv1.ModelSize{
+						ParameterBits:  32,
+						ParameterCount: 125 * million,
+					},
+					Compute: apiv1.ModelCompute{
+						Types: []apiv1.ComputeType{apiv1.ComputeTypeGPU},
 					},
 				},
 			},
@@ -106,13 +162,16 @@ containers:
 			},
 		},
 		{
-			name:    "7b-16bit",
+			name:    "7b-16bit-gpu",
 			gpuType: GPUTypeNvidiaL4,
 			model: &apiv1.Model{
 				Spec: apiv1.ModelSpec{
 					Size: apiv1.ModelSize{
 						ParameterBits:  16,
 						ParameterCount: 7 * billion,
+					},
+					Compute: apiv1.ModelCompute{
+						Types: []apiv1.ComputeType{apiv1.ComputeTypeGPU},
 					},
 				},
 			},
@@ -191,7 +250,7 @@ containers:
 	}
 
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+		t.Run("GPUType-"+string(c.gpuType)+"-Model-"+c.name, func(t *testing.T) {
 			for runtime, expectedSpecYAML := range c.expected {
 				t.Run(string(runtime), func(t *testing.T) {
 					mgr, err := NewRuntimeManager(c.gpuType)
