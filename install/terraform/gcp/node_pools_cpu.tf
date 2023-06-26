@@ -2,11 +2,11 @@ resource "google_container_node_pool" "builder_1" {
   name = "builder-1"
 
   cluster            = google_container_cluster.main.id
-  initial_node_count = 1
+  initial_node_count = 0
   node_locations     = [var.zone]
 
   autoscaling {
-    min_node_count = 1
+    min_node_count = 0
     max_node_count = 5
   }
 
