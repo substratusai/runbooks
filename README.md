@@ -41,8 +41,10 @@ kubectl apply -f ./examples/facebook-opt-125m/server.yaml
 Test out your model.
 
 ```sh
-kubectl port-forward service <TODO>
-curl localhost:8080/generate -d '{"prompt": "Where should I eat for dinner in San Francisco?"}'
+kubectl port-forward service/facebook-opt-125m-modelserver 8080:8080
+
+# In another terminal...
+curl localhost:8080/generate -H 'Content-Type: application/json' -d '{"prompt": "Where should I eat for dinner in San Francisco?"}'
 ```
 
 Read more about how to fine-tune your model **<TODO: link to longer quickstart>**.

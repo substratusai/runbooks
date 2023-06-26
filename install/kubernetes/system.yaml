@@ -634,6 +634,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -961,7 +973,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.0.1-alpha
+        image: docker.io/substratusai/controller-manager:v0.0.2-alpha
         livenessProbe:
           httpGet:
             path: /healthz
