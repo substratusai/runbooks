@@ -9,6 +9,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/controller"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,10 +53,18 @@ func TestModelServer(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(ctx, modelServer), "creating a modelserver")
 
+	// Test that a model server Service gets created by the controller.
+	var service corev1.Service
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: modelServer.Namespace, Name: modelServer.Name + "-modelserver"}, &service)
+		assert.NoError(t, err, "getting the modelserver service")
+	}, timeout, interval, "waiting for the server service to be created")
+	require.Equal(t, "http-app", service.Spec.Ports[0].TargetPort.String())
+
 	// Test that a model server Deployment gets created by the controller.
 	var deploy appsv1.Deployment
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: modelServer.Namespace, Name: modelServer.Name + "-server"}, &deploy)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: modelServer.Namespace, Name: modelServer.Name + "-modelserver"}, &deploy)
 		assert.NoError(t, err, "getting the modelserver deployment")
 	}, timeout, interval, "waiting for the server deployment to be created")
 	require.Equal(t, "server", deploy.Spec.Template.Spec.Containers[0].Name)

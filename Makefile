@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= docker.io/substratusai/controller-manager:v0.0.1-alpha
+IMG ?= docker.io/substratusai/controller-manager:v0.0.2-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
