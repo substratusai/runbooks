@@ -1,0 +1,12 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: falcon-40b-k8s-instruct
+spec:
+  source:
+    modelName: falcon-40b
+  training:
+    datasetName: k8s-instructions
+  size:
+    parameterBits: 4
+    parameterCount: 40000000000

@@ -1,0 +1,11 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: falcon-40b
+spec:
+  source:
+    git:
+      url: github.com/substratusai/model-falcon-40b
+  size:
+    parameterBits: 4
+    parameterCount: 40000000000
