@@ -176,6 +176,22 @@ spec:
           spec:
             description: ModelSpec defines the desired state of Model
             properties:
+              compute:
+                properties:
+                  types:
+                    description: Types is a list of supported compute types for this
+                      Model. This list should be ordered by preference, with the most
+                      preferred type first.
+                    items:
+                      enum:
+                      - CPU
+                      - GPU
+                      type: string
+                    minItems: 1
+                    type: array
+                required:
+                - types
+                type: object
               size:
                 properties:
                   parameterBits:
@@ -209,6 +225,8 @@ spec:
                 - datasetName
                 type: object
             required:
+            - compute
+            - size
             - source
             type: object
           status:
@@ -973,7 +991,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.0.2-alpha
+        image: docker.io/substratusai/controller-manager:v0.0.3-alpha
         livenessProbe:
           httpGet:
             path: /healthz
