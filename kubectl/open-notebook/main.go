@@ -62,7 +62,7 @@ func run() error {
 	}
 	pflag.Parse()
 
-	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
 	notebookName := pflag.Arg(0)
 
@@ -159,32 +159,33 @@ func run() error {
 	cleanupCtx := context.Background()
 	cleanup := func() {
 		// Suspend notebook.
-		s.Suffix = " Cleanup: Suspending notebook..."
-		s.Start()
+		spin.Suffix = " Cleanup: Suspending notebook..."
+		spin.Start()
 		if _, err := client.suspend(cleanupCtx, notebook); err != nil {
 			fmt.Println("Error suspending notebook: %w", err)
 		}
-		s.Stop()
+		spin.Stop()
 		fmt.Println("Notebook: Suspended")
 	}
 
-	s.Suffix = " Waiting for Notebook to be ready..."
-	s.Start()
+	spin.Suffix = " Waiting for Notebook to be ready..."
+	spin.Start()
 	waitReadyCtx, _ := context.WithTimeout(ctx, flags.timeout)
 	if err := client.waitReady(waitReadyCtx, notebook); err != nil {
 		cleanup()
 		log.Fatal(err)
 	}
-	s.Stop()
+	spin.Stop()
 	fmt.Println("Notebook: Ready")
 
 	if flags.sync {
-		s.Suffix = " Syncing local directory with Notebook..."
+		spin.Suffix = " Syncing local directory with Notebook..."
+		spin.Start()
 		if err := client.copyTo(ctx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}
-		s.Stop()
+		spin.Stop()
 		fmt.Println("Sync: Done")
 	}
 
@@ -233,13 +234,13 @@ func run() error {
 		}
 	}()
 
-	s.Suffix = " Waiting for connection to be ready to serve..."
-	s.Start()
+	spin.Suffix = " Waiting for connection to be ready to serve..."
+	spin.Start()
 	select {
 	case <-serveReady:
 		break
 	}
-	s.Stop()
+	spin.Stop()
 	fmt.Println("Connection: Ready")
 
 	url := "http://localhost:8888"
@@ -254,12 +255,13 @@ func run() error {
 	wg.Wait()
 
 	if flags.sync {
-		s.Suffix = " Syncing Notebook to local directory..."
+		spin.Suffix = " Syncing Notebook to local directory..."
+		spin.Start()
 		if err := client.copyFrom(cleanupCtx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}
-		s.Stop()
+		spin.Stop()
 		fmt.Println("Sync: Done")
 	}
 
