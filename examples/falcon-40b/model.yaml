@@ -7,5 +7,5 @@ spec:
     git:
       url: github.com/substratusai/model-falcon-40b
   size:
-    parameterBits: 4
+    parameterBits: 8
     parameterCount: 40000000000

@@ -8,5 +8,5 @@ spec:
   training:
     datasetName: k8s-instructions
   size:
-    parameterBits: 4
+    parameterBits: 8
     parameterCount: 40000000000
