@@ -11,3 +11,5 @@ spec:
   size:
     parameterBits: 32
     parameterCount: 125000000
+  compute:
+    types: ["CPU", "GPU"]

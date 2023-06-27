@@ -194,7 +194,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 		},
 	}
 
-	if err := r.SetResources(model, &deploy.Spec.Template.Spec, RuntimeServer); err != nil {
+	if err := r.SetResources(model, &deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, RuntimeServer); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 

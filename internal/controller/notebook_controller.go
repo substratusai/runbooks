@@ -66,7 +66,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	//pvc, err := r.notebookPVC(&nb)
+	//pvc, err := r.notebookPVC(&notebook)
 	//if err != nil {
 	//	return ctrl.Result{}, fmt.Errorf("failed to construct pvc: %w", err)
 	//}
@@ -201,7 +201,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 		},
 	}
 
-	if err := r.SetResources(model, &pod.Spec, RuntimeNotebook); err != nil {
+	if err := r.SetResources(model, &pod.ObjectMeta, &pod.Spec, RuntimeNotebook); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 

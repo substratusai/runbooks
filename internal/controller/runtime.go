@@ -7,6 +7,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Runtime string
@@ -22,7 +23,6 @@ const (
 type GPUType string
 
 const (
-	GPUTypeNone          = GPUType("none")
 	GPUTypeNvidiaTeslaT4 = GPUType("nvidia-tesla-t4")
 	GPUTypeNvidiaL4      = GPUType("nvidia-l4")
 )
@@ -66,7 +66,7 @@ func NewRuntimeManager(gpuType GPUType) (*RuntimeManager, error) {
 	// * Determine current quota of GPUs.
 	// * Calculate lowest cost GPU or highest performance GPU based on some sort of profile.
 	switch gpuType {
-	case GPUTypeNone, GPUTypeNvidiaTeslaT4, GPUTypeNvidiaL4:
+	case GPUTypeNvidiaTeslaT4, GPUTypeNvidiaL4:
 	default:
 		return nil, fmt.Errorf("unknown GPU type: %q", gpuType)
 	}
@@ -80,7 +80,7 @@ type RuntimeManager struct {
 	GPUType GPUType
 }
 
-func (r *RuntimeManager) SetResources(model *apiv1.Model, spec *corev1.PodSpec, runtime Runtime) error {
+func (r *RuntimeManager) SetResources(model *apiv1.Model, metadata *metav1.ObjectMeta, spec *corev1.PodSpec, runtime Runtime) error {
 	// TODO: On failure, keep track of previous values and add more resources
 	// base on OOM, etc.
 
@@ -96,8 +96,12 @@ func (r *RuntimeManager) SetResources(model *apiv1.Model, spec *corev1.PodSpec, 
 	// NOTE: L4 does not appear to be supported by GKE NAP yet. So nodepools have
 	//       to be precreated in order to use L4
 	var gpu *GPUInfo
+loop:
 	for _, typ := range model.Spec.Compute.Types {
 		switch typ {
+		case apiv1.ComputeTypeCPU:
+			// If CPUs are preferred, do not configure a GPU.
+			break loop
 		case apiv1.ComputeTypeGPU:
 			gpu = cloudGPUs[CloudTypeGCP][r.GPUType]
 		}
@@ -177,7 +181,13 @@ func (r *RuntimeManager) SetResources(model *apiv1.Model, spec *corev1.PodSpec, 
 		// Model is already stored in the container. Server should need minimal ephemeral storage.
 		ephStorage = 100 * gigabyte
 	}
-	resources.Requests[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(roundUpGB(ephStorage), resource.BinarySI)
+	ephStorageRes := resource.NewQuantity(roundUpGB(ephStorage), resource.BinarySI)
+	resources.Requests[corev1.ResourceEphemeralStorage] = *ephStorageRes
+	if ann := metadata.GetAnnotations(); ann != nil && ann["gke-gcsfuse/volumes"] == "true" {
+		// Default limit was 5Gi. Ran into eviction while building facebook-opt-125m.
+		// See: https://github.com/substratusai/substratus/issues/45
+		metadata.Annotations["gke-gcsfuse/ephemeral-storage-limit"] = ephStorageRes.String()
+	}
 
 	setRes := func(i int, containers []corev1.Container) {
 		if containers[i].Resources.Requests == nil {

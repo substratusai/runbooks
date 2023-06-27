@@ -45,6 +45,9 @@ spec:
               compute:
                 properties:
                   types:
+                    description: Types is a list of supported compute types for this
+                      Model. This list should be ordered by preference, with the most
+                      preferred type first.
                     items:
                       enum:
                       - CPU
@@ -52,6 +55,8 @@ spec:
                       type: string
                     minItems: 1
                     type: array
+                required:
+                - types
                 type: object
               size:
                 properties:
@@ -86,6 +91,8 @@ spec:
                 - datasetName
                 type: object
             required:
+            - compute
+            - size
             - source
             type: object
           status:

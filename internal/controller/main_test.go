@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 		},
 	}
 
-	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNone)
+	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
 	requireNoError(err)
 
 	err = (&controller.ModelReconciler{

@@ -4,4 +4,4 @@ metadata:
   name: system
   namespace: substratus
 data:
-  GPU_TYPE: none # Valid values: none, nvidia-tesla-t4, nvidia-l4
+  GPU_TYPE: nvidia-l4 # Valid values: nvidia-tesla-t4, nvidia-l4
