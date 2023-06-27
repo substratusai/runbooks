@@ -11,6 +11,7 @@ resource "google_container_node_pool" "builder_1" {
   }
 
   node_config {
+    spot         = true
     machine_type = "n2d-standard-8"
     ephemeral_storage_local_ssd_config {
       local_ssd_count = 2
