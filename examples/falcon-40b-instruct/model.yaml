@@ -5,10 +5,9 @@ metadata:
 spec:
   source:
     git:
-      url: https://github.com/substratusai/models
-      path: falcon-40b-instruct
+      url: https://github.com/substratusai/model-falcon-40b-instruct
   size:
-    parameterBits: 16
+    parameterBits: 8
     parameterCount: 40000000000
   compute:
     types: ["GPU"]
