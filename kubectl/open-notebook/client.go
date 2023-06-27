@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,8 +61,6 @@ func (c *notebookClient) copyFrom(ctx context.Context, nb *unstructured.Unstruct
 func (c *notebookClient) waitReady(ctx context.Context, nb *unstructured.Unstructured) error {
 	if err := wait.PollImmediateInfiniteWithContext(ctx, time.Second,
 		func(ctx context.Context) (bool, error) {
-			fmt.Printf(".") // progress bar!
-
 			nb = nb.DeepCopy()
 			notebook, err := c.get(ctx, nb)
 			if err != nil {
@@ -84,7 +83,7 @@ func podForNotebook(nb *unstructured.Unstructured) types.NamespacedName {
 	}
 }
 
-func (c *notebookClient) serve(ctx context.Context, nb *unstructured.Unstructured, ready chan struct{}) error {
+func (c *notebookClient) portForward(ctx context.Context, verbose bool, nb *unstructured.Unstructured, ready chan struct{}) error {
 	// TODO: Pull Pod info from status of Notebook.
 	podName, podNamespace := nb.GetName()+"-notebook", nb.GetNamespace()
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
@@ -101,7 +100,14 @@ func (c *notebookClient) serve(ctx context.Context, nb *unstructured.Unstructure
 
 	// TODO: Add retry on broken connections.
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
-	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, ctx.Done(), ready, os.Stdout, os.Stderr)
+
+	var stdout, stderr io.Writer
+	if verbose {
+		stdout, stderr = os.Stdout, os.Stderr
+	} else {
+		stdout, stderr = io.Discard, io.Discard
+	}
+	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, ctx.Done(), ready, stdout, stderr)
 	if err != nil {
 		return err
 	}
