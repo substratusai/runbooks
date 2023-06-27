@@ -6,10 +6,27 @@ import (
 
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
-	Source   ModelSource `json:"source"`
-	Training *Training   `json:"training,omitempty"`
-	Size     ModelSize   `json:"size,omitempty"`
+	Source   ModelSource  `json:"source"`
+	Training *Training    `json:"training,omitempty"`
+	Size     ModelSize    `json:"size"`
+	Compute  ModelCompute `json:"compute"`
 }
+
+type ModelCompute struct {
+	// +kubebuilder:validation:MinItems=1
+	// Types is a list of supported compute types for this Model. This list should be
+	// ordered by preference, with the most preferred type first.
+	Types []ComputeType `json:"types"`
+}
+
+// +kubebuilder:validation:Enum=CPU;GPU
+type ComputeType string
+
+const (
+	ComputeTypeCPU ComputeType = "CPU"
+	ComputeTypeGPU ComputeType = "GPU"
+	//ComputeTypeTPU ComputeType = "TPU"
+)
 
 type ModelSize struct {
 	ParameterCount int64 `json:"parameterCount,omitempty"`

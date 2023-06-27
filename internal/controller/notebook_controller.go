@@ -25,8 +25,8 @@ const (
 // NotebookReconciler reconciles a Notebook object.
 type NotebookReconciler struct {
 	client.Client
-	Scheme  *runtime.Scheme
-	GPUType GPUType
+	Scheme *runtime.Scheme
+	*RuntimeManager
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete
@@ -66,7 +66,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	//pvc, err := r.notebookPVC(&nb)
+	//pvc, err := r.notebookPVC(&notebook)
 	//if err != nil {
 	//	return ctrl.Result{}, fmt.Errorf("failed to construct pvc: %w", err)
 	//}
@@ -201,7 +201,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 		},
 	}
 
-	if err := setRuntimeResources(model, &pod.Spec, r.GPUType, RuntimeNotebook); err != nil {
+	if err := r.SetResources(model, &pod.ObjectMeta, &pod.Spec, RuntimeNotebook); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 

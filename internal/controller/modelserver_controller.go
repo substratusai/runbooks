@@ -30,8 +30,8 @@ const (
 // ModelServerReconciler reconciles a ModelServer object.
 type ModelServerReconciler struct {
 	client.Client
-	Scheme  *runtime.Scheme
-	GPUType GPUType
+	Scheme *runtime.Scheme
+	*RuntimeManager
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete
@@ -194,7 +194,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 		},
 	}
 
-	if err := setRuntimeResources(model, &deploy.Spec.Template.Spec, r.GPUType, RuntimeServer); err != nil {
+	if err := r.SetResources(model, &deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, RuntimeServer); err != nil {
 		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 

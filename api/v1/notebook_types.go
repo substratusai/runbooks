@@ -8,6 +8,8 @@ import (
 type NotebookSpec struct {
 	ModelName string `json:"modelName,omitempty"`
 	Suspend   bool   `json:"suspend,omitempty"`
+
+	// Storage   resource.Quantity `json:"storage,omitempty"`
 }
 
 // NotebookStatus defines the observed state of Notebook

@@ -29,6 +29,9 @@ func TestNotebook(t *testing.T) {
 					URL: "test.com/test/test.git",
 				},
 			},
+			Compute: apiv1.ModelCompute{
+				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the notebook")

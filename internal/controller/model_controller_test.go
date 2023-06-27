@@ -30,6 +30,9 @@ func TestModelFromGit(t *testing.T) {
 					URL: "test.com/test/test.git",
 				},
 			},
+			Compute: apiv1.ModelCompute{
+				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
@@ -64,6 +67,9 @@ func TestModelFromModel(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "test.com/test/test.git",
 				},
+			},
+			Compute: apiv1.ModelCompute{
+				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
 			},
 		},
 	}
@@ -110,6 +116,9 @@ func TestModelFromModel(t *testing.T) {
 			},
 			Training: &apiv1.Training{
 				DatasetName: dataset.Name,
+			},
+			Compute: apiv1.ModelCompute{
+				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
 			},
 		},
 	}
