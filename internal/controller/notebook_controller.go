@@ -163,7 +163,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 					Name:  RuntimeNotebook,
 					Image: model.Status.ContainerImage,
 					Command: []string{
-						"jupyter", "notebook", "--allow-root", "--ip=0.0.0.0", "--NotebookApp.token=''", "--notebook-dir='/model'",
+						"develop.sh",
 					},
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
