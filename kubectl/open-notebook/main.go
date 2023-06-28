@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 func main() {
@@ -40,6 +42,7 @@ func run() error {
 		namespace     string
 		noOpenBrowser bool
 		sync          bool
+		verbose       bool
 		timeout       time.Duration
 	}
 	if home := homeDir(); home != "" {
@@ -49,14 +52,17 @@ func run() error {
 	}
 	pflag.StringVarP(&flags.filename, "filename", "f", "", "Filename of Notebook manifest (i.e. notebook.yaml)")
 	pflag.StringVarP(&flags.namespace, "namespace", "n", "default", "Namespace of Notebook")
+	pflag.BoolVarP(&flags.verbose, "verbose", "v", false, "Verbose output")
 	pflag.BoolVar(&flags.sync, "sync", false, "Sync local directory with Notebook")
 	pflag.BoolVar(&flags.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
-	pflag.DurationVarP(&flags.timeout, "timeout", "t", 10*time.Minute, "Timeout for Notebook to become ready")
+	pflag.DurationVarP(&flags.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
 	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage:\n  kubectl open notebook [NAME | -f filename]\n")
 		pflag.PrintDefaults()
 	}
 	pflag.Parse()
+
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
 	notebookName := pflag.Arg(0)
 
@@ -78,7 +84,7 @@ func run() error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -153,65 +159,112 @@ func run() error {
 	cleanupCtx := context.Background()
 	cleanup := func() {
 		// Suspend notebook.
-		fmt.Println("Cleanup: Suspending notebook...")
+		spin.Suffix = " Cleanup: Suspending notebook..."
+		spin.Start()
 		if _, err := client.suspend(cleanupCtx, notebook); err != nil {
-			fmt.Println("Error suspending notebook: %w", err)
+			fmt.Println("Error suspending notebook:", err)
 		}
+		spin.Stop()
+		fmt.Println("Notebook: Suspended")
 	}
 
-	fmt.Print("Waiting for Notebook to be ready...\n")
-	if err := client.waitReady(ctx, notebook); err != nil {
+	spin.Suffix = " Waiting for Notebook to be ready..."
+	spin.Start()
+	waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, flags.timeout)
+	if err := client.waitReady(waitReadyCtx, notebook); err != nil {
 		cleanup()
 		log.Fatal(err)
 	}
-	fmt.Println("\nNotebook: Ready")
+	cancelWaitReady() // Avoid context leak.
+	spin.Stop()
+	fmt.Println("Notebook: Ready")
 
 	if flags.sync {
-		fmt.Println("Syncing local directory with Notebook...")
+		spin.Suffix = " Syncing local directory with Notebook..."
+		spin.Start()
 		if err := client.copyTo(ctx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}
+		spin.Stop()
 		fmt.Println("Sync: Done")
 	}
 
 	serveReady := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		if err := client.serve(ctx, notebook, serveReady); err != nil {
-			cleanup()
-			if errors.Is(err, context.Canceled) {
-				os.Exit(0)
-			} else {
-				log.Fatal(err)
+
+		first := true
+
+		for {
+			portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
+			defer cancelPortFwd() // Avoid a context leak
+			runtime.ErrorHandlers = []func(err error){
+				func(err error) {
+					fmt.Println("Port forward error:", err)
+					cancelPortFwd()
+				},
 			}
+
+			// portForward will close the ready channel when it returns.
+			// so we only use the outer ready channel once. On restart of the portForward,
+			// we use a new channel.
+			var ready chan struct{}
+			if first {
+				ready = serveReady
+			} else {
+				ready = make(chan struct{})
+			}
+
+			if err := client.portForward(portFwdCtx, flags.verbose, notebook, ready); err != nil {
+				//if errors.Is(err, context.Canceled) {
+				//	fmt.Println("Serve: stopping: context was cancelled")
+				//	return
+				//} else {
+				fmt.Println("Serve: returned an error: ", err)
+				return
+				//}
+			}
+
+			if err := ctx.Err(); err != nil {
+				fmt.Println("Serve: stopping:", err.Error())
+				return
+			}
+
+			fmt.Println("Restarting port forward")
+			cancelPortFwd() // Avoid a context leak
+			first = false
 		}
 	}()
 
-	fmt.Print("Waiting for connection to be ready to serve...\n")
+	spin.Suffix = " Waiting for connection to be ready to serve..."
+	spin.Start()
 	select {
 	case <-serveReady:
 		break
 	}
-	fmt.Println("\nConnection: Ready")
+	spin.Stop()
+	fmt.Println("Connection: Ready")
 
 	url := "http://localhost:8888"
 	if !flags.noOpenBrowser {
-		fmt.Printf("Opening browser: %s\n", url)
+		fmt.Printf("Browser: opening: %s\n", url)
 		browser.OpenURL(url)
 	} else {
-		fmt.Printf("Notebook serving on: %s\n", url)
+		fmt.Printf("Browser: open to: %s\n", url)
 	}
 
 	// Wait for clean shutdown...
 	wg.Wait()
 
 	if flags.sync {
-		fmt.Println("Syncing Notebook to local directory...")
+		spin.Suffix = " Syncing Notebook to local directory..."
+		spin.Start()
 		if err := client.copyFrom(cleanupCtx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}
+		spin.Stop()
 		fmt.Println("Sync: Done")
 	}
 
