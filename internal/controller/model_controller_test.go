@@ -139,7 +139,7 @@ func TestModelFromModel(t *testing.T) {
 		assert.NoError(t, err, "getting the model training job")
 	}, timeout, interval, "waiting for the model training job to be created")
 	require.Equal(t, "trainer", job.Spec.Template.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Command, " "), "train.sh")
+	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Args, " "), "train.sh")
 
 	// TODO: Test build Job after training Job.
 }

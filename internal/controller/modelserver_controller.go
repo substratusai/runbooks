@@ -180,7 +180,9 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 							Name:            RuntimeServer,
 							Image:           model.Status.ContainerImage,
 							ImagePullPolicy: "Always",
-							Command:         []string{"serve.sh"},
+							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
+							// to execute this script.
+							Args: []string{"serve.sh"},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http-app",

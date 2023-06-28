@@ -71,5 +71,5 @@ func TestModelServer(t *testing.T) {
 		assert.NoError(t, err, "getting the modelserver deployment")
 	}, timeout, interval, "waiting for the server deployment to be created")
 	require.Equal(t, "server", deploy.Spec.Template.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(deploy.Spec.Template.Spec.Containers[0].Command, " "), "serve.sh")
+	require.Contains(t, strings.Join(deploy.Spec.Template.Spec.Containers[0].Args, " "), "serve.sh")
 }

@@ -518,9 +518,11 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 					ServiceAccountName: modelTrainerServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:    RuntimeTrainer,
-							Image:   sourceModel.Status.ContainerImage,
-							Command: []string{"train.sh"},
+							Name:  RuntimeTrainer,
+							Image: sourceModel.Status.ContainerImage,
+							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
+							// to execute this script.
+							Args: []string{"train.sh"},
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DATA_PATH",
