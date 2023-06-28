@@ -165,7 +165,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Args: []string{
-						"develop.sh",
+						"lab.sh",
 					},
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{

@@ -62,5 +62,5 @@ func TestNotebook(t *testing.T) {
 		assert.NoError(t, err, "getting the notebook pod")
 	}, timeout, interval, "waiting for the notebook pod to be created")
 	require.Equal(t, "notebook", pod.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(pod.Spec.Containers[0].Args, " "), "develop.sh")
+	require.Contains(t, strings.Join(pod.Spec.Containers[0].Args, " "), "lab.sh")
 }
