@@ -271,7 +271,7 @@ RUN rm -rf /model/trained
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "dockerfile",
+					Name:      "workspace",
 					MountPath: "/workspace",
 				},
 			},
@@ -280,7 +280,7 @@ RUN rm -rf /model/trained
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=SRC_IMG=%v", sourceModel.Status.ContainerImage))
 		volumeMounts = []corev1.VolumeMount{
 			{
-				Name:      "dockerfile",
+				Name:      "workspace",
 				MountPath: "/workspace/Dockerfile",
 				SubPath:   "Dockerfile",
 			},
@@ -298,7 +298,7 @@ RUN rm -rf /model/trained
 
 		volumes = []corev1.Volume{
 			{
-				Name: "dockerfile",
+				Name: "workspace",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -319,13 +319,70 @@ RUN rm -rf /model/trained
 
 		annotations["gke-gcsfuse/volumes"] = "true"
 	} else {
-		url := model.Spec.Source.Git.URL
-		if model.Spec.Source.Git.Branch != "" {
-			url = url + "#refs/heads/" + model.Spec.Source.Git.Branch
+		const dockerfileWithTini = `
+# Add Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
+`
+		cloneArgs := []string{
+			"clone",
+			model.Spec.Source.Git.URL,
 		}
-		buildArgs = append(buildArgs, "--context="+"git://"+url)
+		if model.Spec.Source.Git.Branch != "" {
+			cloneArgs = append(cloneArgs, "--branch", model.Spec.Source.Git.Branch)
+		}
+		cloneArgs = append(cloneArgs, "/workspace")
+
 		if model.Spec.Source.Git.Path != "" {
 			buildArgs = append(buildArgs, "--context-sub-path="+model.Spec.Source.Git.Path)
+		}
+
+		// Add an init container that will clone the Git repo and
+		// another that will append tini to the Dockerfile.
+		initContainers = append(initContainers,
+			corev1.Container{
+				Name:  "git-clone",
+				Image: "alpine/git",
+				Args:  cloneArgs,
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "workspace",
+						MountPath: "/workspace",
+					},
+				},
+			},
+			corev1.Container{
+				Name:  "dockerfile-tini-appender",
+				Image: "busybox",
+				Args: []string{
+					"sh",
+					"-c",
+					"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "workspace",
+						MountPath: "/workspace",
+					},
+				},
+			},
+		)
+
+		volumeMounts = []corev1.VolumeMount{
+			{
+				Name:      "workspace",
+				MountPath: "/workspace",
+			},
+		}
+		volumes = []corev1.Volume{
+			{
+				Name: "workspace",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 		}
 	}
 

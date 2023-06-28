@@ -31,7 +31,7 @@ Must be located in `$PATH`:
     * Can load an existing model from `/model/saved/`.
     * Saves new trained model to `/model/trained/` (which will be copied into the new container's `/model/saved/` directory).
 - `develop.sh`
-    * Should start a Jupyter Lab (or Notebook) environment.
+    * Should start a Jupyter Lab environment.
     * Should serve on port `8888`.
 
 ## Directory Structure
