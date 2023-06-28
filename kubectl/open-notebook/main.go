@@ -162,7 +162,7 @@ func run() error {
 		spin.Suffix = " Cleanup: Suspending notebook..."
 		spin.Start()
 		if _, err := client.suspend(cleanupCtx, notebook); err != nil {
-			fmt.Println("Error suspending notebook: %w", err)
+			fmt.Println("Error suspending notebook:", err)
 		}
 		spin.Stop()
 		fmt.Println("Notebook: Suspended")
@@ -170,11 +170,12 @@ func run() error {
 
 	spin.Suffix = " Waiting for Notebook to be ready..."
 	spin.Start()
-	waitReadyCtx, _ := context.WithTimeout(ctx, flags.timeout)
+	waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, flags.timeout)
 	if err := client.waitReady(waitReadyCtx, notebook); err != nil {
 		cleanup()
 		log.Fatal(err)
 	}
+	cancelWaitReady() // Avoid context leak.
 	spin.Stop()
 	fmt.Println("Notebook: Ready")
 
@@ -197,6 +198,7 @@ func run() error {
 
 		for {
 			portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
+			defer cancelPortFwd() // Avoid a context leak
 			runtime.ErrorHandlers = []func(err error){
 				func(err error) {
 					fmt.Println("Port forward error:", err)
@@ -230,6 +232,7 @@ func run() error {
 			}
 
 			fmt.Println("Restarting port forward")
+			cancelPortFwd() // Avoid a context leak
 			first = false
 		}
 	}()
