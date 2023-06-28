@@ -44,7 +44,7 @@ func Test_setRuntimeResources(t *testing.T) {
 				},
 			},
 			expected: map[Runtime]expectation{
-				RuntimeTrainer: expectation{spec: `
+				RuntimeTrainer: {spec: `
 containers:
 - name: trainer
   resources:
@@ -53,7 +53,7 @@ containers:
       ephemeral-storage: 100Gi
       memory: 3Gi
 				`},
-				RuntimeNotebook: expectation{spec: `
+				RuntimeNotebook: {spec: `
 containers:
 - name: notebook
   resources:
@@ -62,7 +62,7 @@ containers:
       ephemeral-storage: 100Gi
       memory: 3Gi
 				`},
-				RuntimeServer: expectation{spec: `
+				RuntimeServer: {spec: `
 containers:
 - name: server
   resources:
@@ -71,7 +71,7 @@ containers:
       ephemeral-storage: 100Gi
       memory: 3Gi
 				`},
-				RuntimeBuilder: expectation{spec: `
+				RuntimeBuilder: {spec: `
 containers:
 - name: builder
   resources:
@@ -97,17 +97,17 @@ containers:
 				},
 			},
 			expected: map[Runtime]expectation{
-				RuntimeTrainer: expectation{spec: `
+				RuntimeTrainer: {spec: `
 containers:
 - name: trainer
   resources:
     limits:
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
     requests:
       cpu: "2"
       ephemeral-storage: 100Gi
       memory: 3Gi
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
 nodeSelector:
   cloud.google.com/gke-accelerator: nvidia-l4
   cloud.google.com/gke-spot: "true"
@@ -117,17 +117,17 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeNotebook: expectation{spec: `
+				RuntimeNotebook: {spec: `
 containers:
 - name: notebook
   resources:
     limits:
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
     requests:
       cpu: "2"
       ephemeral-storage: 100Gi
       memory: 3Gi
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
 nodeSelector:
   cloud.google.com/gke-accelerator: nvidia-l4
   cloud.google.com/gke-spot: "true"
@@ -137,7 +137,7 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeServer: expectation{spec: `
+				RuntimeServer: {spec: `
 containers:
 - name: server
   resources:
@@ -157,7 +157,7 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeBuilder: expectation{spec: `
+				RuntimeBuilder: {spec: `
 containers:
 - name: builder
   resources:
@@ -183,17 +183,17 @@ containers:
 				},
 			},
 			expected: map[Runtime]expectation{
-				RuntimeTrainer: expectation{spec: `
+				RuntimeTrainer: {spec: `
 containers:
 - name: trainer
   resources:
     limits:
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
     requests:
       cpu: "2"
       ephemeral-storage: 100Gi
       memory: 17Gi
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
 nodeSelector:
   cloud.google.com/gke-accelerator: nvidia-l4
   cloud.google.com/gke-spot: "true"
@@ -203,17 +203,17 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeNotebook: expectation{spec: `
+				RuntimeNotebook: {spec: `
 containers:
 - name: notebook
   resources:
     limits:
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
     requests:
       cpu: "2"
       ephemeral-storage: 100Gi
       memory: 17Gi
-      nvidia.com/gpu: "1"
+      nvidia.com/gpu: "2"
 nodeSelector:
   cloud.google.com/gke-accelerator: nvidia-l4
   cloud.google.com/gke-spot: "true"
@@ -223,7 +223,7 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeServer: expectation{spec: `
+				RuntimeServer: {spec: `
 containers:
 - name: server
   resources:
@@ -243,7 +243,7 @@ tolerations:
   operator: Equal
   value: "true"
 				`},
-				RuntimeBuilder: expectation{spec: `
+				RuntimeBuilder: {spec: `
 containers:
 - name: builder
   resources:
@@ -274,7 +274,7 @@ containers:
 				},
 			},
 			expected: map[Runtime]expectation{
-				RuntimeBuilder: expectation{
+				RuntimeBuilder: {
 					spec: `
 containers:
 - name: builder

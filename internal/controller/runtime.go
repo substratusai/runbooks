@@ -133,8 +133,13 @@ loop:
 
 		// GPU
 		if gpu != nil {
+			// Training requires more memory. For now use double the amount of GPUs
+			if runtime == RuntimeNotebook || runtime == RuntimeTrainer {
+				gpuCount = gpuCount * 2
+			}
 			resources.Requests[gpu.ResourceName] = *resource.NewQuantity(gpuCount, resource.DecimalSI)
 			resources.Limits[gpu.ResourceName] = *resource.NewQuantity(gpuCount, resource.DecimalSI)
+
 			if spec.NodeSelector == nil {
 				spec.NodeSelector = map[string]string{}
 			}
