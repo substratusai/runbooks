@@ -1023,7 +1023,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.2.0-alpha
+        image: docker.io/substratusai/controller-manager:v0.3.0-alpha
         livenessProbe:
           httpGet:
             path: /healthz
