@@ -79,6 +79,8 @@ spec:
   size:
     parameterBits: 32
     parameterCount: 125000000
+  compute:
+    types: ["CPU", "GPU"]
 ```
 
 ### ModelServer API
@@ -107,7 +109,7 @@ metadata:
   name: favorite-colors
 spec:
   source:
-    url: https://raw.githubusercontent.com/substratusai/models/main/facebook-opt-125m/hack/sample-data.jsonl
+    url: https://raw.githubusercontent.com/substratusai/model-facebook-opt-125m/main/hack/sample-data.jsonl
     filename: fav-colors.jsonl
 ```
 

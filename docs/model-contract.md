@@ -30,6 +30,9 @@ Must be located in `$PATH`:
     * The `DATASET_PATH` environment vairable will be provided.
     * Can load an existing model from `/model/saved/`.
     * Saves new trained model to `/model/trained/` (which will be copied into the new container's `/model/saved/` directory).
+- `notebook.sh`
+    * Should start a Jupyter Lab/Notebook environment.
+    * Should serve on port `8888`.
 
 ## Directory Structure
 
@@ -40,9 +43,5 @@ Must be located in `$PATH`:
   trained/ # Model artifacts from training job
   logs/    # Output of building/training jobs
 ```
-
-Images should have the following python packages installed:
-
-- `notebook`: Used to serve a Jupyter Notebook to allow for experimentation.
 
 
