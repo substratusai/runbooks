@@ -6,7 +6,7 @@ spec:
   source:
     git:
       url: https://github.com/substratusai/model-facebook-opt-125m
-      branch: main
+      branch: params
   size:
     parameterBits: 32
     parameterCount: 125000000

@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Dataset
+metadata:
+  name: squad
+spec:
+  source:
+    git:
+      url: https://github.com/substratusai/dataset-squad
+    filename: all.jsonl

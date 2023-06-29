@@ -34,7 +34,17 @@ type ModelSize struct {
 }
 
 type Training struct {
-	DatasetName string `json:"datasetName"`
+	DatasetName string         `json:"datasetName"`
+	Params      TrainingParams `json:"params"`
+}
+
+type TrainingParams struct {
+	//+kubebuilder:default:=3
+	Epochs int64 `json:"epochs,omitempty"`
+	//+kubebuilder:default:=1000000000000
+	DataLimit int64 `json:"dataLimit,omitempty"`
+	//+kubebuilder:default:=1
+	BatchSize int64 `json:"batchSize,omitempty"`
 }
 
 type ModelSource struct {
@@ -76,6 +86,7 @@ type ModelStatus struct {
 	Servers        []string           `json:"servers,omitempty"`
 }
 
+//+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"

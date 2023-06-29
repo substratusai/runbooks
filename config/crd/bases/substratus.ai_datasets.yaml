@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Dataset
     listKind: DatasetList
     plural: datasets
@@ -45,13 +47,22 @@ spec:
               source:
                 properties:
                   filename:
+                    description: URL supports http and https schemes. URL      string     `json:"url"`
                     type: string
-                  url:
-                    description: URL supports http and https schemes.
-                    type: string
+                  git:
+                    properties:
+                      branch:
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: github.com/my-account/my-repo'
+                        type: string
+                    type: object
                 required:
                 - filename
-                - url
                 type: object
             type: object
           status:

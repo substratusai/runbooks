@@ -1,12 +1,13 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: my-model
+  name: fb-opt-125m-squad
 spec:
   source:
     modelName: facebook-opt-125m
   training:
-    datasetName: favorite-colors
+    datasetName: squad
+    params: {}
   # TODO: This should be copied from the source Model.
   size:
     parameterBits: 32

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,9 +46,46 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if notebook.Spec.Suspend {
+		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+			Type:               ConditionReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             ReasonSuspended,
+			ObservedGeneration: notebook.Generation,
+		})
+		if err := r.Status().Update(ctx, &notebook); err != nil {
+			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
+		}
+
+		var pod corev1.Pod
+		pod.SetName(nbPodName(&notebook))
+		pod.SetNamespace(notebook.Namespace)
+		if err := r.Delete(ctx, &pod); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
 	var model apiv1.Model
 	if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.ModelName, Namespace: notebook.Namespace}, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("model not found: %w", err)
+		if apierrors.IsNotFound(err) {
+			// Update this Model's status.
+			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+				Type:               ConditionReady,
+				Status:             metav1.ConditionFalse,
+				Reason:             ReasonSourceModelNotFound,
+				ObservedGeneration: notebook.Generation,
+			})
+			if err := r.Status().Update(ctx, &notebook); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
+			}
+
+			// TODO: Implement watch on source Model.
+			return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
 	}
 
 	if ready := meta.FindStatusCondition(model.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue {
@@ -142,6 +180,10 @@ func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func nbPodName(nb *apiv1.Notebook) string {
+	return nb.Name + "-notebook"
+}
+
 func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model) (*corev1.Pod, error) {
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -149,7 +191,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      nb.Name + "-notebook",
+			Name:      nbPodName(nb),
 			Namespace: nb.Namespace,
 		},
 		Spec: corev1.PodSpec{

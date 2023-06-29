@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Notebook
     listKind: NotebookList
     plural: notebooks

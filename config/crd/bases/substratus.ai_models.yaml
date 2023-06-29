@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Model
     listKind: ModelList
     plural: models
@@ -87,8 +89,24 @@ spec:
                 properties:
                   datasetName:
                     type: string
+                  params:
+                    properties:
+                      batchSize:
+                        default: 1
+                        format: int64
+                        type: integer
+                      dataLimit:
+                        default: 1000000000000
+                        format: int64
+                        type: integer
+                      epochs:
+                        default: 3
+                        format: int64
+                        type: integer
+                    type: object
                 required:
                 - datasetName
+                - params
                 type: object
             required:
             - compute

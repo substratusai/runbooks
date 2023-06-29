@@ -10,8 +10,10 @@ type DatasetSpec struct {
 }
 
 type DatasetSource struct {
+	Git *GitSource `json:"git,omitempty"`
+
 	// URL supports http and https schemes.
-	URL      string `json:"url"`
+	//URL      string     `json:"url"`
 	Filename string `json:"filename"`
 }
 
@@ -22,6 +24,7 @@ type DatasetStatus struct {
 	URL string `json:"url,omitempty"`
 }
 
+//+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
