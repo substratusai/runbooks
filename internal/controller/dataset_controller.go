@@ -266,6 +266,8 @@ ENTRYPOINT ["/tini", "--"]
 		},
 	}
 
+	const builderContainerName = "loader-builder"
+	annotations["kubectl.kubernetes.io/default-container"] = builderContainerName
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dataset.Name + "-data-loader-builder",
@@ -287,7 +289,7 @@ ENTRYPOINT ["/tini", "--"]
 					},
 					ServiceAccountName: dataLoaderBuilderServiceAccountName,
 					Containers: []corev1.Container{{
-						Name:         "loader-builder",
+						Name:         builderContainerName,
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
@@ -307,6 +309,7 @@ ENTRYPOINT ["/tini", "--"]
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
+	const loaderContainerName = "loader"
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dataset.Name + "-data-loader",
@@ -316,7 +319,9 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/default-container": loaderContainerName,
+					},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
@@ -327,9 +332,15 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  "loader",
+							Name:  loaderContainerName,
 							Image: r.loaderImage(dataset),
 							Args:  []string{"load.sh"},
+							Env: []corev1.EnvVar{
+								{
+									Name:  "LOAD_DATA_PATH",
+									Value: "/data/" + dataset.Spec.Filename,
+								},
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "data",
@@ -368,7 +379,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 			},
 		})
 		dataset.Status.URL = "gcs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
-			"/" + string(dataset.UID) + "/data/" + dataset.Spec.Source.Filename
+			"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 	}
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {

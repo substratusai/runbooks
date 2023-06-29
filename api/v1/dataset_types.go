@@ -6,7 +6,8 @@ import (
 
 // DatasetSpec defines the desired state of Dataset
 type DatasetSpec struct {
-	Source DatasetSource `json:"source,omitempty"`
+	Filename string        `json:"filename"`
+	Source   DatasetSource `json:"source,omitempty"`
 }
 
 type DatasetSource struct {
@@ -14,7 +15,6 @@ type DatasetSource struct {
 
 	// URL supports http and https schemes.
 	//URL      string     `json:"url"`
-	Filename string `json:"filename"`
 }
 
 // DatasetStatus defines the observed state of Dataset

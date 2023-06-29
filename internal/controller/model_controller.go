@@ -403,6 +403,7 @@ ENTRYPOINT ["/tini", "--"]
 		}
 	}
 
+	annotations["kubectl.kubernetes.io/default-container"] = RuntimeBuilder
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-model-builder",
@@ -514,6 +515,7 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 		})
 	}
 
+	annotations["kubectl.kubernetes.io/default-container"] = RuntimeTrainer
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-model-trainer",
@@ -543,7 +545,7 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 							Env: []corev1.EnvVar{
 								{
 									Name:  "TRAINING_DATA_PATH",
-									Value: "/data/" + dataset.Spec.Source.Filename,
+									Value: "/data/" + dataset.Spec.Filename,
 								},
 								{
 									Name:  "TRAINING_DATA_LIMIT",

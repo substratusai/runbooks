@@ -27,7 +27,7 @@ func TestModelFromGit(t *testing.T) {
 		Spec: apiv1.ModelSpec{
 			Source: apiv1.ModelSource{
 				Git: &apiv1.GitSource{
-					URL: "test.com/test/test.git",
+					URL: "https://test.com/test/test.git",
 				},
 			},
 			Compute: apiv1.ModelCompute{
@@ -65,7 +65,7 @@ func TestModelFromModel(t *testing.T) {
 		Spec: apiv1.ModelSpec{
 			Source: apiv1.ModelSource{
 				Git: &apiv1.GitSource{
-					URL: "test.com/test/test.git",
+					URL: "https://test.com/test/test",
 				},
 			},
 			Compute: apiv1.ModelCompute{
@@ -89,9 +89,11 @@ func TestModelFromModel(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.DatasetSpec{
+			Filename: "does-not-exist.jsonl",
 			Source: apiv1.DatasetSource{
-				URL:      "https://test.internal/does/not/exist.jsonl",
-				Filename: "does-not-exist.jsonl",
+				Git: &apiv1.GitSource{
+					URL: "https://github.com/substratusai/dataset-test-test",
+				},
 			},
 		},
 	}

@@ -44,11 +44,10 @@ spec:
           spec:
             description: DatasetSpec defines the desired state of Dataset
             properties:
+              filename:
+                type: string
               source:
                 properties:
-                  filename:
-                    description: URL supports http and https schemes. URL      string     `json:"url"`
-                    type: string
                   git:
                     properties:
                       branch:
@@ -61,9 +60,9 @@ spec:
                         description: 'URL to the git repository. Example: github.com/my-account/my-repo'
                         type: string
                     type: object
-                required:
-                - filename
                 type: object
+            required:
+            - filename
             type: object
           status:
             description: DatasetStatus defines the observed state of Dataset

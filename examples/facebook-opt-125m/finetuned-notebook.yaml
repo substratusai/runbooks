@@ -3,4 +3,5 @@ kind: Notebook
 metadata:
   name: fb-opt-125m-squad
 spec:
+  suspend: true
   modelName: fb-opt-125m-squad
