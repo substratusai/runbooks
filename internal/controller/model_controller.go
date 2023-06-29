@@ -544,19 +544,19 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 							Args: []string{"train.sh"},
 							Env: []corev1.EnvVar{
 								{
-									Name:  "TRAINING_DATA_PATH",
+									Name:  "TRAIN_DATA_PATH",
 									Value: "/data/" + dataset.Spec.Filename,
 								},
 								{
-									Name:  "TRAINING_DATA_LIMIT",
+									Name:  "TRAIN_DATA_LIMIT",
 									Value: fmt.Sprintf("%v", model.Spec.Training.Params.DataLimit),
 								},
 								{
-									Name:  "TRAINING_BATCH_SIZE",
+									Name:  "TRAIN_BATCH_SIZE",
 									Value: fmt.Sprintf("%v", model.Spec.Training.Params.BatchSize),
 								},
 								{
-									Name:  "TRAINING_EPOCHS",
+									Name:  "TRAIN_EPOCHS",
 									Value: fmt.Sprintf("%v", model.Spec.Training.Params.Epochs),
 								},
 							},
