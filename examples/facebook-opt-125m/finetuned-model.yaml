@@ -8,9 +8,9 @@ spec:
   training:
     datasetName: squad
     params:
-      epochs: 9
+      epochs: 30
       batchSize: 3
-      dataLimit: 90
+      dataLimit: 120
   # TODO: This should be copied from the source Model.
   size:
     parameterBits: 32
