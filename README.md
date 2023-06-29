@@ -69,12 +69,16 @@ The Model API is capable of building base Models from Git repositories, or finet
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: my-model
+  name: fb-opt-125m-squad
 spec:
   source:
     modelName: facebook-opt-125m
   training:
-    datasetName: favorite-colors
+    datasetName: squad
+    params:
+      epochs: 30
+      batchSize: 3
+      dataLimit: 120
   # TODO: This should be copied from the source Model.
   size:
     parameterBits: 32
@@ -92,9 +96,9 @@ The ModelServer API runs a web server that serves the Model for inference (FUTUR
 apiVersion: substratus.ai/v1
 kind: ModelServer
 metadata:
-  name: my-model-server
+  name: fb-opt-125m-squad
 spec:
-  modelName: my-model
+  modelName: fb-opt-125m-squad
 ```
 
 ### Dataset API
@@ -106,11 +110,12 @@ The Dataset API snapshots and locally caches remote datasets to facilitate effic
 apiVersion: substratus.ai/v1
 kind: Dataset
 metadata:
-  name: favorite-colors
+  name: squad
 spec:
+  filename: all.jsonl
   source:
-    url: https://raw.githubusercontent.com/substratusai/model-facebook-opt-125m/main/hack/sample-data.jsonl
-    filename: fav-colors.jsonl
+    git:
+      url: https://github.com/substratusai/dataset-squad
 ```
 
 ### Notebook API
@@ -124,8 +129,9 @@ Notebooks can be opened using the `kubectl open notebook` command (which is a su
 apiVersion: substratus.ai/v1
 kind: Notebook
 metadata:
-  name: nick-fb-opt-125m
+  name: facebook-opt-125m
 spec:
+  suspend: true
   modelName: facebook-opt-125m
 ```
 
