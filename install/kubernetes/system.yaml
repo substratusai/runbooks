@@ -8,6 +8,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Dataset
     listKind: DatasetList
     plural: datasets
@@ -41,17 +43,25 @@ spec:
           spec:
             description: DatasetSpec defines the desired state of Dataset
             properties:
+              filename:
+                type: string
               source:
                 properties:
-                  filename:
-                    type: string
-                  url:
-                    description: URL supports http and https schemes.
-                    type: string
-                required:
-                - filename
-                - url
+                  git:
+                    properties:
+                      branch:
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: github.com/my-account/my-repo'
+                        type: string
+                    type: object
                 type: object
+            required:
+            - filename
             type: object
           status:
             description: DatasetStatus defines the observed state of Dataset
@@ -143,6 +153,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Model
     listKind: ModelList
     plural: models
@@ -221,8 +233,24 @@ spec:
                 properties:
                   datasetName:
                     type: string
+                  params:
+                    properties:
+                      batchSize:
+                        default: 1
+                        format: int64
+                        type: integer
+                      dataLimit:
+                        default: 1000000000000
+                        format: int64
+                        type: integer
+                      epochs:
+                        default: 3
+                        format: int64
+                        type: integer
+                    type: object
                 required:
                 - datasetName
+                - params
                 type: object
             required:
             - compute
@@ -323,6 +351,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: ModelServer
     listKind: ModelServerList
     plural: modelservers
@@ -447,6 +477,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Notebook
     listKind: NotebookList
     plural: notebooks
@@ -991,7 +1023,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.1.0-alpha
+        image: docker.io/substratusai/controller-manager:v0.2.0-alpha
         livenessProbe:
           httpGet:
             path: /healthz

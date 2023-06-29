@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/substratusai/controller-manager
-  newTag: v0.1.0-alpha
+  newTag: v0.2.0-alpha

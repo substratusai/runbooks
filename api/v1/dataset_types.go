@@ -12,9 +12,6 @@ type DatasetSpec struct {
 
 type DatasetSource struct {
 	Git *GitSource `json:"git,omitempty"`
-
-	// URL supports http and https schemes.
-	//URL      string     `json:"url"`
 }
 
 // DatasetStatus defines the observed state of Dataset
