@@ -59,6 +59,8 @@ The following parameters are communicated through environment variables when `tr
 
 The repo should contain a Dockerfile.
 
+- Workspace directory should be `/dataset/` (i.e. `WORKDIR /dataset`).
+
 ### Scripts
 
 Must be located in `$PATH`:
