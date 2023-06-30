@@ -48,10 +48,13 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// TODO(nstogner): Consider checking if the dataset is already loaded to the bucket instead of just
+	// checking the status.
 	if ready := meta.FindStatusCondition(dataset.Status.Conditions, ConditionReady); ready != nil && ready.Status == metav1.ConditionTrue {
 		return ctrl.Result{}, nil
 	}
 
+	// Service account used for building and pushing the loader image.
 	bldrSA := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: dataLoaderBuilderServiceAccountName, Namespace: dataset.Namespace},
 	}
@@ -61,6 +64,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
 	}
 
+	// Service account used for loading the data.
 	loaderSA := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{Name: dataLoaderServiceAccountName, Namespace: dataset.Namespace},
 	}
@@ -70,12 +74,10 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
 	}
 
-	///////////////
-
-	// Create a Job that will build a container image for the dataset fetcher
+	// The Job that will build the data-loader container image.
 	buildJob, err := r.buildJob(ctx, &dataset)
 	if err != nil {
-		lg.Error(err, "unable to create builder Job")
+		lg.Error(err, "unable to construct image-builder Job")
 		// No use in retrying...
 		return ctrl.Result{}, nil
 	}
@@ -83,21 +85,22 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
 		if apierrors.IsNotFound(err) {
 			if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-				return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
+				return ctrl.Result{}, fmt.Errorf("creating image-builder Job: %w", err)
 			}
 		} else {
-			return ctrl.Result{}, fmt.Errorf("getting Job: %w", err)
+			return ctrl.Result{}, fmt.Errorf("getting image-builder Job: %w", err)
 		}
 	}
 
 	if buildJob.Status.Succeeded < 1 {
-		lg.Info("Job has not succeeded yet")
+		lg.Info("The image-builder Job has not succeeded yet")
 
 		meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
 			Type:               ConditionReady,
 			Status:             metav1.ConditionFalse,
 			Reason:             ReasonBuilding,
 			ObservedGeneration: dataset.Generation,
+			Message:            fmt.Sprintf("Waiting for image-builder Job to complete: %v", buildJob.Name),
 		})
 		if err := r.Status().Update(ctx, &dataset); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
@@ -107,10 +110,10 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Create a Job that will run the data loader image that was just built.
+	// Job that will run the data-loader image that was built by the previous Job.
 	loadJob, err := r.loadJob(ctx, &dataset)
 	if err != nil {
-		lg.Error(err, "unable to create load Job")
+		lg.Error(err, "unable to construct data-loader Job")
 		// No use in retrying...
 		return ctrl.Result{}, nil
 	}
@@ -124,9 +127,10 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Status:             metav1.ConditionFalse,
 		Reason:             ReasonLoading,
 		ObservedGeneration: dataset.Generation,
+		Message:            fmt.Sprintf("Waiting for data-loader Job to complete: %v", loadJob.Name),
 	})
 	if err := r.Status().Update(ctx, &dataset); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
+		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonLoading, err)
 	}
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(loadJob), loadJob); err != nil {
@@ -149,7 +153,6 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.Status().Update(ctx, &dataset); err != nil {
 		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonLoaded, err)
 	}
-	///////////////
 
 	return ctrl.Result{}, nil
 }
