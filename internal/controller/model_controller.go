@@ -30,6 +30,7 @@ const (
 	ReasonBuilding       = "Building"
 	ReasonBuiltAndPushed = "BuiltAndPushed"
 
+	ReasonSourceModelNotFound = "SourceModelNotFound"
 	ReasonSourceModelNotReady = "SourceModelNotReady"
 	TrainingDatasetNotReady   = "TrainingDatasetNotReady"
 
@@ -70,6 +71,22 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	var sourceModel apiv1.Model
 	if model.Spec.Source.ModelName != "" {
 		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Source.ModelName}, &sourceModel); err != nil {
+			if apierrors.IsNotFound(err) {
+				// Update this Model's status.
+				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+					Type:               ConditionReady,
+					Status:             metav1.ConditionFalse,
+					Reason:             ReasonSourceModelNotFound,
+					ObservedGeneration: model.Generation,
+				})
+				if err := r.Status().Update(ctx, &model); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
+				}
+
+				// TODO: Implement watch on source Model.
+				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+			}
+
 			return ctrl.Result{}, fmt.Errorf("getting source model: %w", err)
 		}
 		if ready := meta.FindStatusCondition(sourceModel.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue || sourceModel.Status.ContainerImage == "" {
@@ -132,7 +149,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 					return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
 				}
 			} else {
-				return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
+				return ctrl.Result{}, fmt.Errorf("getting Job: %w", err)
 			}
 		}
 		if trainingJob.Status.Succeeded < 1 {
@@ -226,7 +243,7 @@ func (r *ModelReconciler) modelImage(m *apiv1.Model) string {
 	switch typ := r.CloudContext.CloudType; typ {
 	case CloudTypeGCP:
 		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, m.Namespace, m.Name)
+		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/model-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, m.Namespace, m.Name)
 	default:
 		panic("unsupported cloud type: " + typ)
 	}
@@ -246,6 +263,7 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 		// Disable compressed caching to decrease memory usage.
 		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
 		"--compressed-caching=false",
+		"--log-format=text",
 	}
 
 	var initContainers []corev1.Container
@@ -386,6 +404,7 @@ ENTRYPOINT ["/tini", "--"]
 		}
 	}
 
+	annotations["kubectl.kubernetes.io/default-container"] = RuntimeBuilder
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-model-builder",
@@ -497,6 +516,7 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 		})
 	}
 
+	annotations["kubectl.kubernetes.io/default-container"] = RuntimeTrainer
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-model-trainer",
@@ -525,8 +545,20 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 							Args: []string{"train.sh"},
 							Env: []corev1.EnvVar{
 								{
-									Name:  "DATA_PATH",
-									Value: "/data/" + dataset.Spec.Source.Filename,
+									Name:  "TRAIN_DATA_PATH",
+									Value: "/data/" + dataset.Spec.Filename,
+								},
+								{
+									Name:  "TRAIN_DATA_LIMIT",
+									Value: fmt.Sprintf("%v", model.Spec.Training.Params.DataLimit),
+								},
+								{
+									Name:  "TRAIN_BATCH_SIZE",
+									Value: fmt.Sprintf("%v", model.Spec.Training.Params.BatchSize),
+								},
+								{
+									Name:  "TRAIN_EPOCHS",
+									Value: fmt.Sprintf("%v", model.Spec.Training.Params.Epochs),
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{

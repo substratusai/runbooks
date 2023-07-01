@@ -34,7 +34,23 @@ type ModelSize struct {
 }
 
 type Training struct {
-	DatasetName string `json:"datasetName"`
+	DatasetName string         `json:"datasetName"`
+	Params      TrainingParams `json:"params"`
+}
+
+type TrainingParams struct {
+	//+kubebuilder:default:=3
+	// Epochs is the total number of iterations that should be run through the training data.
+	// Increasing this number will increase training time.
+	Epochs int64 `json:"epochs,omitempty"`
+	//+kubebuilder:default:=1000000000000
+	// DataLimit is the maximum number of training records to use. In the case of JSONL, this would be the total number of lines
+	// to train with. Increasing this number will increase training time.
+	DataLimit int64 `json:"dataLimit,omitempty"`
+	//+kubebuilder:default:=1
+	// BatchSize is the number of training records to use per (forward and backward) pass through the model.
+	// Increasing this number will increase the memory requirements of the training process.
+	BatchSize int64 `json:"batchSize,omitempty"`
 }
 
 type ModelSource struct {
@@ -76,6 +92,7 @@ type ModelStatus struct {
 	Servers        []string           `json:"servers,omitempty"`
 }
 
+//+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"

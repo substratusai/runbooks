@@ -6,13 +6,12 @@ import (
 
 // DatasetSpec defines the desired state of Dataset
 type DatasetSpec struct {
-	Source DatasetSource `json:"source,omitempty"`
+	Filename string        `json:"filename"`
+	Source   DatasetSource `json:"source,omitempty"`
 }
 
 type DatasetSource struct {
-	// URL supports http and https schemes.
-	URL      string `json:"url"`
-	Filename string `json:"filename"`
+	Git *GitSource `json:"git,omitempty"`
 }
 
 // DatasetStatus defines the observed state of Dataset
@@ -22,6 +21,7 @@ type DatasetStatus struct {
 	URL string `json:"url,omitempty"`
 }
 
+//+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"

@@ -1,6 +1,7 @@
 apiVersion: substratus.ai/v1
 kind: Notebook
 metadata:
-  name: nick-fb-opt-125m
+  name: facebook-opt-125m
 spec:
+  suspend: true
   modelName: facebook-opt-125m

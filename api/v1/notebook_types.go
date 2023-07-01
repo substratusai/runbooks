@@ -17,6 +17,7 @@ type NotebookStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
+//+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"

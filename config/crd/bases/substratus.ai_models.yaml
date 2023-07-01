@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Model
     listKind: ModelList
     plural: models
@@ -87,8 +89,35 @@ spec:
                 properties:
                   datasetName:
                     type: string
+                  params:
+                    properties:
+                      batchSize:
+                        default: 1
+                        description: BatchSize is the number of training records to
+                          use per (forward and backward) pass through the model. Increasing
+                          this number will increase the memory requirements of the
+                          training process.
+                        format: int64
+                        type: integer
+                      dataLimit:
+                        default: 1000000000000
+                        description: DataLimit is the maximum number of training records
+                          to use. In the case of JSONL, this would be the total number
+                          of lines to train with. Increasing this number will increase
+                          training time.
+                        format: int64
+                        type: integer
+                      epochs:
+                        default: 3
+                        description: Epochs is the total number of iterations that
+                          should be run through the training data. Increasing this
+                          number will increase training time.
+                        format: int64
+                        type: integer
+                    type: object
                 required:
                 - datasetName
+                - params
                 type: object
             required:
             - compute

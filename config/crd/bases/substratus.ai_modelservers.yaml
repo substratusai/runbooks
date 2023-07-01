@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: ModelServer
     listKind: ModelServerList
     plural: modelservers

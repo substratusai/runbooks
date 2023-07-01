@@ -1,6 +1,7 @@
 apiVersion: substratus.ai/v1
 kind: Notebook
 metadata:
-  name: my-model-notebook
+  name: fb-opt-125m-squad
 spec:
-  modelName: my-model
+  suspend: true
+  modelName: fb-opt-125m-squad

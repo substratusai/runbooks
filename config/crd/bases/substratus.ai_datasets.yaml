@@ -9,6 +9,8 @@ metadata:
 spec:
   group: substratus.ai
   names:
+    categories:
+    - ai
     kind: Dataset
     listKind: DatasetList
     plural: datasets
@@ -42,17 +44,25 @@ spec:
           spec:
             description: DatasetSpec defines the desired state of Dataset
             properties:
+              filename:
+                type: string
               source:
                 properties:
-                  filename:
-                    type: string
-                  url:
-                    description: URL supports http and https schemes.
-                    type: string
-                required:
-                - filename
-                - url
+                  git:
+                    properties:
+                      branch:
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: github.com/my-account/my-repo'
+                        type: string
+                    type: object
                 type: object
+            required:
+            - filename
             type: object
           status:
             description: DatasetStatus defines the observed state of Dataset

@@ -6,6 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,7 +54,22 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	var model apiv1.Model
 	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.ModelName, Namespace: server.Namespace}, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("model not found: %w", err)
+		if apierrors.IsNotFound(err) {
+			// Update this Model's status.
+			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
+				Type:               ConditionReady,
+				Status:             metav1.ConditionFalse,
+				Reason:             ReasonSourceModelNotFound,
+				ObservedGeneration: server.Generation,
+			})
+			if err := r.Status().Update(ctx, &server); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update server status: %w", err)
+			}
+
+			return ctrl.Result{}, nil
+		}
+
+		return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
 	}
 
 	var isRegistered bool

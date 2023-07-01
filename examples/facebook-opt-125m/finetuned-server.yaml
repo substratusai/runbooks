@@ -1,6 +1,6 @@
 apiVersion: substratus.ai/v1
 kind: ModelServer
 metadata:
-  name: my-model-server
+  name: fb-opt-125m-squad
 spec:
-  modelName: my-model
+  modelName: fb-opt-125m-squad
