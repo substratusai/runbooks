@@ -56,7 +56,10 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// Service account used for building and pushing the loader image.
 	bldrSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{Name: dataLoaderBuilderServiceAccountName, Namespace: dataset.Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dataLoaderBuilderServiceAccountName,
+			Namespace: dataset.Namespace,
+		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, bldrSA, func() error {
 		return r.authNServiceAccount(bldrSA)
@@ -66,7 +69,10 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// Service account used for loading the data.
 	loaderSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{Name: dataLoaderServiceAccountName, Namespace: dataset.Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dataLoaderServiceAccountName,
+			Namespace: dataset.Namespace,
+		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, loaderSA, func() error {
 		return r.authNServiceAccount(loaderSA)
@@ -197,6 +203,7 @@ func (r *DatasetReconciler) buildJob(ctx context.Context, dataset *apiv1.Dataset
 		// Disable compressed caching to decrease memory usage.
 		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
 		"--compressed-caching=false",
+		"--log-format=text",
 	}
 
 	var initContainers []corev1.Container

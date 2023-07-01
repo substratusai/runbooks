@@ -263,6 +263,7 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 		// Disable compressed caching to decrease memory usage.
 		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
 		"--compressed-caching=false",
+		"--log-format=text",
 	}
 
 	var initContainers []corev1.Container
