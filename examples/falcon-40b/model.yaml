@@ -5,7 +5,7 @@ metadata:
 spec:
   source:
     git:
-      url: github.com/substratusai/model-falcon-40b
+      url: https://github.com/substratusai/model-falcon-40b
   size:
     parameterBits: 8
     parameterCount: 40000000000
