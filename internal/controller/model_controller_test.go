@@ -116,7 +116,7 @@ func TestModelFromModel(t *testing.T) {
 			Source: apiv1.ModelSource{
 				ModelName: baseModel.Name,
 			},
-			Training: &apiv1.Training{
+			Training: &apiv1.ModelTraining{
 				DatasetName: dataset.Name,
 			},
 			Compute: apiv1.ModelCompute{
