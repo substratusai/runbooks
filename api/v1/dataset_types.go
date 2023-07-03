@@ -8,11 +8,11 @@ import (
 type DatasetSpec struct {
 	// Filename is the name of the file when it is downloaded.
 	Filename string `json:"filename"`
-	// Source if a reference to the code that is doing the data sourcing.
+	// Source is a reference to the code that is doing the data sourcing.
 	Source DatasetSource `json:"source,omitempty"`
 }
 
-// DatasetSource if a reference to the code that is doing the data sourcing.
+// DatasetSource is a reference to the code that is doing the data sourcing.
 type DatasetSource struct {
 	// Git is a reference to the git repository that contains the data loading code.
 	Git *GitSource `json:"git,omitempty"`

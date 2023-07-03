@@ -54,7 +54,7 @@ The Dataset API is used to describe data that can be referenced for training Mod
 
 
 
-DatasetSource if a reference to the code that is doing the data sourcing.
+DatasetSource is a reference to the code that is doing the data sourcing.
 
 _Appears in:_
 - [DatasetSpec](#datasetspec)
@@ -76,7 +76,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `filename` _string_ | Filename is the name of the file when it is downloaded. |
-| `source` _[DatasetSource](#datasetsource)_ | Source if a reference to the code that is doing the data sourcing. |
+| `source` _[DatasetSource](#datasetsource)_ | Source is a reference to the code that is doing the data sourcing. |
 
 
 ### DatasetStatus
