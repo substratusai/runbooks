@@ -27,7 +27,8 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: ModelServer is the Schema for the modelservers API
+        description: The ModelServer API is used to deploy a server that exposes the
+          capabilities of a Model via a HTTP interface.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,15 +43,18 @@ spec:
           metadata:
             type: object
           spec:
-            description: ModelServerSpec defines the desired state of ModelServer
+            description: Spec is the desired state of the ModelServer.
             properties:
               modelName:
+                description: ModelName is the .metadata.name of the Model to be served.
                 type: string
             type: object
           status:
-            description: ModelServerStatus defines the observed state of ModelServer
+            description: Status is the observed state of the ModelServer.
             properties:
               conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the ModelServer.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct

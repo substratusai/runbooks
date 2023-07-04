@@ -1,4 +1,4 @@
-// Package v1 contains API Schema definitions for the ops v1 API group
+// Package v1 contains API Schema definitions for Substratus.
 // +kubebuilder:object:generate=true
 // +groupName=substratus.ai
 package v1

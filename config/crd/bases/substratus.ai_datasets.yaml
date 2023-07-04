@@ -27,7 +27,16 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Dataset is the Schema for the datasets API
+        description: "The Dataset API is used to describe data that can be referenced
+          for training Models. \n - Datasets pull in remote data sources using containerized
+          data loaders. \n - Users can specify their own ETL logic by referencing
+          a repository from a Dataset. \n - Users can leverage pre-built data loader
+          integrations with various sources. \n - Training typically requires a large
+          dataset. The Dataset API pulls a dataset once and stores it in a bucket,
+          which is mounted directly into training Jobs. \n - The Dataset API allows
+          users to query ready-to-use datasets (`kubectl get datasets`). \n - The
+          Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling
+          access to data."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,22 +51,28 @@ spec:
           metadata:
             type: object
           spec:
-            description: DatasetSpec defines the desired state of Dataset
+            description: Spec is the desired state of the Dataset.
             properties:
               filename:
+                description: Filename is the name of the file when it is downloaded.
                 type: string
               source:
+                description: Source if a reference to the code that is doing the data
+                  sourcing.
                 properties:
                   git:
+                    description: Git is a reference to the git repository that contains
+                      the data loading code.
                     properties:
                       branch:
+                        description: Branch is the git branch to use.
                         type: string
                       path:
                         description: Path within the git repository referenced by
                           url.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: github.com/my-account/my-repo'
+                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
                         type: string
                     type: object
                 type: object
@@ -65,9 +80,11 @@ spec:
             - filename
             type: object
           status:
-            description: DatasetStatus defines the observed state of Dataset
+            description: Status is the observed state of the Dataset.
             properties:
               conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Dataset.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -136,6 +153,7 @@ spec:
                   type: object
                 type: array
               url:
+                description: URL points to the underlying data storage (bucket URL).
                 type: string
             type: object
         type: object

@@ -6,14 +6,17 @@ import (
 
 // NotebookSpec defines the desired state of Notebook
 type NotebookSpec struct {
+	// ModelName is the .metadata.name of the Model that this Notebook should be sourced from.
 	ModelName string `json:"modelName,omitempty"`
-	Suspend   bool   `json:"suspend,omitempty"`
+	// Suspend should be set to true to stop the notebook (Pod) from running.
+	Suspend bool `json:"suspend,omitempty"`
 
 	// Storage   resource.Quantity `json:"storage,omitempty"`
 }
 
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
+	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
@@ -23,12 +26,18 @@ type NotebookStatus struct {
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 //+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 
-// Notebook is the Schema for the notebooks API
+// The Notebook API can be used to quickly spin up a development environment backed by high performance compute.
+//
+//   - Notebooks integrate with the Model and Dataset APIs allow for quick iteration.
+//
+//   - Notebooks can be synced to local directories to streamline developer experiences using Substratus kubectl plugins.
 type Notebook struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NotebookSpec   `json:"spec,omitempty"`
+	// Spec is the observed state of the Notebook.
+	Spec NotebookSpec `json:"spec,omitempty"`
+	// Status is the observed state of the Notebook.
 	Status NotebookStatus `json:"status,omitempty"`
 }
 

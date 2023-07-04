@@ -27,7 +27,11 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Notebook is the Schema for the notebooks API
+        description: "The Notebook API can be used to quickly spin up a development
+          environment backed by high performance compute. \n - Notebooks integrate
+          with the Model and Dataset APIs allow for quick iteration. \n - Notebooks
+          can be synced to local directories to streamline developer experiences using
+          Substratus kubectl plugins."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,17 +46,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: NotebookSpec defines the desired state of Notebook
+            description: Spec is the observed state of the Notebook.
             properties:
               modelName:
+                description: ModelName is the .metadata.name of the Model that this
+                  Notebook should be sourced from.
                 type: string
               suspend:
+                description: Suspend should be set to true to stop the notebook (Pod)
+                  from running.
                 type: boolean
             type: object
           status:
-            description: NotebookStatus defines the observed state of Notebook
+            description: Status is the observed state of the Notebook.
             properties:
               conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Notebook.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
