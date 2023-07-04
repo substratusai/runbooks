@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: my-model
+spec:
+  source:
+    modelName: santacoder-1.1b
+  training:
+    datasetName: k8s-instructions

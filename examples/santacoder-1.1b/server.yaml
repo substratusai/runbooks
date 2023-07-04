@@ -1,0 +1,6 @@
+apiVersion: substratus.ai/v1
+kind: ModelServer
+metadata:
+  name: santacoder-1.1b
+spec:
+  modelName: santacoder-1.1b

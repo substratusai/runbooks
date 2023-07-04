@@ -134,4 +134,3 @@ spec:
   suspend: true
   modelName: facebook-opt-125m
 ```
-

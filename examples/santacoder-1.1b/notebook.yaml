@@ -1,0 +1,7 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: santacoder-1.1b
+spec:
+  suspend: true
+  modelName: santacoder-1.1b

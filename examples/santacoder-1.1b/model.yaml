@@ -1,0 +1,14 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: santacoder-1.1b
+spec:
+  source:
+    git:
+      url: https://github.com/substratusai/model-santacoder-1.1b
+      branch: initial
+  size:
+    parameterBits: 16
+    parameterCount: 1100000000
+  compute:
+    types: ["GPU"]
