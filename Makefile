@@ -85,13 +85,14 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: docs
 docs: crd-ref-docs embedmd
-	$(EMBEDMD) -w README.md
 	$(CRD_REF_DOCS) --config=./docs/api/config.yaml \
 		--log-level=INFO \
 		--output-path=./docs/api/generated.md \
 		--source-path=./api \
                 --templates-dir=./docs/api/templates/markdown \
 		--renderer=markdown
+	# TODO: Embed YAML examples into the generate API documentation.
+	# $(EMBEDMD) -w ./docs/api/generated.md
 
 
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
