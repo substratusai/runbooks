@@ -2,4 +2,4 @@
 
 Your cross-cloud AI substrate: Substratus extends the Kubernetes control plane to orchestrate the building, training, and deployment of machine learning models.
 
-Learn more on [substratus.ai](https://substratus.ai).
+Learn more on [substratus.ai](https://www.substratus.ai).
