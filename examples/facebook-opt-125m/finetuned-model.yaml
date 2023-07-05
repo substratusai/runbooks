@@ -1,17 +1,14 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: fb-opt-125m-squad
+  name: fb-opt-125m-k8s-instructions
 spec:
   source:
     modelName: facebook-opt-125m
   training:
-    datasetName: squad
+    datasetName: k8s-instructions
     params:
-      epochs: 3
-      batchSize: 100
-      dataLimit: 1000
-  # TODO: This should be copied from the source Model.
+      epochs: 1
   size:
     parameterBits: 32
     parameterCount: 125000000
