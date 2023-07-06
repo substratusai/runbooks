@@ -1,6 +1,6 @@
 apiVersion: substratus.ai/v1
 kind: ModelServer
 metadata:
-  name: my-model-server
+  name: falcon-7b-instruct-k8s
 spec:
-  modelName: my-model
+  modelName: falcon-7b-instruct-k8s
