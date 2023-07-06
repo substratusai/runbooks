@@ -1,0 +1,6 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: falcon-7b-instruct
+spec:
+  modelName: falcon-7b-instruct

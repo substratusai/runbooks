@@ -3,6 +3,7 @@ kind: Dataset
 metadata:
   name: k8s-instructions
 spec:
+  filename: k8s-instructions.jsonl
   source:
-    filename: k8s-instructions.jsonl
-    url: https://huggingface.co/datasets/samos123/k8s-instructions/raw/main/k8s-instructions.jsonl
+    git:
+      url: https://github.com/substratusai/dataset-k8s-instructions

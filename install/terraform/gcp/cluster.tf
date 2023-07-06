@@ -85,55 +85,55 @@ resource "google_container_cluster" "main" {
     resource_limits {
       resource_type = "cpu"
       minimum       = 0
-      maximum       = 96
+      maximum       = 960
     }
     resource_limits {
       resource_type = "memory"
       minimum       = 0
-      maximum       = 1048
+      maximum       = 10480
     }
     # from https://cloud.google.com/compute/docs/gpus/#nvidia_gpus_for_compute_workloads
     # TODO(bjb): ideally set these to align with regional quota on the project
     resource_limits {
       resource_type = "nvidia-l4"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-tesla-a100" # 40gb
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-a100-80gb"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-tesla-t4"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-tesla-v100"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-tesla-p100"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     resource_limits {
       resource_type = "nvidia-tesla-p4"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
     # EOL on GCP May 1, 2024: https://cloud.google.com/compute/docs/eol/k80-eol
     resource_limits {
       resource_type = "nvidia-tesla-k80"
       minimum       = 0
-      maximum       = 8
+      maximum       = 80
     }
   }
 

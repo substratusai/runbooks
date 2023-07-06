@@ -62,3 +62,6 @@ terraform.rc
 open-notebook
 secrets/*
 !secrets/.gitkeep
+
+# personal hack dev scripts
+hack/dev/

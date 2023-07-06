@@ -1,6 +1,7 @@
 apiVersion: substratus.ai/v1
-kind: ModelServer
+kind: Notebook
 metadata:
   name: falcon-7b-instruct-k8s
 spec:
+  suspend: true
   modelName: falcon-7b-instruct-k8s
