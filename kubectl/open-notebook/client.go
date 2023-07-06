@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,6 +84,11 @@ func podForNotebook(nb *unstructured.Unstructured) types.NamespacedName {
 	}
 }
 
+type portPair struct {
+	containerPort int
+	localPort     int
+}
+
 func (c *notebookClient) portForward(ctx context.Context, verbose bool, nb *unstructured.Unstructured, ready chan struct{}) error {
 	// TODO: Pull Pod info from status of Notebook.
 	podName, podNamespace := nb.GetName()+"-notebook", nb.GetNamespace()
@@ -95,9 +101,6 @@ func (c *notebookClient) portForward(ctx context.Context, verbose bool, nb *unst
 		return err
 	}
 
-	// TODO: Remove hardcoding.
-	localPort, podPort := 8888, 8888
-
 	// TODO: Add retry on broken connections.
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
 
@@ -107,11 +110,45 @@ func (c *notebookClient) portForward(ctx context.Context, verbose bool, nb *unst
 	} else {
 		stdout, stderr = io.Discard, io.Discard
 	}
-	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, ctx.Done(), ready, stdout, stderr)
-	if err != nil {
-		return err
+
+	// TODO: Remove hardcoding.
+	portPairs := []portPair{
+		{containerPort: 8888, localPort: 8888},
+		{containerPort: 8889, localPort: 8889},
 	}
-	return fw.ForwardPorts()
+
+	var wg sync.WaitGroup
+
+	for _, pp := range portPairs {
+		wg.Add(1) // Increment the WaitGroup counter
+
+		localReady := make(chan struct{}) // Create a separate channel for each goroutine
+
+		go func(pp portPair, ready chan struct{}) {
+			defer wg.Done() // Decrement the WaitGroup counter when finished
+
+			fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", pp.localPort, pp.containerPort)}, ctx.Done(), ready, stdout, stderr)
+			if err != nil {
+				fmt.Printf("Failed to create port forward for port %d: %s\n", pp.containerPort, err.Error())
+				close(ready) // Close the ready channel to signal completion
+				return
+			}
+
+			if err := fw.ForwardPorts(); err != nil {
+				fmt.Printf("Failed to forward port %d: %s\n", pp.containerPort, err.Error())
+			}
+
+			close(ready) // Close the ready channel to signal completion
+		}(pp, localReady)
+
+		go func(ready chan struct{}) {
+			<-ready // Wait for the ready channel to be closed
+		}(localReady)
+	}
+
+	wg.Wait() // Wait for all port forwarding goroutines to complete
+
+	return nil
 }
 
 func gvr(u *unstructured.Unstructured) schema.GroupVersionResource {

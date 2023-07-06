@@ -59,6 +59,5 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-open-notebook
 secrets/*
 !secrets/.gitkeep
