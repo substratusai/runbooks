@@ -7,7 +7,7 @@ spec:
     git:
       url: https://github.com/substratusai/model-falcon-40b
   size:
-    parameterBits: 8
+    parameterBits: 16
     parameterCount: 40000000000
   compute:
     types: ["GPU"]
