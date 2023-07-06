@@ -5,8 +5,8 @@ metadata:
 spec:
   source:
     git:
-      url: https://github.com/substratusai/model-facebook-opt-125m
-      branch: params
+      url: https://github.com/substratusai/model-facebook-opt-125m-hf
+      branch: main
   size:
     parameterBits: 32
     parameterCount: 125000000
