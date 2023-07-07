@@ -2,7 +2,7 @@
 
 Substratus orchestrates machine learning operations without requiring any language-specific library dependencies. As long as a container satisfies the "contract", that container can be orchestrated with Substratus. These contracts are designed to impose as few requirements as possible.
 
-## Model Contract
+## Any container Contract
 
 The repo should contain a Dockerfile.
 
@@ -15,22 +15,18 @@ As a part of building the Dockerfile:
 
 Must be located in `$PATH`:
 
-- `serve.sh`
+- `load.sh` for Model that specifies loader section
+    * Loads a model from an external source to (`/model/saved`)
+- `serve.sh` for ModelServer container image
     * Loads model from disk (`/model/saved/`).
-    * Run a webserver on port `8080`.
-        * Endpoints:
-            * GET `/docs`
-                * Serves API Documentation.
-            * POST `/generate`
-                * Accepts a request body of `{"prompt":"<your-prompt>", "max_new_tokens": 100}`.
-                * Responds with a body of `{"generation": "<your-prompt><completion>"}`.
-- `train.sh`
+    * Run a webserver on port `8080`. Right now, there is no contract on the specific endpoints to serve but this could change in the future
+- `train.sh` for Model that specifies trainer section
     * Writes logs to STDOUT/STDERR and optionally to `/model/logs/`.
     * If notebooks are run, it saves the `.ipynb` files with output into `/model/logs/`.
     * The `DATASET_PATH` environment vairable will be provided.
     * Can load an existing model from `/model/saved/`.
     * Saves new trained model to `/model/trained/` (which will be copied into the new container's `/model/saved/` directory).
-- `notebook.sh`
+- `notebook.sh` for any container image used in Substratus
     * Should start a Jupyter Lab/Notebook environment.
     * Should serve on port `8888`.
 
