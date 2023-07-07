@@ -57,23 +57,22 @@ spec:
                 description: Filename is the name of the file when it is downloaded.
                 type: string
               source:
-                description: Source if a reference to the code that is doing the data
+                description: Source is a reference to the code that is doing the data
                   sourcing.
                 properties:
                   git:
                     description: Git is a reference to the git repository that contains
                       the data loading code.
                     properties:
-                      branch:
-                        description: Branch is the git branch to use.
-                        type: string
                       path:
-                        description: Path within the git repository referenced by
-                          url.
+                        type: string
+                      refspec:
+                        description: refs/heads/my-branch
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
                         type: string
+                    required:
+                    - url
                     type: object
                 type: object
             required:

@@ -6,47 +6,40 @@ import (
 
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
-	// Source is a reference to the source of the model.
-	Source ModelSource `json:"source"`
+	// Container specifies the runtime container to use for loader or trainer
+	Container Container `json:"container"`
+	// Loader should be set to load a model from an external source
+	Loader *ModelLoader `json:"loader,omitempty"`
 	// Training should be set to run a training job.
-	Training *ModelTraining `json:"training,omitempty"`
-	// Size describes different size dimensions of the underlying model.
-	Size ModelSize `json:"size"`
-	// Compute describes the compute requirements and preferences of the model.
-	Compute ModelCompute `json:"compute"`
+	Trainer *ModelTrainer `json:"training,omitempty"`
 }
 
-type ModelCompute struct {
-	// +kubebuilder:validation:MinItems=1
-	// Types is a list of supported compute types for this Model. This list should be
-	// ordered by preference, with the most preferred type first.
-	Types []ComputeType `json:"types"`
+type ModelLoader struct {
+	// Params is a list of hyperparameters to use for training.
+	// TODO discuss if Params should be map[string]string
+	Params ModelLoaderParams `json:"params"`
 }
 
-// +kubebuilder:validation:Enum=CPU;GPU
-type ComputeType string
-
-const (
-	ComputeTypeCPU ComputeType = "CPU"
-	ComputeTypeGPU ComputeType = "GPU"
-	//ComputeTypeTPU ComputeType = "TPU"
-)
-
-type ModelSize struct {
-	// ParameterCount is the number of parameters in the underlying model.
-	ParameterCount int64 `json:"parameterCount,omitempty"`
-	// ParameterBits is the number of bits per parameter in the underlying model. Common values would be 8, 16, 32.
-	ParameterBits int `json:"parameterBits,omitempty"`
+type ModelLoaderParams struct {
+	// Name to use inside the loader. In case of HuggingFace loader this would be <HF_ORG>/<HF_REPO>
+	Name string `json:"epochs,omitempty"`
 }
 
-type ModelTraining struct {
+type ModelTrainer struct {
+	// SourceModel to use as a base model for training job
+	SourceModel *ModelSource `json:"sourceModel,omitempty"`
 	// DatasetName is the .metadata.name of the Dataset to use for training.
 	DatasetName string `json:"datasetName"`
 	// Params is a list of hyperparameters to use for training.
-	Params ModelTrainingParams `json:"params"`
+	Params ModelTrainerParams `json:"params"`
 }
 
-type ModelTrainingParams struct {
+type ModelSource struct {
+	// Name is the .metadata.name of another Model that this Model should be based on.
+	Name string `json:"name,omitempty"`
+}
+
+type ModelTrainerParams struct {
 	//+kubebuilder:default:=3
 	// Epochs is the total number of iterations that should be run through the training data.
 	// Increasing this number will increase training time.
@@ -61,43 +54,12 @@ type ModelTrainingParams struct {
 	BatchSize int64 `json:"batchSize,omitempty"`
 }
 
-type ModelSource struct {
-	// Git is a reference to a git repository containing model code.
-	Git *GitSource `json:"git,omitempty"`
-	// ModelName is the .metadata.name of another Model that this Model should be based on.
-	ModelName string `json:"modelName,omitempty"`
-}
-
-const (
-	ModelSourceTypeGit   = "Git"
-	ModelSourceTypeModel = "Model"
-)
-
-func (s ModelSource) Type() string {
-	if s.Git != nil {
-		return ModelSourceTypeGit
-	} else if s.ModelName != "" {
-		return ModelSourceTypeModel
-	}
-	return ""
-}
-
-type GitSource struct {
-	// URL to the git repository.
-	// Example: https://github.com/substratusai/model-falcon-40b
-	URL string `json:"url,omitempty"`
-	// Path within the git repository referenced by url.
-	Path string `json:"path,omitempty"`
-	// Branch is the git branch to use.
-	Branch string `json:"branch,omitempty"`
-}
-
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
+	// URL points to the underlying data storage (bucket URL).
+	URL string `json:"url,omitempty"`
 	// ContainerImage is reference to the container image that was built for this Model.
 	ContainerImage string `json:"containerImage,omitempty"`
-	// Servers is the list of servers that are currently running this Model. Soon to be deprecated.
-	Servers []string `json:"servers,omitempty"`
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

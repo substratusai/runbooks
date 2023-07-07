@@ -46,60 +46,43 @@ spec:
           spec:
             description: Spec is the desired state of the Model.
             properties:
-              compute:
-                description: Compute describes the compute requirements and preferences
-                  of the model.
-                properties:
-                  types:
-                    description: Types is a list of supported compute types for this
-                      Model. This list should be ordered by preference, with the most
-                      preferred type first.
-                    items:
-                      enum:
-                      - CPU
-                      - GPU
-                      type: string
-                    minItems: 1
-                    type: array
-                required:
-                - types
-                type: object
-              size:
-                description: Size describes different size dimensions of the underlying
-                  model.
-                properties:
-                  parameterBits:
-                    description: ParameterBits is the number of bits per parameter
-                      in the underlying model. Common values would be 8, 16, 32.
-                    type: integer
-                  parameterCount:
-                    description: ParameterCount is the number of parameters in the
-                      underlying model.
-                    format: int64
-                    type: integer
-                type: object
-              source:
-                description: Source is a reference to the source of the model.
+              container:
+                description: Container specifies the runtime container to use for
+                  loader or trainer
                 properties:
                   git:
-                    description: Git is a reference to a git repository containing
-                      model code.
                     properties:
-                      branch:
-                        description: Branch is the git branch to use.
-                        type: string
                       path:
-                        description: Path within the git repository referenced by
-                          url.
+                        type: string
+                      refspec:
+                        description: refs/heads/my-branch
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  image:
+                    type: string
+                required:
+                - git
+                - image
+                type: object
+              loader:
+                description: Loader should be set to load a model from an external
+                  source
+                properties:
+                  params:
+                    description: Params is a list of hyperparameters to use for training.
+                      TODO discuss if Params should be map[string]string
+                    properties:
+                      epochs:
+                        description: Name to use inside the loader. In case of HuggingFace
+                          loader this would be <HF_ORG>/<HF_REPO>
                         type: string
                     type: object
-                  modelName:
-                    description: ModelName is the .metadata.name of another Model
-                      that this Model should be based on.
-                    type: string
+                required:
+                - params
                 type: object
               training:
                 description: Training should be set to run a training job.
@@ -135,14 +118,20 @@ spec:
                         format: int64
                         type: integer
                     type: object
+                  sourceModel:
+                    description: SourceModel to use as a base model for training job
+                    properties:
+                      name:
+                        description: Name is the .metadata.name of another Model that
+                          this Model should be based on.
+                        type: string
+                    type: object
                 required:
                 - datasetName
                 - params
                 type: object
             required:
-            - compute
-            - size
-            - source
+            - container
             type: object
           status:
             description: Status is the observed state of the Model.
@@ -221,12 +210,9 @@ spec:
                 description: ContainerImage is reference to the container image that
                   was built for this Model.
                 type: string
-              servers:
-                description: Servers is the list of servers that are currently running
-                  this Model. Soon to be deprecated.
-                items:
-                  type: string
-                type: array
+              url:
+                description: URL points to the underlying data storage (bucket URL).
+                type: string
             type: object
         type: object
     served: true
