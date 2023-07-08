@@ -18,6 +18,9 @@ type DatasetSpec struct {
 func (d *Dataset) GetContainer() Container {
 	return d.Spec.Container
 }
+func (d *Dataset) SetContainer(c Container) {
+	d.Spec.Container = c
+}
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {
 	return &d.Status.Conditions

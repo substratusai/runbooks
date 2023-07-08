@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -27,6 +28,8 @@ const (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	*builder.ContainerReconciler
 	*RuntimeManager
 }
 
@@ -44,6 +47,10 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var notebook apiv1.Notebook
 	if err := r.Get(ctx, req.NamespacedName, &notebook); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if result, err := r.ReconcileContainer(ctx, &notebook); !result.Complete {
+		return result.Result, err
 	}
 
 	if notebook.Spec.Suspend {

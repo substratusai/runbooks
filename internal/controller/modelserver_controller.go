@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -32,6 +33,9 @@ const (
 type ModelServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	*builder.ContainerReconciler
+
 	*RuntimeManager
 }
 
@@ -50,6 +54,10 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	var server apiv1.ModelServer
 	if err := r.Get(ctx, req.NamespacedName, &server); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if result, err := r.ReconcileContainer(ctx, &server); !result.Complete {
+		return result.Result, err
 	}
 
 	var model apiv1.Model

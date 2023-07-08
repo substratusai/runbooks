@@ -48,7 +48,12 @@ type ContainerReconciler struct {
 func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj BuildableObject) (Result, error) {
 	log := log.FromContext(ctx)
 
+	if obj.GetContainer().Image != "" {
+		return Result{Complete: true}, nil
+	}
+
 	log.Info("Reconciling container")
+	defer log.Info("Done reconciling container")
 
 	// Service account used for building and pushing the image.
 	sa := &corev1.ServiceAccount{
@@ -97,6 +102,12 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 
 		// Allow Job watch to requeue.
 		return Result{}, nil
+	}
+
+	container := obj.GetContainer()
+	container.Image = r.image(obj)
+	if err := r.Client.Update(ctx, obj); err != nil {
+		return Result{}, fmt.Errorf("updating container image: %w", err)
 	}
 
 	return Result{Complete: true}, nil

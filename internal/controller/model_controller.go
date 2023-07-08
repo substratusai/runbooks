@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -35,13 +36,14 @@ const (
 	TrainingDatasetNotReady   = "TrainingDatasetNotReady"
 
 	modelTrainerServiceAccountName = "model-trainer"
-	modelBuilderServiceAccountName = "model-builder"
 )
 
 // ModelReconciler reconciles a Model object.
 type ModelReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	*builder.ContainerReconciler
 
 	CloudContext *CloudContext
 	*RuntimeManager
@@ -66,6 +68,10 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	var model apiv1.Model
 	if err := r.Get(ctx, req.NamespacedName, &model); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if result, err := r.ReconcileContainer(ctx, &model); !result.Complete {
+		return result.Result, err
 	}
 
 	var sourceModel apiv1.Model
@@ -170,46 +176,12 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	// Create a Job that will build a container image with the model in it.
-	// If a trainer Job was run, it will use the results of that Job to build the image.
-	buildJob, err := r.buildJob(ctx, &model, &sourceModel)
-	if err != nil {
-		lg.Error(err, "unable to create builder Job")
-		// No use in retrying...
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
-	}
-
-	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             ReasonBuilding,
-		ObservedGeneration: model.Generation,
-	})
-	if err := r.Status().Update(ctx, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
-		return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
-	}
-	if buildJob.Status.Succeeded < 1 {
-		lg.Info("Job has not succeeded yet")
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
-	}
-
 	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
 		Type:               ConditionReady,
 		Status:             metav1.ConditionTrue,
 		Reason:             ReasonBuiltAndPushed,
 		ObservedGeneration: model.Generation,
 	})
-	model.Status.ContainerImage = r.modelImage(&model)
 
 	if err := r.Status().Update(ctx, &model); err != nil {
 		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
@@ -237,216 +209,6 @@ func (r *ModelReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
 		return fmt.Errorf("unsupported cloud type: %q", r.CloudContext.CloudType)
 	}
 	return nil
-}
-
-func (r *ModelReconciler) modelImage(m *apiv1.Model) string {
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
-		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/model-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, m.Namespace, m.Name)
-	default:
-		panic("unsupported cloud type: " + typ)
-	}
-}
-
-func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sourceModel *apiv1.Model) (*batchv1.Job, error) {
-
-	var job *batchv1.Job
-
-	annotations := map[string]string{}
-
-	buildArgs := []string{
-		"--dockerfile=Dockerfile",
-		"--destination=" + r.modelImage(model),
-		// Cache will default to the image registry.
-		"--cache=true",
-		// Disable compressed caching to decrease memory usage.
-		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
-		"--compressed-caching=false",
-		"--log-format=text",
-	}
-
-	var initContainers []corev1.Container
-	var volumeMounts []corev1.VolumeMount
-	var volumes []corev1.Volume
-
-	if model.Spec.Training != nil {
-		const trainedDockerfile = `# Dockerfile for copying trained model into a new image.
-ARG SRC_IMG
-FROM $SRC_IMG
-COPY trained /model/saved
-COPY logs /model/logs
-RUN rm -rf /model/trained
-`
-		// Add an init container that will create a Dockerfile.
-		initContainers = append(initContainers, corev1.Container{
-			Name:  "dockerfile-templater",
-			Image: "busybox",
-			Args: []string{
-				"sh",
-				"-c",
-				"echo '" + trainedDockerfile + "' > /workspace/Dockerfile",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		})
-
-		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=SRC_IMG=%v", sourceModel.Status.ContainerImage))
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "workspace",
-				MountPath: "/workspace/Dockerfile",
-				SubPath:   "Dockerfile",
-			},
-			{
-				Name:      "training",
-				MountPath: "/workspace/trained",
-				SubPath:   string(model.UID) + "/trained",
-			},
-			{
-				Name:      "training",
-				MountPath: "/workspace/logs",
-				SubPath:   string(model.UID) + "/logs",
-			},
-		}
-
-		volumes = []corev1.Volume{
-			{
-				Name: "workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: "training",
-				VolumeSource: corev1.VolumeSource{
-					CSI: &corev1.CSIVolumeSource{
-						Driver: "gcsfuse.csi.storage.gke.io",
-						VolumeAttributes: map[string]string{
-							"bucketName":   r.CloudContext.GCP.ProjectID + "-substratus-training",
-							"mountOptions": "implicit-dirs,uid=0,gid=3003",
-						},
-					},
-				},
-			},
-		}
-
-		annotations["gke-gcsfuse/volumes"] = "true"
-	} else {
-		const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
-		cloneArgs := []string{
-			"clone",
-			model.Spec.Source.Git.URL,
-		}
-		if model.Spec.Source.Git.Branch != "" {
-			cloneArgs = append(cloneArgs, "--branch", model.Spec.Source.Git.Branch)
-		}
-		cloneArgs = append(cloneArgs, "/workspace")
-
-		if model.Spec.Source.Git.Path != "" {
-			buildArgs = append(buildArgs, "--context-sub-path="+model.Spec.Source.Git.Path)
-		}
-
-		// Add an init container that will clone the Git repo and
-		// another that will append tini to the Dockerfile.
-		initContainers = append(initContainers,
-			corev1.Container{
-				Name:  "git-clone",
-				Image: "alpine/git",
-				Args:  cloneArgs,
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "workspace",
-						MountPath: "/workspace",
-					},
-				},
-			},
-			corev1.Container{
-				Name:  "dockerfile-tini-appender",
-				Image: "busybox",
-				Args: []string{
-					"sh",
-					"-c",
-					"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "workspace",
-						MountPath: "/workspace",
-					},
-				},
-			},
-		)
-
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "workspace",
-				MountPath: "/workspace",
-			},
-		}
-		volumes = []corev1.Volume{
-			{
-				Name: "workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-		}
-	}
-
-	annotations["kubectl.kubernetes.io/default-container"] = RuntimeBuilder
-	job = &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: model.Name + "-model-builder",
-			// Cross-Namespace owners not allowed, must be same as model:
-			Namespace: model.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: int32Ptr(1),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: annotations,
-				},
-				Spec: corev1.PodSpec{
-					InitContainers: initContainers,
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  int64Ptr(0),
-						RunAsGroup: int64Ptr(0),
-						FSGroup:    int64Ptr(3003),
-					},
-					ServiceAccountName: modelBuilderServiceAccountName,
-					Containers: []corev1.Container{{
-						Name:         RuntimeBuilder,
-						Image:        "gcr.io/kaniko-project/executor:latest",
-						Args:         buildArgs,
-						VolumeMounts: volumeMounts,
-					}},
-					RestartPolicy: "Never",
-					Volumes:       volumes,
-				},
-			},
-		},
-	}
-
-	if err := r.SetResources(model, &job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, RuntimeBuilder); err != nil {
-		return nil, fmt.Errorf("setting pod resources: %w", err)
-	}
-
-	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {
-		return nil, fmt.Errorf("setting owner reference: %w", err)
-	}
-
-	return job, nil
 }
 
 func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, sourceModel *apiv1.Model) (*batchv1.Job, error) {

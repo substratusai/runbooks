@@ -38,6 +38,9 @@ type ModelServer struct {
 func (s *ModelServer) GetContainer() Container {
 	return s.Spec.Container
 }
+func (s *ModelServer) SetContainer(c Container) {
+	s.Spec.Container = c
+}
 
 func (s *ModelServer) GetConditions() *[]metav1.Condition {
 	return &s.Status.Conditions
