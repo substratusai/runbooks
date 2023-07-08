@@ -6,7 +6,6 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -27,6 +27,8 @@ const (
 type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	*builder.ContainerReconciler
 
 	CloudContext *CloudContext
 }
@@ -54,17 +56,8 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Service account used for building and pushing the loader image.
-	bldrSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataLoaderBuilderServiceAccountName,
-			Namespace: dataset.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, bldrSA, func() error {
-		return r.authNServiceAccount(bldrSA)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
+	if result, err := r.ReconcileContainer(ctx, &dataset); !result.Complete {
+		return result.Result, err
 	}
 
 	// Service account used for loading the data.
@@ -78,42 +71,6 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return r.authNServiceAccount(loaderSA)
 	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
-	}
-
-	// The Job that will build the data-loader container image.
-	buildJob, err := r.buildJob(ctx, &dataset)
-	if err != nil {
-		lg.Error(err, "unable to construct image-builder Job")
-		// No use in retrying...
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
-		if apierrors.IsNotFound(err) {
-			if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-				return ctrl.Result{}, fmt.Errorf("creating image-builder Job: %w", err)
-			}
-		} else {
-			return ctrl.Result{}, fmt.Errorf("getting image-builder Job: %w", err)
-		}
-	}
-
-	if buildJob.Status.Succeeded < 1 {
-		lg.Info("The image-builder Job has not succeeded yet")
-
-		meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             ReasonBuilding,
-			ObservedGeneration: dataset.Generation,
-			Message:            fmt.Sprintf("Waiting for image-builder Job to complete: %v", buildJob.Name),
-		})
-		if err := r.Status().Update(ctx, &dataset); err != nil {
-			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
-		}
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
 	}
 
 	// Job that will run the data-loader image that was built by the previous Job.
@@ -187,135 +144,6 @@ func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error
 		return fmt.Errorf("unsupported cloud type: %q", r.CloudContext.CloudType)
 	}
 	return nil
-}
-
-func (r *DatasetReconciler) buildJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
-
-	var job *batchv1.Job
-
-	annotations := map[string]string{}
-
-	buildArgs := []string{
-		"--dockerfile=Dockerfile",
-		"--destination=" + r.loaderImage(dataset),
-		// Cache will default to the image registry.
-		"--cache=true",
-		// Disable compressed caching to decrease memory usage.
-		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
-		"--compressed-caching=false",
-		"--log-format=text",
-	}
-
-	var initContainers []corev1.Container
-	var volumeMounts []corev1.VolumeMount
-	var volumes []corev1.Volume
-
-	const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
-	cloneArgs := []string{
-		"clone",
-		dataset.Spec.Source.Git.URL,
-	}
-	if dataset.Spec.Source.Git.Branch != "" {
-		cloneArgs = append(cloneArgs, "--branch", dataset.Spec.Source.Git.Branch)
-	}
-	cloneArgs = append(cloneArgs, "/workspace")
-
-	if dataset.Spec.Source.Git.Path != "" {
-		buildArgs = append(buildArgs, "--context-sub-path="+dataset.Spec.Source.Git.Path)
-	}
-
-	// Add an init container that will clone the Git repo and
-	// another that will append tini to the Dockerfile.
-	initContainers = append(initContainers,
-		corev1.Container{
-			Name:  "git-clone",
-			Image: "alpine/git",
-			Args:  cloneArgs,
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		},
-		corev1.Container{
-			Name:  "dockerfile-tini-appender",
-			Image: "busybox",
-			Args: []string{
-				"sh",
-				"-c",
-				"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		},
-	)
-
-	volumeMounts = []corev1.VolumeMount{
-		{
-			Name:      "workspace",
-			MountPath: "/workspace",
-		},
-	}
-	volumes = []corev1.Volume{
-		{
-			Name: "workspace",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-	}
-
-	const builderContainerName = "loader-builder"
-	annotations["kubectl.kubernetes.io/default-container"] = builderContainerName
-	job = &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: dataset.Name + "-data-loader-builder",
-			// Cross-Namespace owners not allowed, must be same as dataset:
-			Namespace: dataset.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: int32Ptr(1),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: annotations,
-				},
-				Spec: corev1.PodSpec{
-					InitContainers: initContainers,
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  int64Ptr(0),
-						RunAsGroup: int64Ptr(0),
-						FSGroup:    int64Ptr(3003),
-					},
-					ServiceAccountName: dataLoaderBuilderServiceAccountName,
-					Containers: []corev1.Container{{
-						Name:         builderContainerName,
-						Image:        "gcr.io/kaniko-project/executor:latest",
-						Args:         buildArgs,
-						VolumeMounts: volumeMounts,
-					}},
-					RestartPolicy: "Never",
-					Volumes:       volumes,
-				},
-			},
-		},
-	}
-
-	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
-		return nil, fmt.Errorf("setting owner reference: %w", err)
-	}
-
-	return job, nil
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {

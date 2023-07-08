@@ -6,8 +6,9 @@ import (
 
 // ModelServerSpec defines the desired state of ModelServer
 type ModelServerSpec struct {
-	// ModelName is the .metadata.name of the Model to be served.
-	ModelName string `json:"modelName,omitempty"`
+	Container Container `json:"container"`
+
+	Model ObjectRef `json:"model,omitempty"`
 }
 
 // ModelServerStatus defines the observed state of ModelServer
@@ -32,6 +33,14 @@ type ModelServer struct {
 	Spec ModelServerSpec `json:"spec,omitempty"`
 	// Status is the observed state of the ModelServer.
 	Status ModelServerStatus `json:"status,omitempty"`
+}
+
+func (s *ModelServer) GetContainer() Container {
+	return s.Spec.Container
+}
+
+func (s *ModelServer) GetConditions() *[]metav1.Condition {
+	return &s.Status.Conditions
 }
 
 //+kubebuilder:object:root=true

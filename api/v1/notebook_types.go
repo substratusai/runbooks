@@ -6,12 +6,21 @@ import (
 
 // NotebookSpec defines the desired state of Notebook
 type NotebookSpec struct {
-	// ModelName is the .metadata.name of the Model that this Notebook should be sourced from.
-	ModelName string `json:"modelName,omitempty"`
 	// Suspend should be set to true to stop the notebook (Pod) from running.
 	Suspend bool `json:"suspend,omitempty"`
 
-	// Storage   resource.Quantity `json:"storage,omitempty"`
+	Container Container `json:"container,omitempty"`
+
+	Model   *ObjectRef `json:"model,omitempty"`
+	Dataset *ObjectRef `json:"dataset,omitempty"`
+}
+
+func (n *Notebook) GetContainer() Container {
+	return n.Spec.Container
+}
+
+func (n *Notebook) GetConditions() *[]metav1.Condition {
+	return &n.Status.Conditions
 }
 
 // NotebookStatus defines the observed state of Notebook

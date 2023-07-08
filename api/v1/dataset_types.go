@@ -8,14 +8,23 @@ import (
 type DatasetSpec struct {
 	// Filename is the name of the file when it is downloaded.
 	Filename string `json:"filename"`
-	// Source is a reference to the code that is doing the data sourcing.
-	Source DatasetSource `json:"source,omitempty"`
+
+	// Container that contains dataset loading code and dependencies.
+	Container Container `json:"container"`
+
+	Loader DatasetLoader `json:"loader,omitempty"`
 }
 
-// DatasetSource is a reference to the code that is doing the data sourcing.
-type DatasetSource struct {
-	// Git is a reference to the git repository that contains the data loading code.
-	Git *GitSource `json:"git,omitempty"`
+func (d *Dataset) GetContainer() Container {
+	return d.Spec.Container
+}
+
+func (d *Dataset) GetConditions() *[]metav1.Condition {
+	return &d.Status.Conditions
+}
+
+type DatasetLoader struct {
+	Params map[string]string `json:"params,omitempty"`
 }
 
 // DatasetStatus defines the observed state of Dataset.
