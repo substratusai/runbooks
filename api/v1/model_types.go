@@ -1,6 +1,7 @@
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -18,6 +19,8 @@ type ModelLoader struct {
 	// Params is a list of hyperparameters to use for training.
 	// TODO discuss if Params should be map[string]string
 	Params ModelLoaderParams `json:"params"`
+
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 type ModelLoaderParams struct {
@@ -32,6 +35,8 @@ type ModelTrainer struct {
 	DatasetName string `json:"datasetName"`
 	// Params is a list of hyperparameters to use for training.
 	Params ModelTrainerParams `json:"params"`
+
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 type ModelSource struct {

@@ -190,6 +190,7 @@ func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error
 }
 
 func (r *DatasetReconciler) buildJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
+	// TODO re-use the same buildJob for notebook, model and dataset controller
 
 	var job *batchv1.Job
 

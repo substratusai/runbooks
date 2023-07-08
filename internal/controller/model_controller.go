@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -68,44 +69,6 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	var sourceModel apiv1.Model
-	if model.Spec.Source.ModelName != "" {
-		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Source.ModelName}, &sourceModel); err != nil {
-			if apierrors.IsNotFound(err) {
-				// Update this Model's status.
-				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               ConditionReady,
-					Status:             metav1.ConditionFalse,
-					Reason:             ReasonSourceModelNotFound,
-					ObservedGeneration: model.Generation,
-				})
-				if err := r.Status().Update(ctx, &model); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-				}
-
-				// TODO: Implement watch on source Model.
-				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
-			}
-
-			return ctrl.Result{}, fmt.Errorf("getting source model: %w", err)
-		}
-		if ready := meta.FindStatusCondition(sourceModel.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue || sourceModel.Status.ContainerImage == "" {
-			// Update this Model's status.
-			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
-				Status:             metav1.ConditionFalse,
-				Reason:             ReasonSourceModelNotReady,
-				ObservedGeneration: model.Generation,
-			})
-			if err := r.Status().Update(ctx, &model); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-			}
-
-			// TODO: Instead of RequeueAfter, add a watch that maps to .spec.source.modelName
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		}
-	}
-
 	if model.Status.ContainerImage != "" {
 		// TODO: Check container registry directly instead.
 		return ctrl.Result{}, nil
@@ -134,7 +97,97 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
 	}
 
-	if model.Spec.Training != nil {
+	if model.Spec.Container.Git.URL != "" && model.Status.ContainerImage != "" {
+		// Create a Job that will build the container image that's used for trainer or loader
+		buildJob, err := r.buildJob(ctx, &model)
+		if err != nil {
+			lg.Error(err, "unable to create builder Job")
+			// No use in retrying...
+			return ctrl.Result{}, nil
+		}
+
+		if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
+			return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
+		}
+
+		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+			Type:               ConditionReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             ReasonBuilding,
+			ObservedGeneration: model.Generation,
+		})
+		if err := r.Status().Update(ctx, &model); err != nil {
+			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
+		}
+
+		if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
+			return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
+		}
+		if buildJob.Status.Succeeded < 1 {
+			lg.Info("Job has not succeeded yet")
+
+			// Allow Job watch to requeue.
+			return ctrl.Result{}, nil
+		}
+
+		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+			Type:               ConditionReady,
+			Status:             metav1.ConditionTrue,
+			Reason:             ReasonBuiltAndPushed,
+			ObservedGeneration: model.Generation,
+		})
+		model.Status.ContainerImage = r.modelImage(&model)
+
+		if err := r.Status().Update(ctx, &model); err != nil {
+			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
+		}
+	}
+	if model.Spec.Container.Image != "" && model.Status.ContainerImage == "" {
+		model.Status.ContainerImage = r.modelImage(&model)
+		if err := r.Status().Update(ctx, &model); err != nil {
+			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
+		}
+	}
+
+	if model.Spec.Trainer != nil {
+		var sourceModel apiv1.Model
+		if model.Spec.Trainer.SourceModel.Name != "" {
+			if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.SourceModel.Name}, &sourceModel); err != nil {
+				if apierrors.IsNotFound(err) {
+					// Update this Model's status.
+					meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+						Type:               ConditionReady,
+						Status:             metav1.ConditionFalse,
+						Reason:             ReasonSourceModelNotFound,
+						ObservedGeneration: model.Generation,
+					})
+					if err := r.Status().Update(ctx, &model); err != nil {
+						return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
+					}
+
+					// TODO: Implement watch on source Model.
+					return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+				}
+
+				return ctrl.Result{}, fmt.Errorf("getting source model: %w", err)
+			}
+			if ready := meta.FindStatusCondition(sourceModel.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue || sourceModel.Status.ContainerImage == "" {
+				// Update this Model's status.
+				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+					Type:               ConditionReady,
+					Status:             metav1.ConditionFalse,
+					Reason:             ReasonSourceModelNotReady,
+					ObservedGeneration: model.Generation,
+				})
+				if err := r.Status().Update(ctx, &model); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
+				}
+
+				// TODO: Instead of RequeueAfter, add a watch that maps to .spec.source.modelName
+				return ctrl.Result{RequeueAfter: time.Minute}, nil
+			}
+		}
+
 		// Run training Job first, results will be stored in a volume and used by the builder Job.
 
 		trainingJob, err := r.trainingJob(ctx, &model, &sourceModel)
@@ -168,51 +221,6 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			// Allow Job watch to requeue.
 			return ctrl.Result{}, nil
 		}
-	}
-
-	// Create a Job that will build a container image with the model in it.
-	// If a trainer Job was run, it will use the results of that Job to build the image.
-	buildJob, err := r.buildJob(ctx, &model, &sourceModel)
-	if err != nil {
-		lg.Error(err, "unable to create builder Job")
-		// No use in retrying...
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
-	}
-
-	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             ReasonBuilding,
-		ObservedGeneration: model.Generation,
-	})
-	if err := r.Status().Update(ctx, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
-		return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
-	}
-	if buildJob.Status.Succeeded < 1 {
-		lg.Info("Job has not succeeded yet")
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
-	}
-
-	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionTrue,
-		Reason:             ReasonBuiltAndPushed,
-		ObservedGeneration: model.Generation,
-	})
-	model.Status.ContainerImage = r.modelImage(&model)
-
-	if err := r.Status().Update(ctx, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
 	}
 
 	return ctrl.Result{}, nil
@@ -249,7 +257,9 @@ func (r *ModelReconciler) modelImage(m *apiv1.Model) string {
 	}
 }
 
-func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sourceModel *apiv1.Model) (*batchv1.Job, error) {
+// TODO move buildJob to separate file and let it take a Container spec
+// that way it can work with any resource
+func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model) (*batchv1.Job, error) {
 
 	var job *batchv1.Job
 
@@ -270,22 +280,47 @@ func (r *ModelReconciler) buildJob(ctx context.Context, model *apiv1.Model, sour
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
 
-	if model.Spec.Training != nil {
-		const trainedDockerfile = `# Dockerfile for copying trained model into a new image.
-ARG SRC_IMG
-FROM $SRC_IMG
-COPY trained /model/saved
-COPY logs /model/logs
-RUN rm -rf /model/trained
+	const dockerfileWithTini = `
+# Add Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
 `
-		// Add an init container that will create a Dockerfile.
-		initContainers = append(initContainers, corev1.Container{
-			Name:  "dockerfile-templater",
+	cloneArgs := []string{
+		"clone",
+		model.Spec.Container.Git.URL,
+	}
+	if model.Spec.Container.Git.Branch != "" {
+		cloneArgs = append(cloneArgs, "--branch", model.Spec.Container.Git.Branch)
+	}
+	cloneArgs = append(cloneArgs, "/workspace")
+
+	if model.Spec.Container.Git.Path != "" {
+		buildArgs = append(buildArgs, "--context-sub-path="+model.Spec.Container.Git.Path)
+	}
+
+	// Add an init container that will clone the Git repo and
+	// another that will append tini to the Dockerfile.
+	initContainers = append(initContainers,
+		corev1.Container{
+			Name:  "git-clone",
+			Image: "alpine/git",
+			Args:  cloneArgs,
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "workspace",
+					MountPath: "/workspace",
+				},
+			},
+		},
+		corev1.Container{
+			Name:  "dockerfile-tini-appender",
 			Image: "busybox",
 			Args: []string{
 				"sh",
 				"-c",
-				"echo '" + trainedDockerfile + "' > /workspace/Dockerfile",
+				"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -293,121 +328,28 @@ RUN rm -rf /model/trained
 					MountPath: "/workspace",
 				},
 			},
-		})
+		},
+	)
 
-		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=SRC_IMG=%v", sourceModel.Status.ContainerImage))
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "workspace",
-				MountPath: "/workspace/Dockerfile",
-				SubPath:   "Dockerfile",
+	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "workspace",
+			MountPath: "/workspace",
+		},
+	}
+	volumes = []corev1.Volume{
+		{
+			Name: "workspace",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
-			{
-				Name:      "training",
-				MountPath: "/workspace/trained",
-				SubPath:   string(model.UID) + "/trained",
-			},
-			{
-				Name:      "training",
-				MountPath: "/workspace/logs",
-				SubPath:   string(model.UID) + "/logs",
-			},
-		}
-
-		volumes = []corev1.Volume{
-			{
-				Name: "workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: "training",
-				VolumeSource: corev1.VolumeSource{
-					CSI: &corev1.CSIVolumeSource{
-						Driver: "gcsfuse.csi.storage.gke.io",
-						VolumeAttributes: map[string]string{
-							"bucketName":   r.CloudContext.GCP.ProjectID + "-substratus-training",
-							"mountOptions": "implicit-dirs,uid=0,gid=3003",
-						},
-					},
-				},
-			},
-		}
-
-		annotations["gke-gcsfuse/volumes"] = "true"
-	} else {
-		const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
-		cloneArgs := []string{
-			"clone",
-			model.Spec.Source.Git.URL,
-		}
-		if model.Spec.Source.Git.Branch != "" {
-			cloneArgs = append(cloneArgs, "--branch", model.Spec.Source.Git.Branch)
-		}
-		cloneArgs = append(cloneArgs, "/workspace")
-
-		if model.Spec.Source.Git.Path != "" {
-			buildArgs = append(buildArgs, "--context-sub-path="+model.Spec.Source.Git.Path)
-		}
-
-		// Add an init container that will clone the Git repo and
-		// another that will append tini to the Dockerfile.
-		initContainers = append(initContainers,
-			corev1.Container{
-				Name:  "git-clone",
-				Image: "alpine/git",
-				Args:  cloneArgs,
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "workspace",
-						MountPath: "/workspace",
-					},
-				},
-			},
-			corev1.Container{
-				Name:  "dockerfile-tini-appender",
-				Image: "busybox",
-				Args: []string{
-					"sh",
-					"-c",
-					"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "workspace",
-						MountPath: "/workspace",
-					},
-				},
-			},
-		)
-
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "workspace",
-				MountPath: "/workspace",
-			},
-		}
-		volumes = []corev1.Volume{
-			{
-				Name: "workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-		}
+		},
 	}
 
 	annotations["kubectl.kubernetes.io/default-container"] = RuntimeBuilder
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: model.Name + "-model-builder",
+			Name: model.Name + "-container-builder",
 			// Cross-Namespace owners not allowed, must be same as model:
 			Namespace: model.Namespace,
 		},
@@ -430,16 +372,19 @@ ENTRYPOINT ["/tini", "--"]
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
+
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(1*gigabyte, resource.BinarySI),
+							},
+						},
 					}},
 					RestartPolicy: "Never",
 					Volumes:       volumes,
 				},
 			},
 		},
-	}
-
-	if err := r.SetResources(model, &job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, RuntimeBuilder); err != nil {
-		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 
 	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {
