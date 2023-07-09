@@ -19,10 +19,6 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
-const (
-	ReasonSuspended = "Suspended"
-)
-
 // NotebookReconciler reconciles a Notebook object.
 type NotebookReconciler struct {
 	client.Client
@@ -47,15 +43,19 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &notebook); !result.Complete {
+	if result, err := reconcileReadiness(ctx, r.Client, &notebook); result.success {
+		return result.Result, err
+	}
+
+	if result, err := r.ReconcileContainer(ctx, &notebook); !result.success {
 		return result.Result, err
 	}
 
 	if notebook.Spec.Suspend {
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
+			Type:               apiv1.ConditionChildrenReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             ReasonSuspended,
+			Reason:             apiv1.ReasonSuspended,
 			ObservedGeneration: notebook.Generation,
 		})
 		if err := r.Status().Update(ctx, &notebook); err != nil {
@@ -73,40 +73,44 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	var model apiv1.Model
-	if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, &model); err != nil {
-		if apierrors.IsNotFound(err) {
-			// Update this Model's status.
+	var model *apiv1.Model
+	if notebook.Spec.Model != nil {
+		model = &apiv1.Model{}
+		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
+			if apierrors.IsNotFound(err) {
+				// Update this Model's status.
+				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+					Type:               apiv1.ConditionDependenciesReady,
+					Status:             metav1.ConditionFalse,
+					Reason:             apiv1.ReasonModelNotFound,
+					ObservedGeneration: notebook.Generation,
+				})
+				if err := r.Status().Update(ctx, &notebook); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
+				}
+
+				// TODO: Implement watch on source Model.
+				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+			}
+			return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
+		}
+
+		if !model.Status.Ready {
+			lg.Info("Model not ready", "model", model.Name)
+
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
+				Type:               apiv1.ConditionDependenciesReady,
 				Status:             metav1.ConditionFalse,
-				Reason:             ReasonSourceModelNotFound,
+				Reason:             apiv1.ReasonModelNotReady,
 				ObservedGeneration: notebook.Generation,
 			})
 			if err := r.Status().Update(ctx, &notebook); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
 			}
 
-			// TODO: Implement watch on source Model.
-			return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
-		}
-		return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
-	}
-
-	if ready := meta.FindStatusCondition(model.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue {
-		lg.Info("Model not ready", "model", model.Name)
-
-		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             ReasonModelNotReady,
-			ObservedGeneration: notebook.Generation,
-		})
-		if err := r.Status().Update(ctx, &notebook); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
+			return ctrl.Result{}, nil
 		}
 
-		return ctrl.Result{}, nil
 	}
 
 	//pvc, err := r.notebookPVC(&notebook)
@@ -118,54 +122,32 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	//	return ctrl.Result{}, fmt.Errorf("failed to apply pvc: %w", err)
 	//}
 
-	pod, err := r.notebookPod(&notebook, &model)
+	pod, err := r.notebookPod(&notebook, model)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
-	if notebook.Spec.Suspend {
-		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             ReasonSuspended,
-			ObservedGeneration: notebook.Generation,
-		})
-		if err := r.Status().Update(ctx, &notebook); err != nil {
-			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
-		}
-
-		if err := r.Delete(ctx, pod); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
-	} else {
-		if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to apply pod: %w", err)
-		}
+	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to apply pod: %w", err)
 	}
-
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get pod: %w", err)
 	}
 
+	reason := apiv1.ReasonPodNotReady
 	ready := metav1.ConditionFalse
-	reason := string(pod.Status.Phase)
 	if pod.Status.Phase == corev1.PodRunning {
 		for _, c := range pod.Status.Conditions {
 			if c.Type == "Ready" {
 				if c.Status == "True" {
 					ready = metav1.ConditionTrue
-					reason = reason + "AndReady"
-				} else {
-					reason = reason + "AndNotReady"
+					reason = ""
 				}
 			}
 		}
 	}
 
 	meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
+		Type:               apiv1.ConditionDependenciesReady,
 		Status:             ready,
 		Reason:             reason,
 		ObservedGeneration: notebook.Generation,

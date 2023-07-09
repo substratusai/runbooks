@@ -7,15 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/controller"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestNotebook(t *testing.T) {
+func TestNotebookFromGitWithModelOnly(t *testing.T) {
 	name := strings.ToLower(t.Name())
 
 	model := &apiv1.Model{
@@ -24,25 +21,15 @@ func TestNotebook(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{
-				Git: &apiv1.GitSource{
-					URL: "test.com/test/test.git",
-				},
+			Container: apiv1.Container{
+				Image: "some-image",
 			},
-			Compute: apiv1.ModelCompute{
-				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
-			},
+			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the notebook")
-	modelWithUpdatedStatus := model.DeepCopy()
-	modelWithUpdatedStatus.Status.ContainerImage = "test"
-	meta.SetStatusCondition(&modelWithUpdatedStatus.Status.Conditions, metav1.Condition{
-		Type:   controller.ConditionReady,
-		Status: metav1.ConditionTrue,
-		Reason: "FakedByTheTest",
-	})
-	require.NoError(t, k8sClient.Status().Patch(ctx, modelWithUpdatedStatus, client.MergeFrom(model)), "patching the model with a fake ready status")
+
+	fakeModelLoad(t, model)
 
 	notebook := &apiv1.Notebook{
 		ObjectMeta: metav1.ObjectMeta{
@@ -50,10 +37,19 @@ func TestNotebook(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.NotebookSpec{
-			ModelName: model.Name,
+			Container: apiv1.Container{
+				Git: &apiv1.GitSource{
+					URL: "https://github.com/substratusai/notebook-test-test",
+				},
+			},
+			Model: &apiv1.ObjectRef{
+				Name: model.Name,
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, notebook), "creating a notebook")
+
+	fakeContainerBuild(t, notebook)
 
 	// Test that a notebook Pod gets created by the controller.
 	var pod corev1.Pod

@@ -7,16 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/controller"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestModelFromGit(t *testing.T) {
+func TestModelLoaderFromGit(t *testing.T) {
 	name := strings.ToLower(t.Name())
 
 	model := &apiv1.Model{
@@ -25,14 +23,12 @@ func TestModelFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{
+			Container: apiv1.Container{
 				Git: &apiv1.GitSource{
 					URL: "https://test.com/test/test.git",
 				},
 			},
-			Compute: apiv1.ModelCompute{
-				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
-			},
+			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
@@ -54,7 +50,7 @@ func TestModelFromGit(t *testing.T) {
 	require.Equal(t, "builder", job.Spec.Template.Spec.Containers[0].Name)
 }
 
-func TestModelFromModel(t *testing.T) {
+func TestModelTrainerFromGit(t *testing.T) {
 	name := strings.ToLower(t.Name())
 
 	baseModel := &apiv1.Model{
@@ -63,25 +59,15 @@ func TestModelFromModel(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{
-				Git: &apiv1.GitSource{
-					URL: "https://test.com/test/test",
-				},
+			Container: apiv1.Container{
+				Image: "some-test-image",
 			},
-			Compute: apiv1.ModelCompute{
-				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
-			},
+			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, baseModel), "create a model to be referenced by the trained model")
-	modelWithUpdatedStatus := baseModel.DeepCopy()
-	modelWithUpdatedStatus.Status.ContainerImage = "test"
-	meta.SetStatusCondition(&modelWithUpdatedStatus.Status.Conditions, metav1.Condition{
-		Type:   controller.ConditionReady,
-		Status: metav1.ConditionTrue,
-		Reason: "FakedByTheTest",
-	})
-	require.NoError(t, k8sClient.Status().Patch(ctx, modelWithUpdatedStatus, client.MergeFrom(baseModel)), "patching the model with a fake ready status")
+
+	fakeModelLoad(t, baseModel)
 
 	dataset := &apiv1.Dataset{
 		ObjectMeta: metav1.ObjectMeta{
@@ -90,7 +76,7 @@ func TestModelFromModel(t *testing.T) {
 		},
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
-			Source: apiv1.DatasetSource{
+			Container: apiv1.Container{
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/dataset-test-test",
 				},
@@ -100,11 +86,7 @@ func TestModelFromModel(t *testing.T) {
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset to be referenced by the trained model")
 	datasetWithUpdatedStatus := dataset.DeepCopy()
 	datasetWithUpdatedStatus.Status.URL = "gs://test-bucket/test.jsonl"
-	meta.SetStatusCondition(&datasetWithUpdatedStatus.Status.Conditions, metav1.Condition{
-		Type:   controller.ConditionReady,
-		Status: metav1.ConditionTrue,
-		Reason: "FakedByTheTest",
-	})
+	datasetWithUpdatedStatus.Status.Ready = true
 	require.NoError(t, k8sClient.Status().Patch(ctx, datasetWithUpdatedStatus, client.MergeFrom(dataset)), "patching the dataset with a fake ready status")
 
 	trainedModel := &apiv1.Model{
@@ -113,14 +95,18 @@ func TestModelFromModel(t *testing.T) {
 			Namespace: baseModel.Namespace,
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{
-				ModelName: baseModel.Name,
+			Container: apiv1.Container{
+				Git: &apiv1.GitSource{
+					URL: "https://test.com/test/test",
+				},
 			},
-			Training: &apiv1.ModelTraining{
-				DatasetName: dataset.Name,
-			},
-			Compute: apiv1.ModelCompute{
-				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
+			Trainer: &apiv1.ModelTrainer{
+				BaseModel: &apiv1.ObjectRef{
+					Name: baseModel.Name,
+				},
+				Dataset: apiv1.ObjectRef{
+					Name: dataset.Name,
+				},
 			},
 		},
 	}

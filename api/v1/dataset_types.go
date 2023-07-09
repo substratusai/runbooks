@@ -23,12 +23,22 @@ func (d *Dataset) GetConditions() *[]metav1.Condition {
 	return &d.Status.Conditions
 }
 
+func (d *Dataset) GetStatusReady() bool {
+	return d.Status.Ready
+}
+
+func (d *Dataset) SetStatusReady(r bool) {
+	d.Status.Ready = r
+}
+
 type DatasetLoader struct {
 	Params map[string]string `json:"params,omitempty"`
 }
 
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
+	Ready bool `json:"ready,omitempty"`
+
 	// URL points to the underlying data storage (bucket URL).
 	URL string `json:"url,omitempty"`
 

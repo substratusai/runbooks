@@ -53,7 +53,11 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &server); !result.Complete {
+	if result, err := reconcileReadiness(ctx, r.Client, &server); result.success {
+		return result.Result, err
+	}
+
+	if result, err := r.ReconcileContainer(ctx, &server); !result.success {
 		return result.Result, err
 	}
 
@@ -62,9 +66,9 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if apierrors.IsNotFound(err) {
 			// Update this Model's status.
 			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
+				Type:               apiv1.ConditionDependenciesReady,
 				Status:             metav1.ConditionFalse,
-				Reason:             ReasonSourceModelNotFound,
+				Reason:             apiv1.ReasonModelNotFound,
 				ObservedGeneration: server.Generation,
 			})
 			if err := r.Status().Update(ctx, &server); err != nil {
@@ -93,14 +97,13 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	ready := meta.FindStatusCondition(model.Status.Conditions, ConditionReady)
-	if ready == nil || ready.Status != metav1.ConditionTrue {
+	if !model.Status.Ready {
 		lg.Info("Model not ready", "model", model.Name)
 
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
+			Type:               apiv1.ConditionDependenciesReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             ReasonModelNotReady,
+			Reason:             apiv1.ReasonModelNotReady,
 			ObservedGeneration: server.Generation,
 		})
 		if err := r.Status().Update(ctx, &server); err != nil {
@@ -132,16 +135,15 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if deploy.Status.ReadyReplicas == 0 {
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
+			Type:               apiv1.ConditionChildrenReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             ReasonDeploymentNotReady,
+			Reason:             apiv1.ReasonDeploymentNotReady,
 			ObservedGeneration: server.Generation,
 		})
 	} else {
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
+			Type:               apiv1.ConditionChildrenReady,
 			Status:             metav1.ConditionTrue,
-			Reason:             ReasonDeploymentReady,
 			ObservedGeneration: server.Generation,
 		})
 	}

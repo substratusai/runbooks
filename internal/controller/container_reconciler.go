@@ -25,9 +25,8 @@ const (
 )
 
 type ContainerizedObject interface {
-	client.Object
+	object
 	GetContainer() *apiv1.Container
-	GetConditions() *[]metav1.Condition
 }
 
 // ContainerReconciler builds container images. It is intended to be called from other top-level reconcilers.
@@ -44,7 +43,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	log := log.FromContext(ctx)
 
 	if obj.GetContainer().Image != "" {
-		return result{Complete: true}, nil
+		return result{success: true}, nil
 	}
 
 	log.Info("Reconciling container")
@@ -85,7 +84,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 		log.Info("The builder Job has not succeeded yet")
 
 		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-			Type:               apiv1.ConditionBuilt,
+			Type:               apiv1.ConditionContainerReady,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonJobNotComplete,
 			ObservedGeneration: obj.GetGeneration(),
@@ -106,7 +105,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	}
 
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionBuilt,
+		Type:               apiv1.ConditionContainerReady,
 		Status:             metav1.ConditionTrue,
 		Reason:             apiv1.ReasonJobComplete,
 		ObservedGeneration: obj.GetGeneration(),
@@ -116,7 +115,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	return result{Complete: true}, nil
+	return result{success: true}, nil
 }
 
 func (r *ContainerReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {

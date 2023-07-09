@@ -45,9 +45,35 @@ spec:
           spec:
             description: Spec is the desired state of the ModelServer.
             properties:
-              modelName:
-                description: ModelName is the .metadata.name of the Model to be served.
-                type: string
+              container:
+                properties:
+                  git:
+                    description: Git is a reference to a git repository containing
+                      model code.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        type: string
+                    type: object
+                  image:
+                    description: Image of a container that can be used to run the
+                      model.
+                    type: string
+                type: object
+              model:
+                properties:
+                  name:
+                    type: string
+                type: object
+            required:
+            - container
             type: object
           status:
             description: Status is the observed state of the ModelServer.
@@ -122,6 +148,8 @@ spec:
                   - type
                   type: object
                 type: array
+              ready:
+                type: boolean
             type: object
         type: object
     served: true

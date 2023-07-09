@@ -23,8 +23,21 @@ func (n *Notebook) GetConditions() *[]metav1.Condition {
 	return &n.Status.Conditions
 }
 
+func (n *Notebook) StatusReady() bool {
+	return n.Status.Ready
+}
+
+func (n *Notebook) GetStatusReady() bool {
+	return n.Status.Ready
+}
+func (n *Notebook) SetStatusReady(r bool) {
+	n.Status.Ready = r
+}
+
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
+	Ready bool `json:"ready,omitempty"`
+
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

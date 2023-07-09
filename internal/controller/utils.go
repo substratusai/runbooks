@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,11 +18,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type object interface {
+	client.Object
+	GetConditions() *[]metav1.Condition
+	GetStatusReady() bool
+	SetStatusReady(bool)
+}
+
 // result allows for propogating controller reconcile information up the call stack.
 // In particular, it allows the called to determine if it should return or not.
 type result struct {
 	ctrl.Result
-	Complete bool
+	success bool
 }
 
 func nextPowOf2(n int64) int64 {
@@ -48,9 +57,20 @@ type Object interface {
 	GetConditions() *[]metav1.Condition
 }
 
-func isReady(obj Object) bool {
-	condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
-	return condition != nil && condition.Status == metav1.ConditionTrue
+func conditionsReady(obj Object) bool {
+	conditions := *obj.GetConditions()
+	readyCount := 0
+	for _, condition := range conditions {
+		if strings.HasSuffix(condition.Type, "Ready") {
+			if condition.Status != metav1.ConditionTrue {
+				return false
+			}
+			readyCount++
+		}
+	}
+	return readyCount > 0
+	//condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
+	//return condition != nil && condition.Status == metav1.ConditionTrue
 }
 
 func parseBucketURL(bucketURL string) (string, string, error) {
@@ -121,4 +141,55 @@ func mountSavedModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount,
 	})
 
 	return nil
+}
+
+func reconcileJob(ctx context.Context, c client.Client, obj object, job *batchv1.Job, condition string) (result, error) {
+	if err := c.Create(ctx, job); client.IgnoreAlreadyExists(err) != nil {
+		return result{}, fmt.Errorf("creating Job: %w", err)
+	}
+
+	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+		Type:               condition,
+		Status:             metav1.ConditionFalse,
+		Reason:             apiv1.ReasonJobNotComplete,
+		ObservedGeneration: obj.GetGeneration(),
+		Message:            fmt.Sprintf("Waiting for Job to complete: %v", job.Name),
+	})
+	if err := c.Status().Update(ctx, obj); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	if err := c.Get(ctx, client.ObjectKeyFromObject(job), job); err != nil {
+		return result{}, fmt.Errorf("geting Job: %w", err)
+	}
+	if job.Status.Succeeded < 1 {
+		// Allow Job watch to requeue.
+		return result{}, nil
+	}
+
+	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+		Type:               condition,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: obj.GetGeneration(),
+	})
+	if err := c.Status().Update(ctx, obj); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	return result{success: true}, nil
+}
+
+func reconcileReadiness(ctx context.Context, c client.Client, obj object) (result, error) {
+	panic("PICKUP HERE: This should have a list of the ready conditions that need checking, otherwise there could be a false positive")
+
+	ready := conditionsReady(obj)
+	if ready != obj.GetStatusReady() {
+		obj.SetStatusReady(ready)
+		if err := c.Status().Update(ctx, obj); err != nil {
+			return result{}, fmt.Errorf("updating readiness in status: %w", err)
+		}
+	}
+
+	return result{success: ready}, nil
 }

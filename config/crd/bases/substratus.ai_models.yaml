@@ -46,40 +46,8 @@ spec:
           spec:
             description: Spec is the desired state of the Model.
             properties:
-              compute:
-                description: Compute describes the compute requirements and preferences
-                  of the model.
-                properties:
-                  types:
-                    description: Types is a list of supported compute types for this
-                      Model. This list should be ordered by preference, with the most
-                      preferred type first.
-                    items:
-                      enum:
-                      - CPU
-                      - GPU
-                      type: string
-                    minItems: 1
-                    type: array
-                required:
-                - types
-                type: object
-              size:
-                description: Size describes different size dimensions of the underlying
-                  model.
-                properties:
-                  parameterBits:
-                    description: ParameterBits is the number of bits per parameter
-                      in the underlying model. Common values would be 8, 16, 32.
-                    type: integer
-                  parameterCount:
-                    description: ParameterCount is the number of parameters in the
-                      underlying model.
-                    format: int64
-                    type: integer
-                type: object
-              source:
-                description: Source is a reference to the source of the model.
+              container:
+                description: Container that contains model code and dependencies.
                 properties:
                   git:
                     description: Git is a reference to a git repository containing
@@ -93,21 +61,36 @@ spec:
                           url.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
                         type: string
                     type: object
-                  modelName:
-                    description: ModelName is the .metadata.name of another Model
-                      that this Model should be based on.
+                  image:
+                    description: Image of a container that can be used to run the
+                      model.
                     type: string
                 type: object
-              training:
-                description: Training should be set to run a training job.
+              loader:
+                description: Loader should be set to run a loading job.
                 properties:
+                  params:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              trainer:
+                description: Trainer should be set to run a training job.
+                properties:
+                  baseModel:
+                    properties:
+                      name:
+                        type: string
+                    type: object
                   datasetName:
-                    description: DatasetName is the .metadata.name of the Dataset
-                      to use for training.
-                    type: string
+                    description: Dataset to mount for training.
+                    properties:
+                      name:
+                        type: string
+                    type: object
                   params:
                     description: Params is a list of hyperparameters to use for training.
                     properties:
@@ -140,9 +123,7 @@ spec:
                 - params
                 type: object
             required:
-            - compute
-            - size
-            - source
+            - container
             type: object
           status:
             description: Status is the observed state of the Model.
@@ -217,16 +198,17 @@ spec:
                   - type
                   type: object
                 type: array
-              containerImage:
-                description: ContainerImage is reference to the container image that
-                  was built for this Model.
-                type: string
+              ready:
+                type: boolean
               servers:
                 description: Servers is the list of servers that are currently running
                   this Model. Soon to be deprecated.
                 items:
                   type: string
                 type: array
+              url:
+                description: URL of model artifacts.
+                type: string
             type: object
         type: object
     served: true

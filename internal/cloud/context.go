@@ -30,7 +30,7 @@ func (gcp *GCPContext) Region() string {
 	return strings.Join(split[:2], "-")
 }
 
-func ConfigureCloud() (*Context, error) {
+func NewContext() (*Context, error) {
 	// If CLOUD is set, then pull configuration from environment variables.
 	envCloud, ok := os.LookupEnv("CLOUD")
 	if ok {

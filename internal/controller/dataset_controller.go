@@ -6,7 +6,6 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ptr "k8s.io/utils/pointer"
@@ -29,7 +28,7 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ContainerReconciler
+	*ContainerReconciler
 
 	CloudContext *cloud.Context
 }
@@ -41,23 +40,22 @@ type DatasetReconciler struct {
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	lg.Info("Reconciling Dataset")
-	defer lg.Info("Done reconciling Dataset")
+	log.Info("Reconciling Dataset")
+	defer log.Info("Done reconciling Dataset")
 
 	var dataset apiv1.Dataset
 	if err := r.Get(ctx, req.NamespacedName, &dataset); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// TODO(nstogner): Consider checking if the dataset is already loaded to the bucket instead of just
-	// checking the status.
-	if ready := meta.FindStatusCondition(dataset.Status.Conditions, ConditionReady); ready != nil && ready.Status == metav1.ConditionTrue {
-		return ctrl.Result{}, nil
+	if result, err := reconcileReadiness(ctx, r.Client, &dataset); result.success {
+		log.Info("Dataset is ready")
+		return result.Result, err
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &dataset); !result.Complete {
+	if result, err := r.ReconcileContainer(ctx, &dataset); !result.success {
 		return result.Result, err
 	}
 
@@ -77,45 +75,13 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Job that will run the data-loader image that was built by the previous Job.
 	loadJob, err := r.loadJob(ctx, &dataset)
 	if err != nil {
-		lg.Error(err, "unable to construct data-loader Job")
+		log.Error(err, "unable to construct data-loader Job")
 		// No use in retrying...
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.Create(ctx, loadJob); client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
-	}
-
-	meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             ReasonLoading,
-		ObservedGeneration: dataset.Generation,
-		Message:            fmt.Sprintf("Waiting for data-loader Job to complete: %v", loadJob.Name),
-	})
-	if err := r.Status().Update(ctx, &dataset); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonLoading, err)
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(loadJob), loadJob); err != nil {
-		return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
-	}
-	if loadJob.Status.Succeeded < 1 {
-		lg.Info("Job has not succeeded yet")
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
-	}
-
-	meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionTrue,
-		Reason:             ReasonLoaded,
-		ObservedGeneration: dataset.Generation,
-	})
-
-	if err := r.Status().Update(ctx, &dataset); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonLoaded, err)
+	if result, err := reconcileJob(ctx, r.Client, &dataset, loadJob, "loading"); !result.success {
+		return result.Result, err
 	}
 
 	return ctrl.Result{}, nil
@@ -130,8 +96,7 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 const (
-	dataLoaderServiceAccountName        = "data-loader"
-	dataLoaderBuilderServiceAccountName = "data-loader-builder"
+	dataLoaderServiceAccountName = "data-loader"
 )
 
 func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -24,15 +25,15 @@ import (
 )
 
 const (
-	ConditionReady = "Ready"
+	//ConditionReady = "Ready"
 
-	ReasonTraining       = "Training"
-	ReasonBuilding       = "Building"
-	ReasonBuiltAndPushed = "BuiltAndPushed"
+	//ReasonTraining       = "Training"
+	//ReasonBuilding       = "Building"
+	//ReasonBuiltAndPushed = "BuiltAndPushed"
 
-	ReasonSourceModelNotFound = "SourceModelNotFound"
-	ReasonSourceModelNotReady = "SourceModelNotReady"
-	TrainingDatasetNotReady   = "TrainingDatasetNotReady"
+	//ReasonSourceModelNotFound = "SourceModelNotFound"
+	//ReasonSourceModelNotReady = "SourceModelNotReady"
+	//TrainingDatasetNotReady   = "TrainingDatasetNotReady"
 
 	modelTrainerServiceAccountName = "model-trainer"
 )
@@ -68,38 +69,27 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Exit early if the model has already been stored.
-	if model.Status.URL != "" {
-		return ctrl.Result{}, nil
+	if result, err := reconcileReadiness(ctx, r.Client, &model); result.success {
+		log.Info("Model ready")
+		return result.Result, err
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &model); !result.Complete {
+	if result, err := r.ReconcileContainer(ctx, &model); !result.success {
 		return result.Result, err
 	}
 
 	if model.Spec.Trainer != nil {
-		if result, err := r.reconcileTrainer(ctx, &model); !result.Complete {
+		if result, err := r.reconcileTrainer(ctx, &model); !result.success {
 			return result.Result, err
 		}
 	} else if model.Spec.Loader != nil {
-		if result, err := r.reconcileLoader(ctx, &model); !result.Complete {
+		if result, err := r.reconcileLoader(ctx, &model); !result.success {
 			return result.Result, err
 		}
 	} else {
 		log.Error(errors.New("no trainer or loader specified"), "this point should never have been reached if the model is valid")
 		// No use in retrying (returning an error).
 		return ctrl.Result{}, nil
-	}
-
-	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionTrue,
-		Reason:             ReasonBuiltAndPushed,
-		ObservedGeneration: model.Generation,
-	})
-
-	if err := r.Status().Update(ctx, &model); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonBuiltAndPushed, err)
 	}
 
 	return ctrl.Result{}, nil
@@ -127,9 +117,9 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               ConditionReady,
+					Type:               apiv1.ConditionDependenciesReady,
 					Status:             metav1.ConditionFalse,
-					Reason:             ReasonSourceModelNotFound,
+					Reason:             apiv1.ReasonBaseModelNotFound,
 					ObservedGeneration: model.Generation,
 				})
 				if err := r.Status().Update(ctx, model); err != nil {
@@ -142,12 +132,12 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 
 			return result{}, fmt.Errorf("getting source model: %w", err)
 		}
-		if !isReady(sourceModel) {
+		if !sourceModel.Status.Ready {
 			// Update this Model's status.
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
+				Type:               apiv1.ConditionDependenciesReady,
 				Status:             metav1.ConditionFalse,
-				Reason:             ReasonSourceModelNotReady,
+				Reason:             apiv1.ReasonBaseModelNotReady,
 				ObservedGeneration: model.Generation,
 			})
 			if err := r.Status().Update(ctx, model); err != nil {
@@ -161,14 +151,30 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 
 	var dataset apiv1.Dataset
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.Dataset.Name}, &dataset); err != nil {
+		if apierrors.IsNotFound(err) {
+			// Update this Model's status.
+			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+				Type:               apiv1.ConditionDependenciesReady,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonDatasetNotFound,
+				ObservedGeneration: model.Generation,
+			})
+			if err := r.Status().Update(ctx, model); err != nil {
+				return result{}, fmt.Errorf("failed to update model status: %w", err)
+			}
+
+			// TODO: Implement watch on source Model.
+			return result{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}, nil
+		}
+
 		return result{}, fmt.Errorf("getting source model: %w", err)
 	}
-	if !isReady(&dataset) {
+	if !dataset.Status.Ready {
 		// Update this Model's status.
 		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
+			Type:               apiv1.ConditionDependenciesReady,
 			Status:             metav1.ConditionFalse,
-			Reason:             TrainingDatasetNotReady,
+			Reason:             apiv1.ReasonDatasetNotReady,
 			ObservedGeneration: model.Generation,
 		})
 		if err := r.Status().Update(ctx, model); err != nil {
@@ -179,45 +185,34 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 		return result{Result: ctrl.Result{RequeueAfter: time.Minute}}, nil
 	}
 
-	trainingJob, err := r.trainingJob(ctx, model, baseModel, &dataset)
+	trainingJob, err := r.trainerJob(ctx, model, baseModel, &dataset)
 	if err != nil {
-		log.Error(err, "unable to create training Job")
+		log.Error(err, "unable to construct training Job")
 		// No use in retrying...
 		return result{}, nil
 	}
-	if err := r.Get(ctx, client.ObjectKeyFromObject(trainingJob), trainingJob); err != nil {
-		if apierrors.IsNotFound(err) {
-			if err := r.Create(ctx, trainingJob); client.IgnoreAlreadyExists(err) != nil {
-				return result{}, fmt.Errorf("creating Job: %w", err)
-			}
-		} else {
-			return result{}, fmt.Errorf("getting Job: %w", err)
-		}
-	}
-	if trainingJob.Status.Succeeded < 1 {
-		log.Info("Training Job has not succeeded yet")
-
-		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             ReasonTraining,
-			ObservedGeneration: model.Generation,
-		})
-		if err := r.Status().Update(ctx, model); err != nil {
-			return result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonTraining, err)
-		}
-
-		// Allow Job watch to requeue.
-		return result{}, nil
+	if result, err := reconcileJob(ctx, r.Client, model, trainingJob, apiv1.ConditionModelReady); !result.success {
+		return result, err
 	}
 
-	return result{Complete: true}, nil
+	return result{success: true}, nil
 }
 
 func (r *ModelReconciler) reconcileLoader(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
-	_ = log
-	return result{Complete: true}, nil
+
+	loaderJob, err := r.loaderJob(ctx, model)
+	if err != nil {
+		log.Error(err, "unable to construct loader Job")
+		// No use in retrying...
+		return result{}, nil
+	}
+
+	if result, err := reconcileJob(ctx, r.Client, model, loaderJob, apiv1.ConditionModelReady); !result.success {
+		return result, err
+	}
+
+	return result{success: true}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -241,10 +236,100 @@ func (r *ModelReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
 	return nil
 }
 
-// trainingJob returns a Job that will train the Model. While this function
+func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*batchv1.Job, error) {
+	var job *batchv1.Job
+
+	annotations := make(map[string]string)
+	volumes := []corev1.Volume{}
+
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "model",
+			MountPath: "/model/logs",
+			SubPath:   string(model.UID) + "/logs",
+		},
+		{
+			Name:      "model",
+			MountPath: "/model/saved",
+			SubPath:   string(model.UID) + "/trained",
+		},
+	}
+
+	switch r.CloudContext.Name {
+	case cloud.GCP:
+		// GKE will injects GCS Fuse sidecar based on this annotation.
+		annotations["gke-gcsfuse/volumes"] = "true"
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "model",
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver: "gcsfuse.csi.storage.gke.io",
+					VolumeAttributes: map[string]string{
+						"bucketName":   r.CloudContext.GCP.ProjectID + "-substratus-models",
+						"mountOptions": "implicit-dirs,uid=0,gid=3003",
+					},
+				},
+			},
+		})
+	}
+
+	env := []corev1.EnvVar{}
+	// TODO(nstogner): Order by key to avoid randomness.
+	for k, v := range model.Spec.Loader.Params {
+		env = append(env, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v})
+	}
+
+	const loaderContainerName = "loader"
+	annotations["kubectl.kubernetes.io/default-container"] = loaderContainerName
+	job = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: model.Name + "-model-loader",
+			// Cross-Namespace owners not allowed, must be same as model:
+			Namespace: model.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: ptr.Int32(1),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: annotations,
+				},
+				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsUser:  ptr.Int64(0),
+						RunAsGroup: ptr.Int64(0),
+						FSGroup:    ptr.Int64(3003),
+					},
+					ServiceAccountName: modelTrainerServiceAccountName,
+					Containers: []corev1.Container{
+						{
+							Name:  loaderContainerName,
+							Image: model.Spec.Container.Image,
+							// NOTE: tini should be installed as the ENTRYPOINT of the image and will be used
+							// to execute this script.
+							Args:         []string{"load.sh"},
+							Env:          env,
+							VolumeMounts: volumeMounts,
+						},
+					},
+					Volumes:       volumes,
+					RestartPolicy: "Never",
+				},
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {
+		return nil, fmt.Errorf("setting owner reference: %w", err)
+	}
+
+	return job, nil
+}
+
+// trainerJob returns a Job that will train the Model. While this function
 // has a lot in common with loaderJob, the two functions were not factored together
 // because the differences will grow over time (for example: distributed training).
-func (r *ModelReconciler) trainingJob(ctx context.Context, model, baseModel *apiv1.Model, dataset *apiv1.Dataset) (*batchv1.Job, error) {
+func (r *ModelReconciler) trainerJob(ctx context.Context, model, baseModel *apiv1.Model, dataset *apiv1.Dataset) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
 	annotations := make(map[string]string)

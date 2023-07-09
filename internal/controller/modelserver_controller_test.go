@@ -7,16 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestModelServer(t *testing.T) {
+func TestModelServerFromGit(t *testing.T) {
 	name := strings.ToLower(t.Name())
 
 	model := &apiv1.Model{
@@ -25,25 +22,15 @@ func TestModelServer(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Source: apiv1.ModelSource{
-				Git: &apiv1.GitSource{
-					URL: "test.com/test/test.git",
-				},
+			Container: apiv1.Container{
+				Image: "some-image",
 			},
-			Compute: apiv1.ModelCompute{
-				Types: []apiv1.ComputeType{apiv1.ComputeTypeCPU},
-			},
+			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the modelserver")
-	modelWithUpdatedStatus := model.DeepCopy()
-	modelWithUpdatedStatus.Status.ContainerImage = "test"
-	meta.SetStatusCondition(&modelWithUpdatedStatus.Status.Conditions, metav1.Condition{
-		Type:   controller.ConditionReady,
-		Status: metav1.ConditionTrue,
-		Reason: "FakedByTheTest",
-	})
-	require.NoError(t, k8sClient.Status().Patch(ctx, modelWithUpdatedStatus, client.MergeFrom(model)), "patching the model with a fake ready status")
+
+	fakeModelLoad(t, model)
 
 	modelServer := &apiv1.ModelServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -51,10 +38,19 @@ func TestModelServer(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelServerSpec{
-			ModelName: model.Name,
+			Container: apiv1.Container{
+				Git: &apiv1.GitSource{
+					URL: "https://github.com/substratusai/some-modelserver",
+				},
+			},
+			Model: apiv1.ObjectRef{
+				Name: model.Name,
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, modelServer), "creating a modelserver")
+
+	fakeContainerBuild(t, modelServer)
 
 	// Test that a model server Service gets created by the controller.
 	var service corev1.Service

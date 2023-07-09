@@ -24,8 +24,16 @@ func (m *Model) GetConditions() *[]metav1.Condition {
 	return &m.Status.Conditions
 }
 
+func (m *Model) GetStatusReady() bool {
+	return m.Status.Ready
+}
+
+func (m *Model) SetStatusReady(r bool) {
+	m.Status.Ready = r
+}
+
 type ModelLoader struct {
-	Params map[string]string `json:"params"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 type ModelTrainer struct {
@@ -55,6 +63,8 @@ type ModelTrainerParams struct {
 
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
+	Ready bool `json:"ready,omitempty"`
+
 	// Servers is the list of servers that are currently running this Model. Soon to be deprecated.
 	Servers []string `json:"servers,omitempty"`
 

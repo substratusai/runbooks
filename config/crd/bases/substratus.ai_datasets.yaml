@@ -53,16 +53,12 @@ spec:
           spec:
             description: Spec is the desired state of the Dataset.
             properties:
-              filename:
-                description: Filename is the name of the file when it is downloaded.
-                type: string
-              source:
-                description: Source if a reference to the code that is doing the data
-                  sourcing.
+              container:
+                description: Container that contains dataset loading code and dependencies.
                 properties:
                   git:
-                    description: Git is a reference to the git repository that contains
-                      the data loading code.
+                    description: Git is a reference to a git repository containing
+                      model code.
                     properties:
                       branch:
                         description: Branch is the git branch to use.
@@ -72,11 +68,26 @@ spec:
                           url.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
                         type: string
+                    type: object
+                  image:
+                    description: Image of a container that can be used to run the
+                      model.
+                    type: string
+                type: object
+              filename:
+                description: Filename is the name of the file when it is downloaded.
+                type: string
+              loader:
+                properties:
+                  params:
+                    additionalProperties:
+                      type: string
                     type: object
                 type: object
             required:
+            - container
             - filename
             type: object
           status:
@@ -152,6 +163,8 @@ spec:
                   - type
                   type: object
                 type: array
+              ready:
+                type: boolean
               url:
                 description: URL points to the underlying data storage (bucket URL).
                 type: string

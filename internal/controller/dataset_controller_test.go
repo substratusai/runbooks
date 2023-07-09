@@ -23,7 +23,7 @@ func TestDataset(t *testing.T) {
 		},
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
-			Source: apiv1.DatasetSource{
+			Container: apiv1.Container{
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
@@ -31,6 +31,8 @@ func TestDataset(t *testing.T) {
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset")
+
+	fakeContainerBuild(t, dataset)
 
 	// Test that a data loader ServiceAccount gets created by the controller.
 	var sa corev1.ServiceAccount
@@ -41,12 +43,10 @@ func TestDataset(t *testing.T) {
 	require.Equal(t, "substratus-data-loader@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a data loader builder Job gets created by the controller.
-	var job batchv1.Job
+	var loaderJob batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader-builder"}, &job)
-		assert.NoError(t, err, "getting the data loader builder job")
-	}, timeout, interval, "waiting for the data loader builder job to be created")
-	require.Equal(t, "loader-builder", job.Spec.Template.Spec.Containers[0].Name)
-
-	// TODO: Test loader Job after builder Job.
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader"}, &loaderJob)
+		assert.NoError(t, err, "getting the data loader job")
+	}, timeout, interval, "waiting for the data loader job to be created")
+	require.Equal(t, "loader", loaderJob.Spec.Template.Spec.Containers[0].Name)
 }

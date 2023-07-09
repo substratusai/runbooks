@@ -13,6 +13,8 @@ type ModelServerSpec struct {
 
 // ModelServerStatus defines the observed state of ModelServer
 type ModelServerStatus struct {
+	Ready bool `json:"ready,omitempty"`
+
 	// Conditions is the list of conditions that describe the current state of the ModelServer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
@@ -41,6 +43,14 @@ func (s *ModelServer) GetContainer() *Container {
 
 func (s *ModelServer) GetConditions() *[]metav1.Condition {
 	return &s.Status.Conditions
+}
+
+func (s *ModelServer) GetStatusReady() bool {
+	return s.Status.Ready
+}
+
+func (s *ModelServer) SetStatusReady(r bool) {
+	s.Status.Ready = r
 }
 
 //+kubebuilder:object:root=true

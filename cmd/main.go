@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -62,41 +63,56 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUType(os.Getenv("GPU_TYPE")))
-	if err != nil {
-		setupLog.Error(err, "unable to configure runtime manager")
-		os.Exit(1)
-	}
+	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUType(os.Getenv("GPU_TYPE")))
+	//if err != nil {
+	//	setupLog.Error(err, "unable to configure runtime manager")
+	//	os.Exit(1)
+	//}
 
 	// NOTE: NewCloudContext() will look up environment variables (intended for local development)
 	// and if they are not specified, it will try to use metadata servers on the cloud.
-	cloudContext, err := controller.ConfigureCloud()
+	cloudContext, err := cloud.NewContext()
 	if err != nil {
 		setupLog.Error(err, "unable to determine cloud context")
 		os.Exit(1)
 	}
 
 	if err = (&controller.ModelReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		CloudContext:   cloudContext,
-		RuntimeManager: runtimeMgr,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		CloudContext: cloudContext,
+		ContainerReconciler: &controller.ContainerReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Model",
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
 		os.Exit(1)
 	}
 	if err = (&controller.ModelServerReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		RuntimeManager: runtimeMgr,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		ContainerReconciler: &controller.ContainerReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "ModelServer",
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelServer")
 		os.Exit(1)
 	}
 	if err = (&controller.NotebookReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		RuntimeManager: runtimeMgr,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		ContainerReconciler: &controller.ContainerReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Notebook",
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)
@@ -105,6 +121,12 @@ func main() {
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
+		ContainerReconciler: &controller.ContainerReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Dataset",
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Dataset")
 		os.Exit(1)
