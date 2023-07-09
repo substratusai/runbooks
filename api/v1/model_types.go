@@ -32,6 +32,8 @@ type ModelLoader struct {
 }
 
 type ModelTrainer struct {
+	BaseModel *ObjectRef `json:"baseModel,omitempty"`
+
 	// Dataset to mount for training.
 	Dataset ObjectRef `json:"datasetName"`
 
@@ -71,6 +73,9 @@ type ModelStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// URL of model artifacts.
+	URL string `json:"url,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

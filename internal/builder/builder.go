@@ -110,6 +110,17 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 		return Result{}, fmt.Errorf("updating container image: %w", err)
 	}
 
+	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionBuilt,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: obj.GetGeneration(),
+		Message:            fmt.Sprintf("Builder Job completed: %v", buildJob.Name),
+	})
+	if err := r.Client.Status().Update(ctx, obj); err != nil {
+		return Result{}, fmt.Errorf("updating status: %w", err)
+	}
+
 	return Result{Complete: true}, nil
 }
 

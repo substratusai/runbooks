@@ -1,6 +1,13 @@
 package controller
 
-import "math"
+import (
+	"math"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 func boolPtr(b bool) *bool {
 	return &b
@@ -33,4 +40,14 @@ const (
 
 func roundUpGB(bytes int64) int64 {
 	return int64(math.Ceil(float64(bytes)/float64(gigabyte))) * gigabyte
+}
+
+type Object interface {
+	client.Object
+	GetConditions() *[]metav1.Condition
+}
+
+func isReady(obj Object) bool {
+	condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
+	return condition != nil && condition.Status == metav1.ConditionTrue
 }

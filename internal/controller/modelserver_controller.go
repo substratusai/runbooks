@@ -35,8 +35,6 @@ type ModelServerReconciler struct {
 	Scheme *runtime.Scheme
 
 	*builder.ContainerReconciler
-
-	*RuntimeManager
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete
@@ -61,7 +59,7 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	var model apiv1.Model
-	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.ModelName, Namespace: server.Namespace}, &model); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Model.Name, Namespace: server.Namespace}, &model); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Update this Model's status.
 			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
@@ -177,6 +175,10 @@ func modelServerForModel(obj client.Object) []reconcile.Request {
 
 func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
+
+	const serverContainerName = "server"
+	annotations := map[string]string{}
+	annotations["kubectl.kubernetes.io/default-container"] = serverContainerName
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -196,13 +198,14 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: withModelServerSelector(server, map[string]string{}),
+					Labels:      withModelServerSelector(server, map[string]string{}),
+					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            RuntimeServer,
-							Image:           model.Status.ContainerImage,
+							Name:            serverContainerName,
+							Image:           model.Spec.Container.Image,
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
@@ -218,10 +221,6 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 				},
 			},
 		},
-	}
-
-	if err := r.SetResources(model, &deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, RuntimeServer); err != nil {
-		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 
 	if err := ctrl.SetControllerReference(server, deploy, r.Scheme); err != nil {

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/builder"
+	"github.com/substratusai/substratus/internal/cloud"
 )
 
 const (
@@ -45,8 +47,7 @@ type ModelReconciler struct {
 
 	*builder.ContainerReconciler
 
-	CloudContext *CloudContext
-	*RuntimeManager
+	CloudContext *cloud.Context
 }
 
 type ModelReconcilerConfig struct {
@@ -60,10 +61,10 @@ type ModelReconcilerConfig struct {
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
 func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	lg.Info("Reconciling Model")
-	defer lg.Info("Done reconciling Model")
+	log.Info("Reconciling Model")
+	defer log.Info("Done reconciling Model")
 
 	var model apiv1.Model
 	if err := r.Get(ctx, req.NamespacedName, &model); err != nil {
@@ -74,106 +75,22 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return result.Result, err
 	}
 
-	var sourceModel apiv1.Model
-	if model.Spec.Source.ModelName != "" {
-		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Source.ModelName}, &sourceModel); err != nil {
-			if apierrors.IsNotFound(err) {
-				// Update this Model's status.
-				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               ConditionReady,
-					Status:             metav1.ConditionFalse,
-					Reason:             ReasonSourceModelNotFound,
-					ObservedGeneration: model.Generation,
-				})
-				if err := r.Status().Update(ctx, &model); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-				}
-
-				// TODO: Implement watch on source Model.
-				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
-			}
-
-			return ctrl.Result{}, fmt.Errorf("getting source model: %w", err)
-		}
-		if ready := meta.FindStatusCondition(sourceModel.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue || sourceModel.Status.ContainerImage == "" {
-			// Update this Model's status.
-			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
-				Status:             metav1.ConditionFalse,
-				Reason:             ReasonSourceModelNotReady,
-				ObservedGeneration: model.Generation,
-			})
-			if err := r.Status().Update(ctx, &model); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-			}
-
-			// TODO: Instead of RequeueAfter, add a watch that maps to .spec.source.modelName
-			return ctrl.Result{RequeueAfter: time.Minute}, nil
-		}
-	}
-
-	if model.Status.ContainerImage != "" {
-		// TODO: Check container registry directly instead.
+	if model.Status.URL != "" {
 		return ctrl.Result{}, nil
 	}
 
-	trainerSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      modelTrainerServiceAccountName,
-			Namespace: model.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, trainerSA, func() error {
-		return r.authNServiceAccount(trainerSA)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
-	}
-	builderSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      modelBuilderServiceAccountName,
-			Namespace: model.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, builderSA, func() error {
-		return r.authNServiceAccount(builderSA)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
-	}
-
-	if model.Spec.Training != nil {
-		// Run training Job first, results will be stored in a volume and used by the builder Job.
-
-		trainingJob, err := r.trainingJob(ctx, &model, &sourceModel)
-		if err != nil {
-			lg.Error(err, "unable to create training Job")
-			// No use in retrying...
-			return ctrl.Result{}, nil
+	if model.Spec.Trainer != nil {
+		if result, err := r.reconcileTrainer(ctx, &model); !result.Complete {
+			return result.Result, err
 		}
-		if err := r.Get(ctx, client.ObjectKeyFromObject(trainingJob), trainingJob); err != nil {
-			if apierrors.IsNotFound(err) {
-				if err := r.Create(ctx, trainingJob); client.IgnoreAlreadyExists(err) != nil {
-					return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
-				}
-			} else {
-				return ctrl.Result{}, fmt.Errorf("getting Job: %w", err)
-			}
+	} else if model.Spec.Loader != nil {
+		if result, err := r.reconcileLoader(ctx, &model); !result.Complete {
+			return result.Result, err
 		}
-		if trainingJob.Status.Succeeded < 1 {
-			lg.Info("Training Job has not succeeded yet")
-
-			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               ConditionReady,
-				Status:             metav1.ConditionFalse,
-				Reason:             ReasonTraining,
-				ObservedGeneration: model.Generation,
-			})
-			if err := r.Status().Update(ctx, &model); err != nil {
-				return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonTraining, err)
-			}
-
-			// Allow Job watch to requeue.
-			return ctrl.Result{}, nil
-		}
+	} else {
+		log.Error(errors.New("no trainer or loader specified"), "this point should never have been reached if the model is valid")
+		// No use in retrying (returning an error).
+		return ctrl.Result{}, nil
 	}
 
 	meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
@@ -190,6 +107,107 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{}, nil
 }
 
+type Result struct {
+	ctrl.Result
+	Complete bool
+}
+
+func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Model) (Result, error) {
+	log := log.FromContext(ctx)
+
+	trainerSA := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      modelTrainerServiceAccountName,
+			Namespace: model.Namespace,
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, trainerSA, func() error {
+		return r.authNServiceAccount(trainerSA)
+	}); err != nil {
+		return Result{}, fmt.Errorf("failed to create or update service account: %w", err)
+	}
+
+	var sourceModel apiv1.Model
+	if model.Spec.Trainer.BaseModel != nil {
+		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.BaseModel.Name}, &sourceModel); err != nil {
+			if apierrors.IsNotFound(err) {
+				// Update this Model's status.
+				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+					Type:               ConditionReady,
+					Status:             metav1.ConditionFalse,
+					Reason:             ReasonSourceModelNotFound,
+					ObservedGeneration: model.Generation,
+				})
+				if err := r.Status().Update(ctx, model); err != nil {
+					return Result{}, fmt.Errorf("failed to update model status: %w", err)
+				}
+
+				// TODO: Implement watch on source Model.
+				return Result{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}, nil
+			}
+
+			return Result{}, fmt.Errorf("getting source model: %w", err)
+		}
+		if !isReady(&sourceModel) {
+			// Update this Model's status.
+			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+				Type:               ConditionReady,
+				Status:             metav1.ConditionFalse,
+				Reason:             ReasonSourceModelNotReady,
+				ObservedGeneration: model.Generation,
+			})
+			if err := r.Status().Update(ctx, model); err != nil {
+				return Result{}, fmt.Errorf("failed to update model status: %w", err)
+			}
+
+			// TODO: Instead of RequeueAfter, add a watch that maps to .spec.source.modelName
+			return Result{Result: ctrl.Result{RequeueAfter: time.Minute}}, nil
+		}
+	}
+
+	// Run training Job first, results will be stored in a volume and used by the builder Job.
+
+	trainingJob, err := r.trainingJob(ctx, model, &sourceModel)
+	if err != nil {
+		log.Error(err, "unable to create training Job")
+		// No use in retrying...
+		return Result{}, nil
+	}
+	if err := r.Get(ctx, client.ObjectKeyFromObject(trainingJob), trainingJob); err != nil {
+		if apierrors.IsNotFound(err) {
+			if err := r.Create(ctx, trainingJob); client.IgnoreAlreadyExists(err) != nil {
+				return Result{}, fmt.Errorf("creating Job: %w", err)
+			}
+		} else {
+			return Result{}, fmt.Errorf("getting Job: %w", err)
+		}
+	}
+	if trainingJob.Status.Succeeded < 1 {
+		log.Info("Training Job has not succeeded yet")
+
+		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
+			Type:               ConditionReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             ReasonTraining,
+			ObservedGeneration: model.Generation,
+		})
+		if err := r.Status().Update(ctx, model); err != nil {
+			return Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonTraining, err)
+		}
+
+		// Allow Job watch to requeue.
+		return Result{}, nil
+	}
+
+	return Result{Complete: true}, nil
+}
+
+func (r *ModelReconciler) reconcileLoader(ctx context.Context, model *apiv1.Model) (Result, error) {
+	log := log.FromContext(ctx)
+	_ = log
+	return Result{Complete: true}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -202,11 +220,11 @@ func (r *ModelReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
 	if sa.Annotations == nil {
 		sa.Annotations = make(map[string]string)
 	}
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
+	switch name := r.CloudContext.Name; name {
+	case cloud.GCP:
 		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.Name, r.CloudContext.GCP.ProjectID)
 	default:
-		return fmt.Errorf("unsupported cloud type: %q", r.CloudContext.CloudType)
+		return fmt.Errorf("unsupported cloud type: %q", name)
 	}
 	return nil
 }
@@ -217,7 +235,7 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 	// TODO: Validate the Model before this stage to ensure .spec.training is set alongside .spec.source.modelName
 
 	var dataset apiv1.Dataset
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Training.DatasetName}, &dataset); err != nil {
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.Dataset.Name}, &dataset); err != nil {
 		return nil, fmt.Errorf("getting source model: %w", err)
 	}
 	if ready := meta.FindStatusCondition(dataset.Status.Conditions, ConditionReady); ready == nil || ready.Status != metav1.ConditionTrue || dataset.Status.URL == "" {
@@ -252,8 +270,8 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 	}
 
 	var dataSubpath string
-	switch r.CloudContext.CloudType {
-	case CloudTypeGCP:
+	switch r.CloudContext.Name {
+	case cloud.GCP:
 		u, err := url.Parse(dataset.Status.URL)
 		if err != nil {
 			return nil, fmt.Errorf("parsing dataset url: %w", err)
@@ -278,7 +296,8 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 		})
 	}
 
-	annotations["kubectl.kubernetes.io/default-container"] = RuntimeTrainer
+	const trainerContainerName = "trainer"
+	annotations["kubectl.kubernetes.io/default-container"] = trainerContainerName
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-model-trainer",
@@ -300,8 +319,8 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 					ServiceAccountName: modelTrainerServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  RuntimeTrainer,
-							Image: sourceModel.Status.ContainerImage,
+							Name:  trainerContainerName,
+							Image: sourceModel.Spec.Container.Image,
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
 							Args: []string{"train.sh"},
@@ -312,15 +331,15 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 								},
 								{
 									Name:  "TRAIN_DATA_LIMIT",
-									Value: fmt.Sprintf("%v", model.Spec.Training.Params.DataLimit),
+									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.DataLimit),
 								},
 								{
 									Name:  "TRAIN_BATCH_SIZE",
-									Value: fmt.Sprintf("%v", model.Spec.Training.Params.BatchSize),
+									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.BatchSize),
 								},
 								{
 									Name:  "TRAIN_EPOCHS",
-									Value: fmt.Sprintf("%v", model.Spec.Training.Params.Epochs),
+									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.Epochs),
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
@@ -348,10 +367,6 @@ func (r *ModelReconciler) trainingJob(ctx context.Context, model *apiv1.Model, s
 				},
 			},
 		},
-	}
-
-	if err := r.SetResources(model, &job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, RuntimeTrainer); err != nil {
-		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 
 	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {

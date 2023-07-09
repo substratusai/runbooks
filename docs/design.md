@@ -70,8 +70,8 @@ spec:
     image: substratusai/hf-llm-peft-trainer # eventually introduce native pytorch trainer
 
   trainer:
-    # sourceModel can be left out for creating new base model
-    sourceModel:
+    # baseModel can be left out for creating new base model
+    baseModel:
       name: falcon-7b
       namespace: other-namespace
     dataset:

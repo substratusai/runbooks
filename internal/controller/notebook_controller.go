@@ -30,7 +30,6 @@ type NotebookReconciler struct {
 	Scheme *runtime.Scheme
 
 	*builder.ContainerReconciler
-	*RuntimeManager
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete
@@ -76,7 +75,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	var model apiv1.Model
-	if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.ModelName, Namespace: notebook.Namespace}, &model); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, &model); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Update this Model's status.
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
@@ -192,14 +191,18 @@ func nbPodName(nb *apiv1.Notebook) string {
 }
 
 func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model) (*corev1.Pod, error) {
+	const notebookContainerName = "notebook"
+	annotations := map[string]string{}
+	annotations["kubectl.kubernetes.io/default-container"] = notebookContainerName
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      nbPodName(nb),
-			Namespace: nb.Namespace,
+			Name:        nbPodName(nb),
+			Namespace:   nb.Namespace,
+			Annotations: annotations,
 		},
 		Spec: corev1.PodSpec{
 			//SecurityContext: &corev1.PodSecurityContext{
@@ -209,8 +212,8 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 			//},
 			Containers: []corev1.Container{
 				{
-					Name:  RuntimeNotebook,
-					Image: model.Status.ContainerImage,
+					Name:  notebookContainerName,
+					Image: model.Spec.Container.Image,
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Args: []string{
@@ -250,10 +253,6 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 			//	},
 			//},
 		},
-	}
-
-	if err := r.SetResources(model, &pod.ObjectMeta, &pod.Spec, RuntimeNotebook); err != nil {
-		return nil, fmt.Errorf("setting pod resources: %w", err)
 	}
 
 	if err := ctrl.SetControllerReference(nb, pod, r.Scheme); err != nil {

@@ -7,5 +7,6 @@ const (
 
 const (
 	ReasonJobNotComplete = "JobNotComplete"
+	ReasonJobComplete    = "JobComplete"
 	ReasonBuilding       = "JobBuilding"
 )

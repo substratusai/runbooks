@@ -16,6 +16,7 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/builder"
+	"github.com/substratusai/substratus/internal/cloud"
 )
 
 const (
@@ -30,7 +31,7 @@ type DatasetReconciler struct {
 
 	*builder.ContainerReconciler
 
-	CloudContext *CloudContext
+	CloudContext *cloud.Context
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
@@ -137,11 +138,11 @@ func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error
 	if sa.Annotations == nil {
 		sa.Annotations = make(map[string]string)
 	}
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
+	switch name := r.CloudContext.Name; name {
+	case cloud.GCP:
 		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.GetName(), r.CloudContext.GCP.ProjectID)
 	default:
-		return fmt.Errorf("unsupported cloud type: %q", r.CloudContext.CloudType)
+		return fmt.Errorf("unsupported cloud type: %q", name)
 	}
 	return nil
 }
@@ -171,7 +172,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					Containers: []corev1.Container{
 						{
 							Name:  loaderContainerName,
-							Image: r.loaderImage(dataset),
+							Image: dataset.Spec.Container.Image,
 							Args:  []string{"load.sh"},
 							Env: []corev1.EnvVar{
 								{
@@ -200,8 +201,8 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 		},
 	}
 
-	switch r.CloudContext.CloudType {
-	case CloudTypeGCP:
+	switch r.CloudContext.Name {
+	case cloud.GCP:
 		// GKE will injects GCS Fuse sidecar based on this annotation.
 		job.Spec.Template.Annotations["gke-gcsfuse/volumes"] = "true"
 		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
@@ -225,14 +226,4 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	}
 
 	return job, nil
-}
-
-func (r *DatasetReconciler) loaderImage(d *apiv1.Dataset) string {
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
-		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/dataset-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, d.Namespace, d.Name)
-	default:
-		panic("unsupported cloud type: " + typ)
-	}
 }
