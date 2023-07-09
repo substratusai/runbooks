@@ -56,16 +56,6 @@ type ModelTrainerParams struct {
 	BatchSize int64 `json:"batchSize,omitempty"`
 }
 
-type GitSource struct {
-	// URL to the git repository.
-	// Example: https://github.com/substratusai/model-falcon-40b
-	URL string `json:"url,omitempty"`
-	// Path within the git repository referenced by url.
-	Path string `json:"path,omitempty"`
-	// Branch is the git branch to use.
-	Branch string `json:"branch,omitempty"`
-}
-
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Servers is the list of servers that are currently running this Model. Soon to be deprecated.

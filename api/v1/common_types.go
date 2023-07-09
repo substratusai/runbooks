@@ -7,6 +7,16 @@ type Container struct {
 	Image string `json:"image,omitempty"`
 }
 
+type GitSource struct {
+	// URL to the git repository.
+	// Example: https://github.com/my-username/my-repo
+	URL string `json:"url,omitempty"`
+	// Path within the git repository referenced by url.
+	Path string `json:"path,omitempty"`
+	// Branch is the git branch to use.
+	Branch string `json:"branch,omitempty"`
+}
+
 type ObjectRef struct {
 	Name string `json:"name,omitempty"`
 
