@@ -9,13 +9,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ptr "k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/builder"
 	"github.com/substratusai/substratus/internal/cloud"
 )
 
@@ -29,7 +29,7 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*builder.ContainerReconciler
+	ContainerReconciler
 
 	CloudContext *cloud.Context
 }
@@ -164,9 +164,9 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  int64Ptr(1001),
-						RunAsGroup: int64Ptr(2002),
-						FSGroup:    int64Ptr(3003),
+						RunAsUser:  ptr.Int64(1001),
+						RunAsGroup: ptr.Int64(2002),
+						FSGroup:    ptr.Int64(3003),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{

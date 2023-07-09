@@ -20,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -34,7 +33,7 @@ type ModelServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*builder.ContainerReconciler
+	*ContainerReconciler
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete

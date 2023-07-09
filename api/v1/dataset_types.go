@@ -15,11 +15,8 @@ type DatasetSpec struct {
 	Loader DatasetLoader `json:"loader,omitempty"`
 }
 
-func (d *Dataset) GetContainer() Container {
-	return d.Spec.Container
-}
-func (d *Dataset) SetContainer(c Container) {
-	d.Spec.Container = c
+func (d *Dataset) GetContainer() *Container {
+	return &d.Spec.Container
 }
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {

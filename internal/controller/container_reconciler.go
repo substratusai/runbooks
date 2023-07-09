@@ -1,4 +1,4 @@
-package builder
+package controller
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ptr "k8s.io/utils/pointer"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -25,17 +24,13 @@ const (
 	saName = "container-builder"
 )
 
-type BuildableObject interface {
+type ContainerizedObject interface {
 	client.Object
-	GetContainer() apiv1.Container
+	GetContainer() *apiv1.Container
 	GetConditions() *[]metav1.Condition
 }
 
-type Result struct {
-	ctrl.Result
-	Complete bool
-}
-
+// ContainerReconciler builds container images. It is intended to be called from other top-level reconcilers.
 type ContainerReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
@@ -45,11 +40,11 @@ type ContainerReconciler struct {
 	Kind string
 }
 
-func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj BuildableObject) (Result, error) {
+func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj ContainerizedObject) (result, error) {
 	log := log.FromContext(ctx)
 
 	if obj.GetContainer().Image != "" {
-		return Result{Complete: true}, nil
+		return result{Complete: true}, nil
 	}
 
 	log.Info("Reconciling container")
@@ -65,7 +60,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, sa, func() error {
 		return r.authNServiceAccount(sa)
 	}); err != nil {
-		return Result{}, fmt.Errorf("failed to create or update service account: %w", err)
+		return result{}, fmt.Errorf("failed to create or update service account: %w", err)
 	}
 
 	// The Job that will build the container image.
@@ -73,16 +68,16 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 	if err != nil {
 		log.Error(err, "unable to construct image-builder Job")
 		// No use in retrying...
-		return Result{}, nil
+		return result{}, nil
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
 		if apierrors.IsNotFound(err) {
 			if err := r.Client.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-				return Result{}, fmt.Errorf("creating builder Job: %w", err)
+				return result{}, fmt.Errorf("creating builder Job: %w", err)
 			}
 		} else {
-			return Result{}, fmt.Errorf("getting builder Job: %w", err)
+			return result{}, fmt.Errorf("getting builder Job: %w", err)
 		}
 	}
 
@@ -97,17 +92,17 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 			Message:            fmt.Sprintf("Waiting for builder Job to complete: %v", buildJob.Name),
 		})
 		if err := r.Client.Status().Update(ctx, obj); err != nil {
-			return Result{}, fmt.Errorf("updating status: %w", err)
+			return result{}, fmt.Errorf("updating status: %w", err)
 		}
 
 		// Allow Job watch to requeue.
-		return Result{}, nil
+		return result{}, nil
 	}
 
 	container := obj.GetContainer()
 	container.Image = r.image(obj)
 	if err := r.Client.Update(ctx, obj); err != nil {
-		return Result{}, fmt.Errorf("updating container image: %w", err)
+		return result{}, fmt.Errorf("updating container image: %w", err)
 	}
 
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
@@ -118,10 +113,10 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Builda
 		Message:            fmt.Sprintf("Builder Job completed: %v", buildJob.Name),
 	})
 	if err := r.Client.Status().Update(ctx, obj); err != nil {
-		return Result{}, fmt.Errorf("updating status: %w", err)
+		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	return Result{Complete: true}, nil
+	return result{Complete: true}, nil
 }
 
 func (r *ContainerReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
@@ -137,7 +132,7 @@ func (r *ContainerReconciler) authNServiceAccount(sa *corev1.ServiceAccount) err
 	return nil
 }
 
-func (r *ContainerReconciler) buildJob(ctx context.Context, obj BuildableObject) (*batchv1.Job, error) {
+func (r *ContainerReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
 	git := obj.GetContainer().Git
 
@@ -268,7 +263,7 @@ ENTRYPOINT ["/tini", "--"]
 	return job, nil
 }
 
-func (r *ContainerReconciler) image(obj BuildableObject) string {
+func (r *ContainerReconciler) image(obj ContainerizedObject) string {
 	switch name := r.CloudContext.Name; name {
 	case cloud.GCP:
 		// Assuming this is Google Artifact Registry named "substratus".

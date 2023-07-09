@@ -15,11 +15,8 @@ type NotebookSpec struct {
 	Dataset *ObjectRef `json:"dataset,omitempty"`
 }
 
-func (n *Notebook) GetContainer() Container {
-	return n.Spec.Container
-}
-func (n *Notebook) SetContainer(c Container) {
-	n.Spec.Container = c
+func (n *Notebook) GetContainer() *Container {
+	return &n.Spec.Container
 }
 
 func (n *Notebook) GetConditions() *[]metav1.Condition {

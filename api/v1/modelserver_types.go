@@ -35,11 +35,8 @@ type ModelServer struct {
 	Status ModelServerStatus `json:"status,omitempty"`
 }
 
-func (s *ModelServer) GetContainer() Container {
-	return s.Spec.Container
-}
-func (s *ModelServer) SetContainer(c Container) {
-	s.Spec.Container = c
+func (s *ModelServer) GetContainer() *Container {
+	return &s.Spec.Container
 }
 
 func (s *ModelServer) GetConditions() *[]metav1.Condition {

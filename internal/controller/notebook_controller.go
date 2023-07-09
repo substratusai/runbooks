@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/builder"
 )
 
 const (
@@ -29,7 +28,7 @@ type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*builder.ContainerReconciler
+	*ContainerReconciler
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete

@@ -16,11 +16,8 @@ type ModelSpec struct {
 	Trainer *ModelTrainer `json:"trainer,omitempty"`
 }
 
-func (m *Model) GetContainer() Container {
-	return m.Spec.Container
-}
-func (m *Model) SetContainer(c Container) {
-	m.Spec.Container = c
+func (m *Model) GetContainer() *Container {
+	return &m.Spec.Container
 }
 
 func (m *Model) GetConditions() *[]metav1.Condition {
