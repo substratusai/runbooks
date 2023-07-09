@@ -10,7 +10,7 @@ type ModelSpec struct {
 	Container Container `json:"container"`
 
 	// Loader should be set to run a loading job.
-	Loader *ModelLoader `json:"trainer,omitempty"`
+	Loader *ModelLoader `json:"loader,omitempty"`
 
 	// Trainer should be set to run a training job.
 	Trainer *ModelTrainer `json:"trainer,omitempty"`
