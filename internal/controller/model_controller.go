@@ -69,11 +69,6 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := reconcileReadiness(ctx, r.Client, &model); result.success {
-		log.Info("Model ready")
-		return result.Result, err
-	}
-
 	if result, err := r.ReconcileContainer(ctx, &model); !result.success {
 		return result.Result, err
 	}
@@ -92,7 +87,14 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, nil
+	result, err := reconcileReadiness(ctx, r.Client, &model, map[string]bool{
+		"TODO": true,
+	})
+	if result.success {
+		log.Info("Model is ready")
+	}
+
+	return result.Result, err
 }
 
 func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Model) (result, error) {

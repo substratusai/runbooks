@@ -50,13 +50,38 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := reconcileReadiness(ctx, r.Client, &dataset); result.success {
-		log.Info("Dataset is ready")
+	if result, err := r.ReconcileContainer(ctx, &dataset); !result.success {
 		return result.Result, err
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &dataset); !result.success {
+	if result, err := r.reconcileData(ctx, &dataset); !result.success {
 		return result.Result, err
+	}
+
+	result, err := reconcileReadiness(ctx, r.Client, &dataset, map[string]bool{
+		apiv1.ConditionContainerReady: true,
+		apiv1.ConditionDataReady:      true,
+	})
+	if result.success {
+		log.Info("Dataset is ready")
+	}
+
+	return result.Result, err
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&apiv1.Dataset{}).
+		Owns(&batchv1.Job{}).
+		Complete(r)
+}
+
+func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
+	log := log.FromContext(ctx)
+
+	if dataset.Status.URL != "" {
+		return result{success: true}, nil
 	}
 
 	// Service account used for loading the data.
@@ -69,30 +94,22 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, loaderSA, func() error {
 		return r.authNServiceAccount(loaderSA)
 	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
+		return result{}, fmt.Errorf("failed to create or update service account: %w", err)
 	}
 
 	// Job that will run the data-loader image that was built by the previous Job.
-	loadJob, err := r.loadJob(ctx, &dataset)
+	loadJob, err := r.loadJob(ctx, dataset)
 	if err != nil {
 		log.Error(err, "unable to construct data-loader Job")
 		// No use in retrying...
-		return ctrl.Result{}, nil
+		return result{}, nil
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, &dataset, loadJob, "loading"); !result.success {
-		return result.Result, err
+	if result, err := reconcileJob(ctx, r.Client, dataset, loadJob, "loading"); !result.success {
+		return result, err
 	}
 
-	return ctrl.Result{}, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.Dataset{}).
-		Owns(&batchv1.Job{}).
-		Complete(r)
+	return result{success: true}, nil
 }
 
 const (

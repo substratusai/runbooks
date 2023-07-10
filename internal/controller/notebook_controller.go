@@ -33,18 +33,14 @@ type NotebookReconciler struct {
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	lg.Info("Reconciling Notebook")
-	defer lg.Info("Done reconciling Notebook")
+	log.Info("Reconciling Notebook")
+	defer log.Info("Done reconciling Notebook")
 
 	var notebook apiv1.Notebook
 	if err := r.Get(ctx, req.NamespacedName, &notebook); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	if result, err := reconcileReadiness(ctx, r.Client, &notebook); result.success {
-		return result.Result, err
 	}
 
 	if result, err := r.ReconcileContainer(ctx, &notebook); !result.success {
@@ -96,7 +92,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 
 		if !model.Status.Ready {
-			lg.Info("Model not ready", "model", model.Name)
+			log.Info("Model not ready", "model", model.Name)
 
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 				Type:               apiv1.ConditionDependenciesReady,
@@ -156,7 +152,14 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	result, err := reconcileReadiness(ctx, r.Client, &notebook, map[string]bool{
+		"TODO": true,
+	})
+	if result.success {
+		log.Info("Notebook is ready")
+	}
+
+	return result.Result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

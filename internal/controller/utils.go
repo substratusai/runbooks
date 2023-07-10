@@ -57,21 +57,24 @@ type Object interface {
 	GetConditions() *[]metav1.Condition
 }
 
-func conditionsReady(obj Object) bool {
-	conditions := *obj.GetConditions()
-	readyCount := 0
-	for _, condition := range conditions {
-		if strings.HasSuffix(condition.Type, "Ready") {
-			if condition.Status != metav1.ConditionTrue {
-				return false
-			}
-			readyCount++
+func conditionsReady(obj Object, requiredConditions map[string]bool) bool {
+	objConditions := *obj.GetConditions()
+
+	actualConditions := map[string]bool{}
+	for _, condition := range objConditions {
+		actualConditions[condition.Type] = condition.Status == metav1.ConditionTrue
+	}
+
+	for condition, required := range requiredConditions {
+		if required && !actualConditions[condition] {
+			return false
 		}
 	}
-	return readyCount > 0
-	//condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
-	//return condition != nil && condition.Status == metav1.ConditionTrue
+	return true
 }
+
+//condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
+//return condition != nil && condition.Status == metav1.ConditionTrue
 
 func parseBucketURL(bucketURL string) (string, string, error) {
 	u, err := url.Parse(bucketURL)
@@ -180,10 +183,8 @@ func reconcileJob(ctx context.Context, c client.Client, obj object, job *batchv1
 	return result{success: true}, nil
 }
 
-func reconcileReadiness(ctx context.Context, c client.Client, obj object) (result, error) {
-	panic("PICKUP HERE: This should have a list of the ready conditions that need checking, otherwise there could be a false positive")
-
-	ready := conditionsReady(obj)
+func reconcileReadiness(ctx context.Context, c client.Client, obj object, requiredConditions map[string]bool) (result, error) {
+	ready := conditionsReady(obj, requiredConditions)
 	if ready != obj.GetStatusReady() {
 		obj.SetStatusReady(ready)
 		if err := c.Status().Update(ctx, obj); err != nil {

@@ -43,18 +43,14 @@ type ModelServerReconciler struct {
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 
 func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	lg.Info("Reconciling ModelServer")
-	defer lg.Info("Done reconciling ModelServer")
+	log.Info("Reconciling ModelServer")
+	defer log.Info("Done reconciling ModelServer")
 
 	var server apiv1.ModelServer
 	if err := r.Get(ctx, req.NamespacedName, &server); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	if result, err := reconcileReadiness(ctx, r.Client, &server); result.success {
-		return result.Result, err
 	}
 
 	if result, err := r.ReconcileContainer(ctx, &server); !result.success {
@@ -98,7 +94,7 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !model.Status.Ready {
-		lg.Info("Model not ready", "model", model.Name)
+		log.Info("Model not ready", "model", model.Name)
 
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
 			Type:               apiv1.ConditionDependenciesReady,
@@ -152,7 +148,14 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	result, err := reconcileReadiness(ctx, r.Client, &server, map[string]bool{
+		"TODO": true,
+	})
+	if result.success {
+		log.Info("ModelServer is ready")
+	}
+
+	return result.Result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
