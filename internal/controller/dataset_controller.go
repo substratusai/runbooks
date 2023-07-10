@@ -6,6 +6,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ptr "k8s.io/utils/pointer"
@@ -16,11 +17,6 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
-)
-
-const (
-	ReasonLoading = "Loading"
-	ReasonLoaded  = "Loaded"
 )
 
 // DatasetReconciler reconciles a Dataset object.
@@ -36,8 +32,8 @@ type DatasetReconciler struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -58,15 +54,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result.Result, err
 	}
 
-	result, err := reconcileReadiness(ctx, r.Client, &dataset, map[string]bool{
-		apiv1.ConditionContainerReady: true,
-		apiv1.ConditionDataReady:      true,
-	})
-	if result.success {
-		log.Info("Dataset is ready")
-	}
-
-	return result.Result, err
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -84,17 +72,16 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		return result{success: true}, nil
 	}
 
-	// Service account used for loading the data.
-	loaderSA := &corev1.ServiceAccount{
+	// ServiceAccount for the loader job.
+	// Within the context of GCP, this ServiceAccount will need IAM permissions
+	// to write the GCS bucket containing training data.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dataLoaderServiceAccountName,
 			Namespace: dataset.Namespace,
 		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, loaderSA, func() error {
-		return r.authNServiceAccount(loaderSA)
-	}); err != nil {
-		return result{}, fmt.Errorf("failed to create or update service account: %w", err)
+	}); !result.success {
+		return result, err
 	}
 
 	// Job that will run the data-loader image that was built by the previous Job.
@@ -105,28 +92,35 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		return result{}, nil
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, dataset, loadJob, "loading"); !result.success {
+	dataset.Status.Ready = false
+	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionFalse,
+		Reason:             apiv1.ReasonJobNotComplete,
+		ObservedGeneration: dataset.Generation,
+		Message:            fmt.Sprintf("Waiting for data loader Job to complete"),
+	})
+	if err := r.Status().Update(ctx, dataset); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	if result, err := reconcileJob(ctx, r.Client, dataset, loadJob, apiv1.ConditionLoaded); !result.success {
 		return result, err
 	}
 
+	dataset.Status.Ready = true
+	dataset.Status.URL = r.datasetStatusURL(dataset)
+	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: dataset.Generation,
+	})
+	if err := r.Status().Update(ctx, dataset); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
 	return result{success: true}, nil
-}
-
-const (
-	dataLoaderServiceAccountName = "data-loader"
-)
-
-func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
-	if sa.Annotations == nil {
-		sa.Annotations = make(map[string]string)
-	}
-	switch name := r.CloudContext.Name; name {
-	case cloud.GCP:
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.GetName(), r.CloudContext.GCP.ProjectID)
-	default:
-		return fmt.Errorf("unsupported cloud type: %q", name)
-	}
-	return nil
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
@@ -199,8 +193,6 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 			},
 		})
-		dataset.Status.URL = "gcs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
-			"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 	}
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
@@ -208,4 +200,9 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	}
 
 	return job, nil
+}
+
+func (r *DatasetReconciler) datasetStatusURL(dataset *apiv1.Dataset) string {
+	return "gs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
+		"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 }

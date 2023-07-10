@@ -20,14 +20,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const (
-	saName = "container-builder"
-)
-
 type ContainerizedObject interface {
 	object
 	GetContainer() *apiv1.Container
 }
+
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 // ContainerReconciler builds container images. It is intended to be called from other top-level reconcilers.
 type ContainerReconciler struct {
@@ -50,16 +49,13 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	defer log.Info("Done reconciling container")
 
 	// Service account used for building and pushing the image.
-	sa := &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      saName,
+			Name:      containerBuilderServiceAccountName,
 			Namespace: obj.GetNamespace(),
 		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, sa, func() error {
-		return r.authNServiceAccount(sa)
-	}); err != nil {
-		return result{}, fmt.Errorf("failed to create or update service account: %w", err)
+	}); !result.success {
+		return result, err
 	}
 
 	// The Job that will build the container image.
@@ -84,7 +80,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 		log.Info("The builder Job has not succeeded yet")
 
 		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-			Type:               apiv1.ConditionContainerReady,
+			Type:               apiv1.ConditionBuilt,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonJobNotComplete,
 			ObservedGeneration: obj.GetGeneration(),
@@ -105,7 +101,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	}
 
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionContainerReady,
+		Type:               apiv1.ConditionBuilt,
 		Status:             metav1.ConditionTrue,
 		Reason:             apiv1.ReasonJobComplete,
 		ObservedGeneration: obj.GetGeneration(),
@@ -116,19 +112,6 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	}
 
 	return result{success: true}, nil
-}
-
-func (r *ContainerReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
-	if sa.Annotations == nil {
-		sa.Annotations = make(map[string]string)
-	}
-	switch name := r.CloudContext.Name; name {
-	case cloud.GCP:
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.GetName(), r.CloudContext.GCP.ProjectID)
-	default:
-		return fmt.Errorf("unsupported cloud: %q", name)
-	}
-	return nil
 }
 
 func (r *ContainerReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
@@ -240,7 +223,7 @@ ENTRYPOINT ["/tini", "--"]
 						RunAsGroup: ptr.Int64(0),
 						FSGroup:    ptr.Int64(3003),
 					},
-					ServiceAccountName: saName,
+					ServiceAccountName: containerBuilderServiceAccountName,
 					Containers: []corev1.Container{{
 						Name:         builderContainerName,
 						Image:        "gcr.io/kaniko-project/executor:latest",

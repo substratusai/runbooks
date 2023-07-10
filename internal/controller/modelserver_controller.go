@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -41,6 +42,7 @@ type ModelServerReconciler struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -57,105 +59,11 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return result.Result, err
 	}
 
-	var model apiv1.Model
-	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Model.Name, Namespace: server.Namespace}, &model); err != nil {
-		if apierrors.IsNotFound(err) {
-			// Update this Model's status.
-			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDependenciesReady,
-				Status:             metav1.ConditionFalse,
-				Reason:             apiv1.ReasonModelNotFound,
-				ObservedGeneration: server.Generation,
-			})
-			if err := r.Status().Update(ctx, &server); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update server status: %w", err)
-			}
-
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
+	if result, err := r.reconcileServer(ctx, &server); !result.success {
+		return result.Result, err
 	}
 
-	var isRegistered bool
-	for _, svr := range model.Status.Servers {
-		if svr == server.Name {
-			isRegistered = true
-			break
-		}
-	}
-	if !isRegistered {
-		// TODO: Stop using this, switch to cache index for enqueueing.
-		// NOTE: There is no cleanup of this list at the moment.
-		model.Status.Servers = append(model.Status.Servers, server.Name)
-		if err := r.Status().Update(ctx, &model); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-		}
-	}
-
-	if !model.Status.Ready {
-		log.Info("Model not ready", "model", model.Name)
-
-		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDependenciesReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             apiv1.ReasonModelNotReady,
-			ObservedGeneration: server.Generation,
-		})
-		if err := r.Status().Update(ctx, &server); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to update modelserver status: %w", err)
-		}
-
-		return ctrl.Result{}, nil
-	}
-
-	service, err := r.serverService(&server, &model)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to construct service: %w", err)
-	}
-	if err := r.Patch(ctx, service, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to apply service: %w", err)
-	}
-
-	deploy, err := r.serverDeployment(&server, &model)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to construct deployment: %w", err)
-	}
-	if err := r.Patch(ctx, deploy, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to apply deployment: %w", err)
-	}
-
-	if err := r.Get(ctx, types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}, deploy); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get deployment: %w", err)
-	}
-
-	if deploy.Status.ReadyReplicas == 0 {
-		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionChildrenReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             apiv1.ReasonDeploymentNotReady,
-			ObservedGeneration: server.Generation,
-		})
-	} else {
-		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionChildrenReady,
-			Status:             metav1.ConditionTrue,
-			ObservedGeneration: server.Generation,
-		})
-	}
-
-	if err := r.Status().Update(ctx, &server); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to update model status: %w", err)
-	}
-
-	result, err := reconcileReadiness(ctx, r.Client, &server, map[string]bool{
-		"TODO": true,
-	})
-	if result.success {
-		log.Info("ModelServer is ready")
-	}
-
-	return result.Result, err
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -165,6 +73,7 @@ func (r *ModelServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(modelServerForModel))).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
@@ -231,6 +140,108 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 	return deploy, nil
+}
+
+func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *apiv1.ModelServer) (result, error) {
+	log := log.FromContext(ctx)
+
+	var model apiv1.Model
+	if err := r.Get(ctx, client.ObjectKey{Name: server.Spec.Model.Name, Namespace: server.Namespace}, &model); err != nil {
+		if apierrors.IsNotFound(err) {
+			// Update this Model's status.
+			server.Status.Ready = false
+			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
+				Type:               apiv1.ConditionDeployed,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonModelNotFound,
+				ObservedGeneration: server.Generation,
+			})
+			if err := r.Status().Update(ctx, server); err != nil {
+				return result{}, fmt.Errorf("failed to update server status: %w", err)
+			}
+
+			return result{}, nil
+		}
+
+		return result{}, fmt.Errorf("getting model: %w", err)
+	}
+
+	var isRegistered bool
+	for _, svr := range model.Status.Servers {
+		if svr == server.Name {
+			isRegistered = true
+			break
+		}
+	}
+	if !isRegistered {
+		// TODO: Stop using this, switch to cache index for enqueueing.
+		// NOTE: There is no cleanup of this list at the moment.
+		model.Status.Servers = append(model.Status.Servers, server.Name)
+		if err := r.Status().Update(ctx, &model); err != nil {
+			return result{}, fmt.Errorf("failed to update model status: %w", err)
+		}
+	}
+
+	if !model.Status.Ready {
+		log.Info("Model not ready", "model", model.Name)
+
+		server.Status.Ready = false
+		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
+			Type:               apiv1.ConditionDeployed,
+			Status:             metav1.ConditionFalse,
+			Reason:             apiv1.ReasonModelNotReady,
+			ObservedGeneration: server.Generation,
+		})
+		if err := r.Status().Update(ctx, server); err != nil {
+			return result{}, fmt.Errorf("failed to update modelserver status: %w", err)
+		}
+
+		return result{}, nil
+	}
+
+	service, err := r.serverService(server, &model)
+	if err != nil {
+		return result{}, fmt.Errorf("failed to construct service: %w", err)
+	}
+	if err := r.Patch(ctx, service, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
+		return result{}, fmt.Errorf("failed to apply service: %w", err)
+	}
+
+	deploy, err := r.serverDeployment(server, &model)
+	if err != nil {
+		return result{}, fmt.Errorf("failed to construct deployment: %w", err)
+	}
+	if err := r.Patch(ctx, deploy, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
+		return result{}, fmt.Errorf("failed to apply deployment: %w", err)
+	}
+
+	if err := r.Get(ctx, types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}, deploy); err != nil {
+		return result{}, fmt.Errorf("failed to get deployment: %w", err)
+	}
+
+	if deploy.Status.ReadyReplicas == 0 {
+		server.Status.Ready = false
+		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
+			Type:               apiv1.ConditionDeployed,
+			Status:             metav1.ConditionFalse,
+			Reason:             apiv1.ReasonDeploymentNotReady,
+			ObservedGeneration: server.Generation,
+		})
+	} else {
+		server.Status.Ready = true
+		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
+			Type:               apiv1.ConditionDeployed,
+			Status:             metav1.ConditionTrue,
+			Reason:             apiv1.ReasonDeploymentReady,
+			ObservedGeneration: server.Generation,
+		})
+	}
+
+	if err := r.Status().Update(ctx, server); err != nil {
+		return result{}, fmt.Errorf("failed to update model status: %w", err)
+	}
+
+	return result{success: true}, nil
 }
 
 func (r *ModelServerReconciler) serverService(server *apiv1.ModelServer, model *apiv1.Model) (*corev1.Service, error) {

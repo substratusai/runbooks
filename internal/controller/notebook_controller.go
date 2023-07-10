@@ -3,8 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,6 +31,7 @@ type NotebookReconciler struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -47,26 +48,46 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
+	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
+		return result.Result, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&apiv1.Notebook{}).
+		Owns(&batchv1.Job{}).
+		Owns(&corev1.Pod{}).
+		Complete(r)
+}
+
+func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *apiv1.Notebook) (result, error) {
+	log := log.FromContext(ctx)
+
 	if notebook.Spec.Suspend {
+		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionChildrenReady,
+			Type:               apiv1.ConditionDeployed,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonSuspended,
 			ObservedGeneration: notebook.Generation,
 		})
-		if err := r.Status().Update(ctx, &notebook); err != nil {
-			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
+		if err := r.Status().Update(ctx, notebook); err != nil {
+			return result{}, fmt.Errorf("updating notebook status: %w", err)
 		}
 
 		var pod corev1.Pod
-		pod.SetName(nbPodName(&notebook))
+		pod.SetName(nbPodName(notebook))
 		pod.SetNamespace(notebook.Namespace)
 		if err := r.Delete(ctx, &pod); err != nil {
 			if !apierrors.IsNotFound(err) {
-				return ctrl.Result{}, err
+				return result{}, err
 			}
 		}
-		return ctrl.Result{}, nil
+		return result{}, nil
 	}
 
 	var model *apiv1.Model
@@ -75,99 +96,84 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
+				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDependenciesReady,
+					Type:               apiv1.ConditionDeployed,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonModelNotFound,
 					ObservedGeneration: notebook.Generation,
 				})
-				if err := r.Status().Update(ctx, &notebook); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
+				if err := r.Status().Update(ctx, notebook); err != nil {
+					return result{}, fmt.Errorf("failed to update notebook status: %w", err)
 				}
 
 				// TODO: Implement watch on source Model.
-				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+				return result{}, nil
 			}
-			return ctrl.Result{}, fmt.Errorf("getting model: %w", err)
+			return result{}, fmt.Errorf("getting model: %w", err)
 		}
 
 		if !model.Status.Ready {
 			log.Info("Model not ready", "model", model.Name)
 
+			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDependenciesReady,
+				Type:               apiv1.ConditionDeployed,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonModelNotReady,
 				ObservedGeneration: notebook.Generation,
 			})
-			if err := r.Status().Update(ctx, &notebook); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update notebook status: %w", err)
+			if err := r.Status().Update(ctx, notebook); err != nil {
+				return result{}, fmt.Errorf("failed to update notebook status: %w", err)
 			}
 
-			return ctrl.Result{}, nil
+			return result{}, nil
 		}
 
 	}
 
 	//pvc, err := r.notebookPVC(&notebook)
 	//if err != nil {
-	//	return ctrl.Result{}, fmt.Errorf("failed to construct pvc: %w", err)
+	//	return result{}, fmt.Errorf("failed to construct pvc: %w", err)
 	//}
 
 	//if err := r.Patch(ctx, pvc, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
-	//	return ctrl.Result{}, fmt.Errorf("failed to apply pvc: %w", err)
+	//	return result{}, fmt.Errorf("failed to apply pvc: %w", err)
 	//}
 
-	pod, err := r.notebookPod(&notebook, model)
+	pod, err := r.notebookPod(notebook, model)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to construct pod: %w", err)
+		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
 	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to apply pod: %w", err)
+		return result{}, fmt.Errorf("failed to apply pod: %w", err)
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get pod: %w", err)
+		return result{}, fmt.Errorf("failed to get pod: %w", err)
 	}
 
-	reason := apiv1.ReasonPodNotReady
-	ready := metav1.ConditionFalse
-	if pod.Status.Phase == corev1.PodRunning {
-		for _, c := range pod.Status.Conditions {
-			if c.Type == "Ready" {
-				if c.Status == "True" {
-					ready = metav1.ConditionTrue
-					reason = ""
-				}
-			}
-		}
+	if isPodReady(pod) {
+		notebook.Status.Ready = true
+		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+			Type:               apiv1.ConditionDeployed,
+			Status:             metav1.ConditionTrue,
+			Reason:             apiv1.ReasonPodReady,
+			ObservedGeneration: notebook.Generation,
+		})
+	} else {
+		notebook.Status.Ready = false
+		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+			Type:               apiv1.ConditionDeployed,
+			Status:             metav1.ConditionFalse,
+			Reason:             apiv1.ReasonPodNotReady,
+			ObservedGeneration: notebook.Generation,
+		})
+	}
+	if err := r.Status().Update(ctx, notebook); err != nil {
+		return result{}, fmt.Errorf("updating notebook status: %w", err)
 	}
 
-	meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-		Type:               apiv1.ConditionDependenciesReady,
-		Status:             ready,
-		Reason:             reason,
-		ObservedGeneration: notebook.Generation,
-	})
-	if err := r.Status().Update(ctx, &notebook); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
-	}
-
-	result, err := reconcileReadiness(ctx, r.Client, &notebook, map[string]bool{
-		"TODO": true,
-	})
-	if result.success {
-		log.Info("Notebook is ready")
-	}
-
-	return result.Result, err
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.Notebook{}).
-		Owns(&corev1.Pod{}).
-		Complete(r)
+	return result{success: true}, nil
 }
 
 func nbPodName(nb *apiv1.Notebook) string {
@@ -197,7 +203,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 			Containers: []corev1.Container{
 				{
 					Name:  notebookContainerName,
-					Image: model.Spec.Container.Image,
+					Image: nb.Spec.Container.Image,
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Args: []string{

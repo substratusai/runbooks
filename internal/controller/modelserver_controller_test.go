@@ -29,8 +29,9 @@ func TestModelServerFromGit(t *testing.T) {
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the modelserver")
+	t.Cleanup(debugObject(t, model))
 
-	fakeModelLoad(t, model)
+	testModelLoad(t, model)
 
 	modelServer := &apiv1.ModelServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -49,8 +50,9 @@ func TestModelServerFromGit(t *testing.T) {
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, modelServer), "creating a modelserver")
+	t.Cleanup(debugObject(t, modelServer))
 
-	fakeContainerBuild(t, modelServer)
+	testContainerBuild(t, modelServer)
 
 	// Test that a model server Service gets created by the controller.
 	var service corev1.Service

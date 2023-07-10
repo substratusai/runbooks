@@ -11,7 +11,6 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ptr "k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -151,17 +150,6 @@ func reconcileJob(ctx context.Context, c client.Client, obj object, job *batchv1
 		return result{}, fmt.Errorf("creating Job: %w", err)
 	}
 
-	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-		Type:               condition,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
-		ObservedGeneration: obj.GetGeneration(),
-		Message:            fmt.Sprintf("Waiting for Job to complete: %v", job.Name),
-	})
-	if err := c.Status().Update(ctx, obj); err != nil {
-		return result{}, fmt.Errorf("updating status: %w", err)
-	}
-
 	if err := c.Get(ctx, client.ObjectKeyFromObject(job), job); err != nil {
 		return result{}, fmt.Errorf("geting Job: %w", err)
 	}
@@ -170,27 +158,21 @@ func reconcileJob(ctx context.Context, c client.Client, obj object, job *batchv1
 		return result{}, nil
 	}
 
-	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-		Type:               condition,
-		Status:             metav1.ConditionTrue,
-		Reason:             apiv1.ReasonJobComplete,
-		ObservedGeneration: obj.GetGeneration(),
-	})
-	if err := c.Status().Update(ctx, obj); err != nil {
-		return result{}, fmt.Errorf("updating status: %w", err)
-	}
-
 	return result{success: true}, nil
 }
 
-func reconcileReadiness(ctx context.Context, c client.Client, obj object, requiredConditions map[string]bool) (result, error) {
-	ready := conditionsReady(obj, requiredConditions)
-	if ready != obj.GetStatusReady() {
-		obj.SetStatusReady(ready)
-		if err := c.Status().Update(ctx, obj); err != nil {
-			return result{}, fmt.Errorf("updating readiness in status: %w", err)
+func isPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+
+	for _, c := range pod.Status.Conditions {
+		if c.Type == "Ready" {
+			if c.Status == "True" {
+				return true
+			}
 		}
 	}
 
-	return result{success: ready}, nil
+	return false
 }

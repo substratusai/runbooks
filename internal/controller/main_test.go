@@ -2,6 +2,8 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,7 +35,7 @@ import (
 )
 
 const (
-	timeout  = time.Second * 10
+	timeout  = time.Second * 5
 	interval = time.Second / 10
 )
 
@@ -179,7 +182,14 @@ type testObject interface {
 	GetContainer() *apiv1.Container
 }
 
-func fakeContainerBuild(t *testing.T, obj testObject) {
+func testContainerBuild(t *testing.T, obj testObject) {
+	var sa corev1.ServiceAccount
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: "container-builder"}, &sa)
+		assert.NoError(t, err, "getting the container builder serviceaccount")
+	}, timeout, interval, "waiting for the container builder serviceaccount to be created")
+	require.Equal(t, "substratus-container-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+
 	// Test that a container builder Job gets created by the controller.
 	var builderJob batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -193,31 +203,39 @@ func fakeContainerBuild(t *testing.T, obj testObject) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, obj)
 		assert.NoError(t, err, "getting object")
-		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionContainerReady))
+		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionBuilt))
 	}, timeout, interval, "waiting for the container to be ready")
-}
-
-func fakeModelLoad(t *testing.T, model *apiv1.Model) {
-	// Test that a container loader Job gets created by the controller.
-	var loaderJob batchv1.Job
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName() + "-model-loader"}, &loaderJob)
-		assert.NoError(t, err, "getting the model loader job")
-	}, timeout, interval, "waiting for the  model loader job to be created")
-	require.Equal(t, "loader", loaderJob.Spec.Template.Spec.Containers[0].Name)
-
-	fakeJobComplete(t, &loaderJob)
-
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		var m apiv1.Model
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, &m)
-		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(m.Status.Conditions, apiv1.ConditionModelReady))
-	}, timeout, interval, "waiting for the model to be ready")
 }
 
 func fakeJobComplete(t *testing.T, job *batchv1.Job) {
 	updated := job.DeepCopy()
 	updated.Status.Succeeded = 1
 	require.NoError(t, k8sClient.Status().Patch(ctx, updated, client.MergeFrom(job)), "patching the job with completed count")
+}
+
+func fakePodReady(t *testing.T, pod *corev1.Pod) {
+	updated := pod.DeepCopy()
+	updated.Status.Phase = corev1.PodRunning
+	updated.Status.Conditions = append(updated.Status.Conditions, corev1.PodCondition{
+		Type:   corev1.PodReady,
+		Status: corev1.ConditionTrue,
+	})
+	require.NoError(t, k8sClient.Status().Patch(ctx, updated, client.MergeFrom(pod)), "patching the pod with ready status")
+}
+
+func debugObject(t *testing.T, obj client.Object) func() {
+	return func() {
+		if !t.Failed() {
+			return
+		}
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj)
+		if err != nil {
+			fmt.Printf("TEST DEBUG: Error getting object: %v\n", err)
+		}
+		pretty, err := json.MarshalIndent(obj, "", "    ")
+		if err != nil {
+			fmt.Printf("TEST DEBUG: Marshalling object: %v\n", err)
+		}
+		fmt.Printf("TEST DEBUG: %T: %v\n", obj, string(pretty))
+	}
 }

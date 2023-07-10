@@ -1,17 +1,13 @@
 package v1
 
 const (
-	ConditionContainerReady    = "ContainerReady"
-	ConditionDataReady         = "DataReady"
-	ConditionModelReady        = "ModelReady"
-	ConditionDependenciesReady = "DependenciesReady"
-	ConditionChildrenReady     = "ChildrenReady"
+	ConditionBuilt    = "Built"
+	ConditionLoaded   = "Loaded"
+	ConditionTrained  = "Trained"
+	ConditionDeployed = "Deployed"
 )
 
 const (
-	ReasonJobNotComplete = "JobNotComplete"
-	ReasonJobComplete    = "JobComplete"
-
 	ReasonModelNotFound = "ModelNotFound"
 	ReasonModelNotReady = "ModelNotReady"
 
@@ -21,7 +17,11 @@ const (
 	ReasonDatasetNotFound = "DatasetNotFound"
 	ReasonDatasetNotReady = "ReasonDatasetNotReady"
 
+	ReasonJobNotComplete     = "JobNotComplete"
+	ReasonJobComplete        = "JobComplete"
+	ReasonDeploymentReady    = "DeploymentReady"
 	ReasonDeploymentNotReady = "DeploymentNotReady"
+	ReasonPodReady           = "PodReady"
 	ReasonPodNotReady        = "PodNotReady"
 
 	ReasonSuspended = "Suspended"

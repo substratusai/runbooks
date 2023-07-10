@@ -24,20 +24,6 @@ import (
 	"github.com/substratusai/substratus/internal/cloud"
 )
 
-const (
-	//ConditionReady = "Ready"
-
-	//ReasonTraining       = "Training"
-	//ReasonBuilding       = "Building"
-	//ReasonBuiltAndPushed = "BuiltAndPushed"
-
-	//ReasonSourceModelNotFound = "SourceModelNotFound"
-	//ReasonSourceModelNotReady = "SourceModelNotReady"
-	//TrainingDatasetNotReady   = "TrainingDatasetNotReady"
-
-	modelTrainerServiceAccountName = "model-trainer"
-)
-
 // ModelReconciler reconciles a Model object.
 type ModelReconciler struct {
 	client.Client
@@ -56,7 +42,7 @@ type ModelReconcilerConfig struct {
 //+kubebuilder:rbac:groups=substratus.ai,resources=models/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=models/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -87,29 +73,27 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
-	result, err := reconcileReadiness(ctx, r.Client, &model, map[string]bool{
-		"TODO": true,
-	})
-	if result.success {
-		log.Info("Model is ready")
-	}
-
-	return result.Result, err
+	return ctrl.Result{}, nil
 }
 
 func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
 
-	trainerSA := &corev1.ServiceAccount{
+	if model.Status.URL != "" {
+		return result{success: true}, nil
+	}
+
+	// ServiceAccount for the trainer job.
+	// Within the context of GCP, this ServiceAccount will need IAM permissions
+	// to read the GCS bucket containing the training data and read and write from
+	// the bucket that contains base model artifacts.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modelTrainerServiceAccountName,
 			Namespace: model.Namespace,
 		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, trainerSA, func() error {
-		return r.authNServiceAccount(trainerSA)
-	}); err != nil {
-		return result{}, fmt.Errorf("failed to create or update service account: %w", err)
+	}); !result.success {
+		return result, err
 	}
 
 	var baseModel *apiv1.Model
@@ -118,8 +102,9 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.BaseModel.Name}, sourceModel); err != nil {
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
+				model.Status.Ready = false
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDependenciesReady,
+					Type:               apiv1.ConditionTrained,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonBaseModelNotFound,
 					ObservedGeneration: model.Generation,
@@ -136,8 +121,9 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 		}
 		if !sourceModel.Status.Ready {
 			// Update this Model's status.
+			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDependenciesReady,
+				Type:               apiv1.ConditionTrained,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonBaseModelNotReady,
 				ObservedGeneration: model.Generation,
@@ -155,8 +141,9 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Trainer.Dataset.Name}, &dataset); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Update this Model's status.
+			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDependenciesReady,
+				Type:               apiv1.ConditionTrained,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonDatasetNotFound,
 				ObservedGeneration: model.Generation,
@@ -173,8 +160,9 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 	}
 	if !dataset.Status.Ready {
 		// Update this Model's status.
+		model.Status.Ready = false
 		meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDependenciesReady,
+			Type:               apiv1.ConditionTrained,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonDatasetNotReady,
 			ObservedGeneration: model.Generation,
@@ -193,8 +181,33 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 		// No use in retrying...
 		return result{}, nil
 	}
-	if result, err := reconcileJob(ctx, r.Client, model, trainingJob, apiv1.ConditionModelReady); !result.success {
+
+	model.Status.Ready = false
+	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionTrained,
+		Status:             metav1.ConditionFalse,
+		Reason:             apiv1.ReasonJobNotComplete,
+		ObservedGeneration: model.Generation,
+		Message:            fmt.Sprintf("Waiting for training Job to complete"),
+	})
+	if err := r.Status().Update(ctx, model); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	if result, err := reconcileJob(ctx, r.Client, model, trainingJob, apiv1.ConditionTrained); !result.success {
 		return result, err
+	}
+
+	model.Status.Ready = true
+	model.Status.URL = r.modelStatusURL(model)
+	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionTrained,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: model.Generation,
+	})
+	if err := r.Status().Update(ctx, model); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
 	return result{success: true}, nil
@@ -203,6 +216,22 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 func (r *ModelReconciler) reconcileLoader(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
 
+	if model.Status.URL != "" {
+		return result{success: true}, nil
+	}
+
+	// ServiceAccount for the trainer job.
+	// Within the context of GCP, this ServiceAccount will need IAM write permissions
+	// to the GCS bucket with models stored.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      modelLoaderServiceAccountName,
+			Namespace: model.Namespace,
+		},
+	}); !result.success {
+		return result, err
+	}
+
 	loaderJob, err := r.loaderJob(ctx, model)
 	if err != nil {
 		log.Error(err, "unable to construct loader Job")
@@ -210,8 +239,32 @@ func (r *ModelReconciler) reconcileLoader(ctx context.Context, model *apiv1.Mode
 		return result{}, nil
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, model, loaderJob, apiv1.ConditionModelReady); !result.success {
+	model.Status.Ready = false
+	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionFalse,
+		Reason:             apiv1.ReasonJobNotComplete,
+		ObservedGeneration: model.Generation,
+		Message:            fmt.Sprintf("Waiting for loader Job to complete"),
+	})
+	if err := r.Status().Update(ctx, model); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	if result, err := reconcileJob(ctx, r.Client, model, loaderJob, apiv1.ConditionTrained); !result.success {
 		return result, err
+	}
+
+	model.Status.Ready = true
+	model.Status.URL = r.modelStatusURL(model)
+	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: model.Generation,
+	})
+	if err := r.Status().Update(ctx, model); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
 	return result{success: true}, nil
@@ -223,19 +276,6 @@ func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&apiv1.Model{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)
-}
-
-func (r *ModelReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
-	if sa.Annotations == nil {
-		sa.Annotations = make(map[string]string)
-	}
-	switch name := r.CloudContext.Name; name {
-	case cloud.GCP:
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.Name, r.CloudContext.GCP.ProjectID)
-	default:
-		return fmt.Errorf("unsupported cloud type: %q", name)
-	}
-	return nil
 }
 
 func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*batchv1.Job, error) {
@@ -302,7 +342,7 @@ func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*b
 						RunAsGroup: ptr.Int64(0),
 						FSGroup:    ptr.Int64(3003),
 					},
-					ServiceAccountName: modelTrainerServiceAccountName,
+					ServiceAccountName: modelLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:  loaderContainerName,
@@ -440,4 +480,9 @@ func (r *ModelReconciler) trainerJob(ctx context.Context, model, baseModel *apiv
 	}
 
 	return job, nil
+}
+
+func (r *ModelReconciler) modelStatusURL(model *apiv1.Model) string {
+	return "gs://" + r.CloudContext.GCP.ProjectID + "-substratus-models" +
+		"/" + string(model.UID) + "/trained/"
 }
