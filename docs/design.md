@@ -89,7 +89,7 @@ notebook compatible HTTP endpoint on port 8888.
 
 User flow: Random experiments
 
-notebook-gpu image has transformers, pytorch, cuda, python 3, etc.. basically most you need
+notebook-gpu image has transformers, pytorch, cuda, python 3, etc.. most everything you need to get started.
 
 Example notebook worflow for a user starting with no specific model or dataset in mind. The spec here uses a stock substratus container image:
 
