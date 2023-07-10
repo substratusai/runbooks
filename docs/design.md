@@ -38,7 +38,10 @@ spec:
   loader:
     params: {name: tiuu/falcon-7b}
     # optional future
-    paramsFrom: configMap?
+  status:
+    url: gcs://my-bucket/my-model/
+    files: ["pytorch-001.bin", "config.json"]
+    size: 27Gi
 ```
 
 `params` get converted to environment variables following a specific scheme
