@@ -57,8 +57,9 @@ spec:
                 description: Container that contains dataset loading code and dependencies.
                 properties:
                   git:
-                    description: Git is a reference to a git repository containing
-                      model code.
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      Image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use.
@@ -70,20 +71,25 @@ spec:
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
                         type: string
+                    required:
+                    - url
                     type: object
                   image:
-                    description: Image of a container that can be used to run the
-                      model.
+                    description: Image of a container.
                     type: string
                 type: object
               filename:
                 description: Filename is the name of the file when it is downloaded.
                 type: string
               loader:
+                description: Loader configures the loading process.
                 properties:
                   params:
                     additionalProperties:
                       type: string
+                    description: Params will be passed into the loading process as
+                      environment variables. Environment variable name will be `"PARAM_"
+                      + uppercase(key)`.
                     type: object
                 type: object
             required:
@@ -164,9 +170,11 @@ spec:
                   type: object
                 type: array
               ready:
+                description: Ready indicates that the Dataset is ready to use. See
+                  Conditions for more details.
                 type: boolean
               url:
-                description: URL points to the underlying data storage (bucket URL).
+                description: URL of the loaded data.
                 type: string
             type: object
         type: object

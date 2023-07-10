@@ -12,6 +12,7 @@ type DatasetSpec struct {
 	// Container that contains dataset loading code and dependencies.
 	Container Container `json:"container"`
 
+	// Loader configures the loading process.
 	Loader DatasetLoader `json:"loader,omitempty"`
 }
 
@@ -32,18 +33,21 @@ func (d *Dataset) SetStatusReady(r bool) {
 }
 
 type DatasetLoader struct {
+	// Params will be passed into the loading process as environment variables.
+	// Environment variable name will be `"PARAM_" + uppercase(key)`.
 	Params map[string]string `json:"params,omitempty"`
 }
 
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
+	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
 	Ready bool `json:"ready,omitempty"`
-
-	// URL points to the underlying data storage (bucket URL).
-	URL string `json:"url,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// URL of the loaded data.
+	URL string `json:"url,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

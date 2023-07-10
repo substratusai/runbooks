@@ -6,13 +6,16 @@ import (
 
 // ModelServerSpec defines the desired state of ModelServer
 type ModelServerSpec struct {
+	// Container that contains model serving application and dependencies.
 	Container Container `json:"container"`
 
+	// Model references the Model object to be served.
 	Model ObjectRef `json:"model,omitempty"`
 }
 
 // ModelServerStatus defines the observed state of ModelServer
 type ModelServerStatus struct {
+	// Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details.
 	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the ModelServer.

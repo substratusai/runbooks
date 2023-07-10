@@ -51,8 +51,9 @@ spec:
               container:
                 properties:
                   git:
-                    description: Git is a reference to a git repository containing
-                      model code.
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      Image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use.
@@ -64,21 +65,28 @@ spec:
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
                         type: string
+                    required:
+                    - url
                     type: object
                   image:
-                    description: Image of a container that can be used to run the
-                      model.
+                    description: Image of a container.
                     type: string
                 type: object
               dataset:
                 properties:
                   name:
+                    description: Name of Kubernetes object.
                     type: string
+                required:
+                - name
                 type: object
               model:
                 properties:
                   name:
+                    description: Name of Kubernetes object.
                     type: string
+                required:
+                - name
                 type: object
               suspend:
                 description: Suspend should be set to true to stop the notebook (Pod)
@@ -159,6 +167,8 @@ spec:
                   type: object
                 type: array
               ready:
+                description: Ready indicates that the Notebook is ready to serve.
+                  See Conditions for more details.
                 type: boolean
             type: object
         type: object

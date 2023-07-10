@@ -52,11 +52,6 @@ func roundUpGB(bytes int64) int64 {
 	return int64(math.Ceil(float64(bytes)/float64(gigabyte))) * gigabyte
 }
 
-type Object interface {
-	client.Object
-	GetConditions() *[]metav1.Condition
-}
-
 func parseBucketURL(bucketURL string) (string, string, error) {
 	u, err := url.Parse(bucketURL)
 	if err != nil {
@@ -157,4 +152,13 @@ func isPodReady(pod *corev1.Pod) bool {
 	}
 
 	return false
+}
+
+func paramsToEnv(params map[string]string) []corev1.EnvVar {
+	envs := []corev1.EnvVar{}
+	// TODO(nstogner): Order by key to avoid randomness.
+	for k, v := range params {
+		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v})
+	}
+	return envs
 }

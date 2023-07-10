@@ -29,7 +29,8 @@ spec:
       openAPIV3Schema:
         description: "The Model API is used to build and train machine learning models.
           \n - Base models can be built from a Git repository. \n - Models can be
-          trained by combining a base Model with a Dataset."
+          trained by combining a base Model with a Dataset. \n - Model artifacts are
+          persisted in cloud buckets."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -50,8 +51,9 @@ spec:
                 description: Container that contains model code and dependencies.
                 properties:
                   git:
-                    description: Git is a reference to a git repository containing
-                      model code.
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      Image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use.
@@ -63,64 +65,84 @@ spec:
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
                         type: string
+                    required:
+                    - url
                     type: object
                   image:
-                    description: Image of a container that can be used to run the
-                      model.
+                    description: Image of a container.
                     type: string
                 type: object
               loader:
-                description: Loader should be set to run a loading job.
+                description: Loader should be set to run a loading job. Cannot also
+                  be set with Trainer.
                 properties:
                   params:
                     additionalProperties:
                       type: string
+                    description: Params will be passed into the loading process as
+                      environment variables. Environment variable name will be `"PARAM_"
+                      + uppercase(key)`.
                     type: object
                 type: object
               trainer:
-                description: Trainer should be set to run a training job.
+                description: Trainer should be set to run a training job. Cannot also
+                  be set with Loader.
                 properties:
                   baseModel:
+                    description: BaseModel should be set in order to mount another
+                      model to be used for transfer learning.
                     properties:
                       name:
+                        description: Name of Kubernetes object.
                         type: string
+                    required:
+                    - name
                     type: object
+                  batchSize:
+                    default: 1
+                    description: BatchSize is the number of training records to use
+                      per (forward and backward) pass through the model. Increasing
+                      this number will increase the memory requirements of the training
+                      process. The BATCH_SIZE environment variable will be set during
+                      training.
+                    format: int64
+                    type: integer
+                  dataLimit:
+                    default: 1000000000000
+                    description: DataLimit is the maximum number of training records
+                      to use. In the case of JSONL, this would be the total number
+                      of lines to train with. Increasing this number will increase
+                      training time. The DATA_LIMIT environment variable will be set
+                      during training.
+                    format: int64
+                    type: integer
                   datasetName:
                     description: Dataset to mount for training.
                     properties:
                       name:
+                        description: Name of Kubernetes object.
                         type: string
+                    required:
+                    - name
                     type: object
+                  epochs:
+                    default: 3
+                    description: Epochs is the total number of iterations that should
+                      be run through the training data. Increasing this number will
+                      increase training time. The EPOCHS environment variable will
+                      be set during training.
+                    format: int64
+                    type: integer
                   params:
-                    description: Params is a list of hyperparameters to use for training.
-                    properties:
-                      batchSize:
-                        default: 1
-                        description: BatchSize is the number of training records to
-                          use per (forward and backward) pass through the model. Increasing
-                          this number will increase the memory requirements of the
-                          training process.
-                        format: int64
-                        type: integer
-                      dataLimit:
-                        default: 1000000000000
-                        description: DataLimit is the maximum number of training records
-                          to use. In the case of JSONL, this would be the total number
-                          of lines to train with. Increasing this number will increase
-                          training time.
-                        format: int64
-                        type: integer
-                      epochs:
-                        default: 3
-                        description: Epochs is the total number of iterations that
-                          should be run through the training data. Increasing this
-                          number will increase training time.
-                        format: int64
-                        type: integer
+                    additionalProperties:
+                      type: string
+                    description: Params will be passed into the loading process as
+                      environment variables. Environment variable name will be `"PARAM_"
+                      + uppercase(key)`. For standard parameters like Epochs, use
+                      the well-defined Trainer fields.
                     type: object
                 required:
                 - datasetName
-                - params
                 type: object
             required:
             - container
@@ -199,6 +221,8 @@ spec:
                   type: object
                 type: array
               ready:
+                description: Ready indicates that the Model is ready to use. See Conditions
+                  for more details.
                 type: boolean
               url:
                 description: URL of model artifacts.

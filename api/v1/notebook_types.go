@@ -36,6 +36,7 @@ func (n *Notebook) SetStatusReady(r bool) {
 
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
+	// Ready indicates that the Notebook is ready to serve. See Conditions for more details.
 	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.

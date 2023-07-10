@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -368,11 +367,7 @@ func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*b
 		})
 	}
 
-	env := []corev1.EnvVar{}
-	// TODO(nstogner): Order by key to avoid randomness.
-	for k, v := range model.Spec.Loader.Params {
-		env = append(env, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v})
-	}
+	env := paramsToEnv(model.Spec.Loader.Params)
 
 	const loaderContainerName = "loader"
 	annotations["kubectl.kubernetes.io/default-container"] = loaderContainerName
@@ -471,6 +466,25 @@ func (r *ModelReconciler) trainerJob(ctx context.Context, model, baseModel *apiv
 		}
 	}
 
+	env := append(paramsToEnv(model.Spec.Trainer.Params),
+		corev1.EnvVar{
+			Name:  "DATA_PATH",
+			Value: "/data/" + dataset.Spec.Filename,
+		},
+		corev1.EnvVar{
+			Name:  "DATA_LIMIT",
+			Value: fmt.Sprintf("%v", model.Spec.Trainer.DataLimit),
+		},
+		corev1.EnvVar{
+			Name:  "BATCH_SIZE",
+			Value: fmt.Sprintf("%v", model.Spec.Trainer.BatchSize),
+		},
+		corev1.EnvVar{
+			Name:  "EPOCHS",
+			Value: fmt.Sprintf("%v", model.Spec.Trainer.Epochs),
+		},
+	)
+
 	const trainerContainerName = "trainer"
 	annotations["kubectl.kubernetes.io/default-container"] = trainerContainerName
 	job = &batchv1.Job{
@@ -498,25 +512,8 @@ func (r *ModelReconciler) trainerJob(ctx context.Context, model, baseModel *apiv
 							Image: model.Spec.Container.Image,
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
-							Args: []string{"train.sh"},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "TRAIN_DATA_PATH",
-									Value: "/data/" + dataset.Spec.Filename,
-								},
-								{
-									Name:  "TRAIN_DATA_LIMIT",
-									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.DataLimit),
-								},
-								{
-									Name:  "TRAIN_BATCH_SIZE",
-									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.BatchSize),
-								},
-								{
-									Name:  "TRAIN_EPOCHS",
-									Value: fmt.Sprintf("%v", model.Spec.Trainer.Params.Epochs),
-								},
-							},
+							Args:         []string{"train.sh"},
+							Env:          env,
 							VolumeMounts: volumeMounts,
 						},
 					},
