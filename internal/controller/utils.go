@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// object is the interface for all Substratus API objects.
 type object interface {
 	client.Object
 	GetConditions() *[]metav1.Condition
@@ -55,25 +56,6 @@ type Object interface {
 	client.Object
 	GetConditions() *[]metav1.Condition
 }
-
-func conditionsReady(obj Object, requiredConditions map[string]bool) bool {
-	objConditions := *obj.GetConditions()
-
-	actualConditions := map[string]bool{}
-	for _, condition := range objConditions {
-		actualConditions[condition.Type] = condition.Status == metav1.ConditionTrue
-	}
-
-	for condition, required := range requiredConditions {
-		if required && !actualConditions[condition] {
-			return false
-		}
-	}
-	return true
-}
-
-//condition := meta.FindStatusCondition(*obj.GetConditions(), apiv1.ConditionReady)
-//return condition != nil && condition.Status == metav1.ConditionTrue
 
 func parseBucketURL(bucketURL string) (string, string, error) {
 	u, err := url.Parse(bucketURL)

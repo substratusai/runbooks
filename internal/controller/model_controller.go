@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +17,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
@@ -113,8 +115,8 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 					return result{}, fmt.Errorf("failed to update model status: %w", err)
 				}
 
-				// TODO: Implement watch on source Model.
-				return result{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}, nil
+				// Allow for watch to requeue.
+				return result{}, nil
 			}
 
 			return result{}, fmt.Errorf("getting source model: %w", err)
@@ -132,8 +134,8 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 				return result{}, fmt.Errorf("failed to update model status: %w", err)
 			}
 
-			// TODO: Instead of RequeueAfter, add a watch mapper.
-			return result{Result: ctrl.Result{RequeueAfter: time.Minute}}, nil
+			// Allow for watch to requeue.
+			return result{}, nil
 		}
 	}
 
@@ -152,8 +154,8 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 				return result{}, fmt.Errorf("failed to update model status: %w", err)
 			}
 
-			// TODO: Implement watch on source Model.
-			return result{Result: ctrl.Result{RequeueAfter: 3 * time.Second}}, nil
+			// Allow for watch to requeue.
+			return result{}, nil
 		}
 
 		return result{}, fmt.Errorf("getting source model: %w", err)
@@ -171,8 +173,8 @@ func (r *ModelReconciler) reconcileTrainer(ctx context.Context, model *apiv1.Mod
 			return result{}, fmt.Errorf("failed to update model status: %w", err)
 		}
 
-		// TODO: Instead of RequeueAfter, add a watch mapper.
-		return result{Result: ctrl.Result{RequeueAfter: time.Minute}}, nil
+		// Allow for watch to requeue.
+		return result{}, nil
 	}
 
 	trainingJob, err := r.trainerJob(ctx, model, baseModel, &dataset)
@@ -274,8 +276,58 @@ func (r *ModelReconciler) reconcileLoader(ctx context.Context, model *apiv1.Mode
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Model{}).
+		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForBaseModel))).
+		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForDataset))).
 		Owns(&batchv1.Job{}).
 		Complete(r)
+}
+
+func (r *ModelReconciler) findModelsForBaseModel(obj client.Object) []reconcile.Request {
+	model := obj.(*apiv1.Model)
+
+	var models apiv1.ModelList
+	if err := r.List(context.Background(), &models,
+		client.MatchingFields{"spec.trainer.baseModel.name": model.Name},
+		client.InNamespace(obj.GetNamespace()),
+	); err != nil {
+		log.Log.Error(err, "unable to list models for base model")
+		return nil
+	}
+
+	reqs := []reconcile.Request{}
+	for _, mdl := range models.Items {
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      mdl.Name,
+				Namespace: mdl.Namespace,
+			},
+		})
+	}
+	return reqs
+}
+
+func (r *ModelReconciler) findModelsForDataset(obj client.Object) []reconcile.Request {
+	dataset := obj.(*apiv1.Dataset)
+
+	var models apiv1.ModelList
+	if err := r.List(context.Background(), &models,
+		client.MatchingFields{"spec.trainer.dataset.name": dataset.Name},
+		client.InNamespace(obj.GetNamespace()),
+	); err != nil {
+		log.Log.Error(err, "unable to list models for dataset")
+		return nil
+	}
+
+	reqs := []reconcile.Request{}
+	for _, mdl := range models.Items {
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      mdl.Name,
+				Namespace: mdl.Namespace,
+			},
+		})
+	}
+	return reqs
 }
 
 func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*batchv1.Job, error) {

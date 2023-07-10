@@ -79,6 +79,7 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	if buildJob.Status.Succeeded < 1 {
 		log.Info("The builder Job has not succeeded yet")
 
+		obj.SetStatusReady(false)
 		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
 			Type:               apiv1.ConditionBuilt,
 			Status:             metav1.ConditionFalse,

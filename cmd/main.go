@@ -63,6 +63,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := controller.SetupIndexes(mgr); err != nil {
+		setupLog.Error(err, "unable to setup indexes")
+		os.Exit(1)
+	}
+
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUType(os.Getenv("GPU_TYPE")))
 	//if err != nil {
 	//	setupLog.Error(err, "unable to configure runtime manager")

@@ -77,6 +77,7 @@ func TestMain(m *testing.M) {
 		MetricsBindAddress: "0",
 	})
 	requireNoError(err)
+	requireNoError(controller.SetupIndexes(mgr))
 
 	cloudContext := &cloud.Context{
 		Name: cloud.GCP,

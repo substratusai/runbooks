@@ -65,9 +65,6 @@ type ModelTrainerParams struct {
 type ModelStatus struct {
 	Ready bool `json:"ready,omitempty"`
 
-	// Servers is the list of servers that are currently running this Model. Soon to be deprecated.
-	Servers []string `json:"servers,omitempty"`
-
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 

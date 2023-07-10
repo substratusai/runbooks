@@ -200,12 +200,6 @@ spec:
                 type: array
               ready:
                 type: boolean
-              servers:
-                description: Servers is the list of servers that are currently running
-                  this Model. Soon to be deprecated.
-                items:
-                  type: string
-                type: array
               url:
                 description: URL of model artifacts.
                 type: string

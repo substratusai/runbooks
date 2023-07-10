@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/go-logr/logr"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
@@ -35,6 +36,9 @@ type ModelServerReconciler struct {
 	Scheme *runtime.Scheme
 
 	*ContainerReconciler
+
+	// log should be used outside the context of Reconcile()
+	log logr.Logger
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete
@@ -68,20 +72,38 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ModelServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.log = mgr.GetLogger()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.ModelServer{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(modelServerForModel))).
+		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findServersForModel))).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
-func modelServerForModel(obj client.Object) []reconcile.Request {
+func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
+
+	var servers apiv1.ModelServerList
+	if err := r.List(context.Background(), &servers,
+		client.MatchingFields{"spec.model.name": model.Name},
+		client.InNamespace(obj.GetNamespace()),
+	); err != nil {
+		log.Log.Error(err, "unable to list servers for model")
+		return nil
+	}
+
 	reqs := []reconcile.Request{}
-	for _, svr := range model.Status.Servers {
-		reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Name: svr, Namespace: model.Namespace}})
+	for _, svr := range servers.Items {
+
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      svr.Name,
+				Namespace: svr.Namespace,
+			},
+		})
 	}
 	return reqs
 }
@@ -164,22 +186,6 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 		}
 
 		return result{}, fmt.Errorf("getting model: %w", err)
-	}
-
-	var isRegistered bool
-	for _, svr := range model.Status.Servers {
-		if svr == server.Name {
-			isRegistered = true
-			break
-		}
-	}
-	if !isRegistered {
-		// TODO: Stop using this, switch to cache index for enqueueing.
-		// NOTE: There is no cleanup of this list at the moment.
-		model.Status.Servers = append(model.Status.Servers, server.Name)
-		if err := r.Status().Update(ctx, &model); err != nil {
-			return result{}, fmt.Errorf("failed to update model status: %w", err)
-		}
 	}
 
 	if !model.Status.Ready {
