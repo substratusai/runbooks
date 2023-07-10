@@ -91,7 +91,7 @@ User flow: Random experiments
 
 notebook-gpu image has transformers, pytorch, cuda, python 3, etc.. basically most you need
 
-example notebook in notebook.
+Example notebook worflow for a user starting with no specific model or dataset in mind. The spec here uses a stock substratus container image:
 
 1. Create Notebook with no sourceModel
 2. Load a model dynamically in my notebook session
