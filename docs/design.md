@@ -135,10 +135,29 @@ status:
 ```
 
 
-How to get from Notebook to trainer?
+User flow: How to get from Notebook to trainer?
 
-Sync back files from the notebook into local directory
-and built into new image.
+1. As `kubectl open notebook ...` is terminated by the user, files will be synced from the Notebook back to the local directory. We can hope but not guarantee this is a git repo.
+2. Optional: During `kubectl open notebook ...` termination, a signal will be sent to the controller to build a container image which can serve as the trainer.
+3. Potentially the user is prompted for this auto-generation: A `model-${epoch}.yaml` manifest having the values of that trainer will be generated into the repo root having either spec.container.image populated with the build from step 2 OR the repo/branch info taken from the local dir. 
+
+  ```yaml
+  kind: Model
+  name: falcon-7b-k8s-${epoch_or_branch_name}
+  spec:
+    container:
+      image: my-org/model-falcon-7b-k8s-trainer-${epoch_or_branch_name} # the just-built trainer image
+  
+    trainer:
+      sourceModel:
+        name: falcon-7b
+        namespace: other-namespace
+      dataset: # determine this based on the running notebook - was a single dataset attached to it? In any other case, leave blank `{}` with a comment requiring more
+        name: k8s-instructions
+        namespace: other-namespace
+      resources: {}
+      params:
+        epochs: 1
 
 
 ### Model Serving
