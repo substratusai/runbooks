@@ -95,7 +95,7 @@ func TestMain(m *testing.M) {
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -106,7 +106,7 @@ func TestMain(m *testing.M) {
 	err = (&controller.ModelServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -117,7 +117,7 @@ func TestMain(m *testing.M) {
 	err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -129,7 +129,7 @@ func TestMain(m *testing.M) {
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -180,7 +180,7 @@ type testObject interface {
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
-	GetContainer() *apiv1.Container
+	GetImage() *apiv1.Image
 }
 
 func testContainerBuild(t *testing.T, obj testObject) {

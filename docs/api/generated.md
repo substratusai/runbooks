@@ -16,24 +16,6 @@ Package v1 contains API Schema definitions for Substratus.
 
 ## Types
 
-### Container
-
-
-
-
-
-_Appears in:_
-- [DatasetSpec](#datasetspec)
-- [ModelServerSpec](#modelserverspec)
-- [ModelSpec](#modelspec)
-- [NotebookSpec](#notebookspec)
-
-| Field | Description |
-| --- | --- |
-| `git` _[GitSource](#gitsource)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
-| `image` _string_ | Image of a container. |
-
-
 ### Dataset
 
 
@@ -57,20 +39,6 @@ The Dataset API is used to describe data that can be referenced for training Mod
 | `status` _[DatasetStatus](#datasetstatus)_ | Status is the observed state of the Dataset. |
 
 
-### DatasetLoader
-
-
-
-
-
-_Appears in:_
-- [DatasetSpec](#datasetspec)
-
-| Field | Description |
-| --- | --- |
-| `params` _object (keys:string, values:string)_ | Params will be passed into the loading process as environment variables. Environment variable name will be `"PARAM_" + uppercase(key)`. |
-
-
 ### DatasetSpec
 
 
@@ -83,9 +51,9 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `filename` _string_ | Filename is the name of the file when it is downloaded. |
-| `container` _[Container](#container)_ | Container that contains dataset loading code and dependencies. |
+| `image` _[Image](#image)_ | Image that contains dataset loading code and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
-| `loader` _[DatasetLoader](#datasetloader)_ | Loader configures the loading process. |
+| `params` _object (keys:string, values:IntOrString)_ | Params will be passed into the loading process as environment variables. |
 
 
 ### DatasetStatus
@@ -137,13 +105,31 @@ _Appears in:_
 
 
 _Appears in:_
-- [Container](#container)
+- [Image](#image)
 
 | Field | Description |
 | --- | --- |
 | `url` _string_ | URL to the git repository. Example: https://github.com/my-username/my-repo |
 | `path` _string_ | Path within the git repository referenced by url. |
 | `branch` _string_ | Branch is the git branch to use. |
+
+
+### Image
+
+
+
+
+
+_Appears in:_
+- [DatasetSpec](#datasetspec)
+- [ModelServerSpec](#modelserverspec)
+- [ModelSpec](#modelspec)
+- [NotebookSpec](#notebookspec)
+
+| Field | Description |
+| --- | --- |
+| `git` _[GitSource](#gitsource)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
+| `name` _string_ | Name of container image (example: "docker.io/your-username/your-image"). |
 
 
 ### Model
@@ -164,20 +150,6 @@ The Model API is used to build and train machine learning models.
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[ModelSpec](#modelspec)_ | Spec is the desired state of the Model. |
 | `status` _[ModelStatus](#modelstatus)_ | Status is the observed state of the Model. |
-
-
-### ModelLoader
-
-
-
-
-
-_Appears in:_
-- [ModelSpec](#modelspec)
-
-| Field | Description |
-| --- | --- |
-| `params` _object (keys:string, values:string)_ | Params will be passed into the loading process as environment variables. Environment variable name will be `"PARAM_" + uppercase(key)`. |
 
 
 ### ModelServer
@@ -208,7 +180,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `container` _[Container](#container)_ | Container that contains model serving application and dependencies. |
+| `image` _[Image](#image)_ | Image that contains model serving application and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
 
@@ -239,10 +211,11 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `container` _[Container](#container)_ | Container that contains model code and dependencies. |
+| `image` _[Image](#image)_ | Image that contains model code and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
-| `loader` _[ModelLoader](#modelloader)_ | Loader should be set to run a loading job. Cannot also be set with Trainer. |
-| `trainer` _[ModelTrainer](#modeltrainer)_ | Trainer should be set to run a training job. Cannot also be set with Loader. |
+| `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
+| `trainingDataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
+| `params` _object (keys:string, values:IntOrString)_ | Parameters are passing into the model training/loading container as environment variables. Environment variable name will be `"PARAM_" + uppercase(key)`. |
 
 
 ### ModelStatus
@@ -259,25 +232,6 @@ _Appears in:_
 | `ready` _boolean_ | Ready indicates that the Model is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Model. |
 | `url` _string_ | URL of model artifacts. |
-
-
-### ModelTrainer
-
-
-
-
-
-_Appears in:_
-- [ModelSpec](#modelspec)
-
-| Field | Description |
-| --- | --- |
-| `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
-| `dataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
-| `epochs` _integer_ | Epochs is the total number of iterations that should be run through the training data. Increasing this number will increase training time. The EPOCHS environment variable will be set during training. |
-| `dataLimit` _integer_ | DataLimit is the maximum number of training records to use. In the case of JSONL, this would be the total number of lines to train with. Increasing this number will increase training time. The DATA_LIMIT environment variable will be set during training. |
-| `batchSize` _integer_ | BatchSize is the number of training records to use per (forward and backward) pass through the model. Increasing this number will increase the memory requirements of the training process. The BATCH_SIZE environment variable will be set during training. |
-| `params` _object (keys:string, values:string)_ | Params will be passed into the loading process as environment variables. Environment variable name will be `"PARAM_" + uppercase(key)`. For standard parameters like Epochs, use the well-defined Trainer fields. |
 
 
 ### Notebook
@@ -311,10 +265,11 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. |
-| `container` _[Container](#container)_ |  |
+| `image` _[Image](#image)_ | Image that contains notebook and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model to load into the notebook container. |
 | `dataset` _[ObjectRef](#objectref)_ | Dataset to load into the notebook container. |
+| `params` _object (keys:string, values:IntOrString)_ | Params will be passed into the notebook container as environment variables. |
 
 
 ### NotebookStatus
@@ -340,7 +295,7 @@ _Appears in:_
 
 _Appears in:_
 - [ModelServerSpec](#modelserverspec)
-- [ModelTrainer](#modeltrainer)
+- [ModelSpec](#modelspec)
 - [NotebookSpec](#notebookspec)
 
 | Field | Description |

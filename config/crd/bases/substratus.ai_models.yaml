@@ -54,8 +54,8 @@ spec:
                 required:
                 - name
                 type: object
-              container:
-                description: Container that contains model code and dependencies.
+              image:
+                description: Image that contains model code and dependencies.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
@@ -75,8 +75,8 @@ spec:
                     required:
                     - url
                     type: object
-                  image:
-                    description: Image of a container.
+                  name:
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
                     type: string
                 type: object
               params:
@@ -129,7 +129,7 @@ spec:
                 - name
                 type: object
             required:
-            - container
+            - image
             type: object
           status:
             description: Status is the observed state of the Model.

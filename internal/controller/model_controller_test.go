@@ -24,7 +24,7 @@ func TestModelLoaderFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Container: apiv1.Container{
+			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://test.internal/test/model-loader.git",
 				},
@@ -67,8 +67,8 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Container: apiv1.Container{
-				Image: "some-test-image",
+			Image: apiv1.Image{
+				Name: "some-test-image",
 			},
 		},
 	}
@@ -85,8 +85,8 @@ func TestModelTrainerFromGit(t *testing.T) {
 		},
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
-			Container: apiv1.Container{
-				Image: "some-image",
+			Image: apiv1.Image{
+				Name: "some-image",
 			},
 		},
 	}
@@ -102,7 +102,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: baseModel.Namespace,
 		},
 		Spec: apiv1.ModelSpec{
-			Container: apiv1.Container{
+			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://test.com/test/test",
 				},

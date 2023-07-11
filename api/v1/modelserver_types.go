@@ -6,8 +6,8 @@ import (
 
 // ModelServerSpec defines the desired state of ModelServer
 type ModelServerSpec struct {
-	// Container that contains model serving application and dependencies.
-	Container Container `json:"container"`
+	// Image that contains model serving application and dependencies.
+	Image Image `json:"image"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -42,8 +42,8 @@ type ModelServer struct {
 	Status ModelServerStatus `json:"status,omitempty"`
 }
 
-func (s *ModelServer) GetContainer() *Container {
-	return &s.Spec.Container
+func (s *ModelServer) GetImage() *Image {
+	return &s.Spec.Image
 }
 
 func (s *ModelServer) GetConditions() *[]metav1.Condition {

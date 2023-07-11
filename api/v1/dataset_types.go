@@ -10,8 +10,8 @@ type DatasetSpec struct {
 	// Filename is the name of the file when it is downloaded.
 	Filename string `json:"filename"`
 
-	// Container that contains dataset loading code and dependencies.
-	Container Container `json:"container"`
+	// Image that contains dataset loading code and dependencies.
+	Image Image `json:"image"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -20,8 +20,8 @@ type DatasetSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
-func (d *Dataset) GetContainer() *Container {
-	return &d.Spec.Container
+func (d *Dataset) GetImage() *Image {
+	return &d.Spec.Image
 }
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {

@@ -30,7 +30,7 @@ type ModelReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerReconciler
+	*ContainerImageReconciler
 
 	CloudContext *cloud.Context
 }
@@ -50,7 +50,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &model); !result.success {
+	if result, err := r.ReconcileContainerImage(ctx, &model); !result.success {
 		return result.Result, err
 	}
 
@@ -328,7 +328,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 					Containers: []corev1.Container{
 						{
 							Name:  containerName,
-							Image: model.Spec.Container.Image,
+							Image: model.Spec.Image.Name,
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
 							Args:         []string{"model.sh"},

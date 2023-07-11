@@ -22,14 +22,14 @@ import (
 
 type ContainerizedObject interface {
 	object
-	GetContainer() *apiv1.Container
+	GetImage() *apiv1.Image
 }
 
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
-// ContainerReconciler builds container images. It is intended to be called from other top-level reconcilers.
-type ContainerReconciler struct {
+// ContainerImageReconciler builds container images. It is intended to be called from other top-level reconcilers.
+type ContainerImageReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
@@ -38,10 +38,10 @@ type ContainerReconciler struct {
 	Kind string
 }
 
-func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj ContainerizedObject) (result, error) {
+func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, obj ContainerizedObject) (result, error) {
 	log := log.FromContext(ctx)
 
-	if obj.GetContainer().Image != "" {
+	if obj.GetImage().Name != "" {
 		return result{success: true}, nil
 	}
 
@@ -95,8 +95,8 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 		return result{}, nil
 	}
 
-	container := obj.GetContainer()
-	container.Image = r.image(obj)
+	container := obj.GetImage()
+	container.Name = r.imageName(obj)
 	if err := r.Client.Update(ctx, obj); err != nil {
 		return result{}, fmt.Errorf("updating container image: %w", err)
 	}
@@ -115,15 +115,15 @@ func (r *ContainerReconciler) ReconcileContainer(ctx context.Context, obj Contai
 	return result{success: true}, nil
 }
 
-func (r *ContainerReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
+func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
-	git := obj.GetContainer().Git
+	git := obj.GetImage().Git
 
 	annotations := map[string]string{}
 
 	buildArgs := []string{
 		"--dockerfile=Dockerfile",
-		"--destination=" + r.image(obj),
+		"--destination=" + r.imageName(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
 		// Disable compressed caching to decrease memory usage.
@@ -246,7 +246,7 @@ ENTRYPOINT ["/tini", "--"]
 	return job, nil
 }
 
-func (r *ContainerReconciler) image(obj ContainerizedObject) string {
+func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 	switch name := r.CloudContext.Name; name {
 	case cloud.GCP:
 		// Assuming this is Google Artifact Registry named "substratus".

@@ -45,7 +45,17 @@ spec:
           spec:
             description: Spec is the observed state of the Notebook.
             properties:
-              container:
+              dataset:
+                description: Dataset to load into the notebook container.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              image:
+                description: Image that contains notebook and dependencies.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
@@ -65,18 +75,9 @@ spec:
                     required:
                     - url
                     type: object
-                  image:
-                    description: Image of a container.
-                    type: string
-                type: object
-              dataset:
-                description: Dataset to load into the notebook container.
-                properties:
                   name:
-                    description: Name of Kubernetes object.
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
                     type: string
-                required:
-                - name
                 type: object
               model:
                 description: Model to load into the notebook container.

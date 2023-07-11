@@ -23,8 +23,8 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Container: apiv1.Container{
-				Image: "some-image",
+			Image: apiv1.Image{
+				Name: "some-image",
 			},
 		},
 	}
@@ -39,7 +39,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.NotebookSpec{
-			Container: apiv1.Container{
+			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/notebook-test-test",
 				},

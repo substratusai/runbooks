@@ -42,9 +42,8 @@ spec:
           spec:
             description: Spec is the desired state of the ModelServer.
             properties:
-              container:
-                description: Container that contains model serving application and
-                  dependencies.
+              image:
+                description: Image that contains model serving application and dependencies.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
@@ -64,8 +63,8 @@ spec:
                     required:
                     - url
                     type: object
-                  image:
-                    description: Image of a container.
+                  name:
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
                     type: string
                 type: object
               model:
@@ -108,7 +107,7 @@ spec:
                     type: integer
                 type: object
             required:
-            - container
+            - image
             type: object
           status:
             description: Status is the observed state of the ModelServer.

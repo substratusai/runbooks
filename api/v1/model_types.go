@@ -7,8 +7,8 @@ import (
 
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
-	// Container that contains model code and dependencies.
-	Container Container `json:"container"`
+	// Image that contains model code and dependencies.
+	Image Image `json:"image"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -25,8 +25,8 @@ type ModelSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
-func (m *Model) GetContainer() *Container {
-	return &m.Spec.Container
+func (m *Model) GetImage() *Image {
+	return &m.Spec.Image
 }
 
 func (m *Model) GetConditions() *[]metav1.Condition {

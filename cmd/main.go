@@ -86,7 +86,7 @@ func main() {
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -99,7 +99,7 @@ func main() {
 	if err = (&controller.ModelServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -112,7 +112,7 @@ func main() {
 	if err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
@@ -126,7 +126,7 @@ func main() {
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
-		ContainerReconciler: &controller.ContainerReconciler{
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,

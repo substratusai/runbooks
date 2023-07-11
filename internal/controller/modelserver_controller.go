@@ -36,7 +36,7 @@ type ModelServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerReconciler
+	*ContainerImageReconciler
 
 	// log should be used outside the context of Reconcile()
 	log logr.Logger
@@ -60,7 +60,7 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &server); !result.success {
+	if result, err := r.ReconcileContainerImage(ctx, &server); !result.success {
 		return result.Result, err
 	}
 
@@ -141,7 +141,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           model.Spec.Container.Image,
+							Image:           model.Spec.Image.Name,
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.

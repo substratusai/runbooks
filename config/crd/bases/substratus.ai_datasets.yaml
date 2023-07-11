@@ -50,8 +50,11 @@ spec:
           spec:
             description: Spec is the desired state of the Dataset.
             properties:
-              container:
-                description: Container that contains dataset loading code and dependencies.
+              filename:
+                description: Filename is the name of the file when it is downloaded.
+                type: string
+              image:
+                description: Image that contains dataset loading code and dependencies.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
@@ -71,13 +74,10 @@ spec:
                     required:
                     - url
                     type: object
-                  image:
-                    description: Image of a container.
+                  name:
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
                     type: string
                 type: object
-              filename:
-                description: Filename is the name of the file when it is downloaded.
-                type: string
               params:
                 additionalProperties:
                   anyOf:
@@ -118,8 +118,8 @@ spec:
                     type: integer
                 type: object
             required:
-            - container
             - filename
+            - image
             type: object
           status:
             description: Status is the observed state of the Dataset.

@@ -1,11 +1,11 @@
 package v1
 
-type Container struct {
+type Image struct {
 	// Git is a reference to a git repository that will be built within the cluster.
 	// Built image will be set in the Image field.
 	Git *GitSource `json:"git,omitempty"`
-	// Image of a container.
-	Image string `json:"image,omitempty"`
+	// Name of container image (example: "docker.io/your-username/your-image").
+	Name string `json:"name,omitempty"`
 }
 
 type GitSource struct {

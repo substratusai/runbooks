@@ -25,7 +25,7 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerReconciler
+	*ContainerImageReconciler
 
 	CloudContext *cloud.Context
 }
@@ -47,7 +47,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainer(ctx, &dataset); !result.success {
+	if result, err := r.ReconcileContainerImage(ctx, &dataset); !result.success {
 		return result.Result, err
 	}
 
@@ -156,7 +156,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					Containers: []corev1.Container{
 						{
 							Name:  containerName,
-							Image: dataset.Spec.Container.Image,
+							Image: dataset.Spec.Image.Name,
 							Args:  []string{"load.sh"},
 							Env:   env,
 							VolumeMounts: []corev1.VolumeMount{

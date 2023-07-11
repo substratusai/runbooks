@@ -10,7 +10,8 @@ type NotebookSpec struct {
 	// Suspend should be set to true to stop the notebook (Pod) from running.
 	Suspend bool `json:"suspend,omitempty"`
 
-	Container Container `json:"container,omitempty"`
+	// Image that contains notebook and dependencies.
+	Image Image `json:"image,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -25,8 +26,8 @@ type NotebookSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
-func (n *Notebook) GetContainer() *Container {
-	return &n.Spec.Container
+func (n *Notebook) GetImage() *Image {
+	return &n.Spec.Image
 }
 
 func (n *Notebook) GetConditions() *[]metav1.Condition {
