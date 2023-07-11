@@ -47,7 +47,7 @@ type ModelTrainer struct {
 	BaseModel *ObjectRef `json:"baseModel,omitempty"`
 
 	// Dataset to mount for training.
-	Dataset ObjectRef `json:"datasetName"`
+	Dataset ObjectRef `json:"dataset"`
 
 	//+kubebuilder:default:=3
 	// Epochs is the total number of iterations that should be run through the training data.

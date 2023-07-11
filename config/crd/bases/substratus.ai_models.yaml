@@ -140,7 +140,7 @@ spec:
                       during training.
                     format: int64
                     type: integer
-                  datasetName:
+                  dataset:
                     description: Dataset to mount for training.
                     properties:
                       name:
@@ -166,7 +166,7 @@ spec:
                       the well-defined Trainer fields.
                     type: object
                 required:
-                - datasetName
+                - dataset
                 type: object
             required:
             - container
