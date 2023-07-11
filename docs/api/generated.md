@@ -50,6 +50,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `command` _string array_ | Command to run in the container. |
 | `filename` _string_ | Filename is the name of the file when it is downloaded. |
 | `image` _[Image](#image)_ | Image that contains dataset loading code and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
@@ -180,6 +181,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `command` _string array_ | Command to run in the container. |
 | `image` _[Image](#image)_ | Image that contains model serving application and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
@@ -211,6 +213,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `command` _string array_ | Command to run in the container. |
 | `image` _[Image](#image)_ | Image that contains model code and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
@@ -264,6 +267,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `command` _string array_ | Command to run in the container. |
 | `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. |
 | `image` _[Image](#image)_ | Image that contains notebook and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
