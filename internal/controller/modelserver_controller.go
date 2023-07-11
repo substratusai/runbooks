@@ -145,7 +145,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           model.Spec.Image.Name,
+							Image:           server.Spec.Image.Name,
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
