@@ -111,7 +111,7 @@ spec:
 ```
 
 
-User flow: Iterate on model training code
+Lab user flow: Iterate on model training code using a customized trainer image
 
 1. `git clone https://substratusai/hf-llm-trainer && cd hf-llm-trainer`
 2. Modify Dockerfile
