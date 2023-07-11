@@ -57,7 +57,7 @@ spec:
                 description: Filename is the name of the file when it is downloaded.
                 type: string
               source:
-                description: Source if a reference to the code that is doing the data
+                description: Source is a reference to the code that is doing the data
                   sourcing.
                 properties:
                   git:
