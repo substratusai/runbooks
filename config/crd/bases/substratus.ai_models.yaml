@@ -251,8 +251,6 @@ spec:
               url:
                 description: URL of model artifacts.
                 type: string
-            required:
-            - ready
             type: object
         type: object
     served: true

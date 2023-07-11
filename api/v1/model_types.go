@@ -76,7 +76,7 @@ type ModelTrainer struct {
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
