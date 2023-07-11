@@ -2,36 +2,60 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // DatasetSpec defines the desired state of Dataset.
 type DatasetSpec struct {
+	// Command to run in the container.
+	Command []string `json:"command,omitempty"`
+
 	// Filename is the name of the file when it is downloaded.
 	Filename string `json:"filename"`
-	// Source is a reference to the code that is doing the data sourcing.
-	Source DatasetSource `json:"source,omitempty"`
+
+	// Image that contains dataset loading code and dependencies.
+	Image Image `json:"image"`
+
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
+	// Params will be passed into the loading process as environment variables.
+	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
-// DatasetSource is a reference to the code that is doing the data sourcing.
-type DatasetSource struct {
-	// Git is a reference to the git repository that contains the data loading code.
-	Git *GitSource `json:"git,omitempty"`
+func (d *Dataset) GetImage() *Image {
+	return &d.Spec.Image
+}
+
+func (d *Dataset) GetConditions() *[]metav1.Condition {
+	return &d.Status.Conditions
+}
+
+func (d *Dataset) GetStatusReady() bool {
+	return d.Status.Ready
+}
+
+func (d *Dataset) SetStatusReady(r bool) {
+	d.Status.Ready = r
 }
 
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
-	// URL points to the underlying data storage (bucket URL).
-	URL string `json:"url,omitempty"`
+	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
+	//+kubebuilder:default:=false
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// URL of the loaded data.
+	URL string `json:"url,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The Dataset API is used to describe data that can be referenced for training Models.
 //

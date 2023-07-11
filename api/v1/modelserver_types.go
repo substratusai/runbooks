@@ -6,12 +6,25 @@ import (
 
 // ModelServerSpec defines the desired state of ModelServer
 type ModelServerSpec struct {
-	// ModelName is the .metadata.name of the Model to be served.
-	ModelName string `json:"modelName,omitempty"`
+	// Command to run in the container.
+	Command []string `json:"command,omitempty"`
+
+	// Image that contains model serving application and dependencies.
+	Image Image `json:"image"`
+
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
+	// Model references the Model object to be served.
+	Model ObjectRef `json:"model,omitempty"`
 }
 
 // ModelServerStatus defines the observed state of ModelServer
 type ModelServerStatus struct {
+	// Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details.
+	//+kubebuilder:default:=false
+	Ready bool `json:"ready"`
+
 	// Conditions is the list of conditions that describe the current state of the ModelServer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
@@ -19,8 +32,7 @@ type ModelServerStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The ModelServer API is used to deploy a server that exposes the capabilities of a Model
 // via a HTTP interface.
@@ -32,6 +44,22 @@ type ModelServer struct {
 	Spec ModelServerSpec `json:"spec,omitempty"`
 	// Status is the observed state of the ModelServer.
 	Status ModelServerStatus `json:"status,omitempty"`
+}
+
+func (s *ModelServer) GetImage() *Image {
+	return &s.Spec.Image
+}
+
+func (s *ModelServer) GetConditions() *[]metav1.Condition {
+	return &s.Status.Conditions
+}
+
+func (s *ModelServer) GetStatusReady() bool {
+	return s.Status.Ready
+}
+
+func (s *ModelServer) SetStatusReady(r bool) {
+	s.Status.Ready = r
 }
 
 //+kubebuilder:object:root=true

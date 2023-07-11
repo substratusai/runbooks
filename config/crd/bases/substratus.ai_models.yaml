@@ -18,18 +18,16 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+    - jsonPath: .status.ready
       name: Ready
-      type: string
-    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
-      name: Condition
-      type: string
+      type: boolean
     name: v1
     schema:
       openAPIV3Schema:
         description: "The Model API is used to build and train machine learning models.
           \n - Base models can be built from a Git repository. \n - Models can be
-          trained by combining a base Model with a Dataset."
+          trained by combining a base Model with a Dataset. \n - Model artifacts are
+          persisted in cloud buckets."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,44 +44,28 @@ spec:
           spec:
             description: Spec is the desired state of the Model.
             properties:
-              compute:
-                description: Compute describes the compute requirements and preferences
-                  of the model.
+              baseModel:
+                description: BaseModel should be set in order to mount another model
+                  to be used for transfer learning.
                 properties:
-                  types:
-                    description: Types is a list of supported compute types for this
-                      Model. This list should be ordered by preference, with the most
-                      preferred type first.
-                    items:
-                      enum:
-                      - CPU
-                      - GPU
-                      type: string
-                    minItems: 1
-                    type: array
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
                 required:
-                - types
+                - name
                 type: object
-              size:
-                description: Size describes different size dimensions of the underlying
-                  model.
-                properties:
-                  parameterBits:
-                    description: ParameterBits is the number of bits per parameter
-                      in the underlying model. Common values would be 8, 16, 32.
-                    type: integer
-                  parameterCount:
-                    description: ParameterCount is the number of parameters in the
-                      underlying model.
-                    format: int64
-                    type: integer
-                type: object
-              source:
-                description: Source is a reference to the source of the model.
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model code and dependencies.
                 properties:
                   git:
-                    description: Git is a reference to a git repository containing
-                      model code.
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      Image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use.
@@ -93,56 +75,66 @@ spec:
                           url.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/substratusai/model-falcon-40b'
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  name:
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
+                    type: string
+                type: object
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Parameters are passing into the model training/loading
+                  container as environment variables. Environment variable name will
+                  be `"PARAM_" + uppercase(key)`.
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
                         type: string
                     type: object
-                  modelName:
-                    description: ModelName is the .metadata.name of another Model
-                      that this Model should be based on.
-                    type: string
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
                 type: object
-              training:
-                description: Training should be set to run a training job.
+              trainingDataset:
+                description: Dataset to mount for training.
                 properties:
-                  datasetName:
-                    description: DatasetName is the .metadata.name of the Dataset
-                      to use for training.
+                  name:
+                    description: Name of Kubernetes object.
                     type: string
-                  params:
-                    description: Params is a list of hyperparameters to use for training.
-                    properties:
-                      batchSize:
-                        default: 1
-                        description: BatchSize is the number of training records to
-                          use per (forward and backward) pass through the model. Increasing
-                          this number will increase the memory requirements of the
-                          training process.
-                        format: int64
-                        type: integer
-                      dataLimit:
-                        default: 1000000000000
-                        description: DataLimit is the maximum number of training records
-                          to use. In the case of JSONL, this would be the total number
-                          of lines to train with. Increasing this number will increase
-                          training time.
-                        format: int64
-                        type: integer
-                      epochs:
-                        default: 3
-                        description: Epochs is the total number of iterations that
-                          should be run through the training data. Increasing this
-                          number will increase training time.
-                        format: int64
-                        type: integer
-                    type: object
                 required:
-                - datasetName
-                - params
+                - name
                 type: object
             required:
-            - compute
-            - size
-            - source
+            - image
             type: object
           status:
             description: Status is the observed state of the Model.
@@ -217,16 +209,16 @@ spec:
                   - type
                   type: object
                 type: array
-              containerImage:
-                description: ContainerImage is reference to the container image that
-                  was built for this Model.
+              ready:
+                default: false
+                description: Ready indicates that the Model is ready to use. See Conditions
+                  for more details.
+                type: boolean
+              url:
+                description: URL of model artifacts.
                 type: string
-              servers:
-                description: Servers is the list of servers that are currently running
-                  this Model. Soon to be deprecated.
-                items:
-                  type: string
-                type: array
+            required:
+            - ready
             type: object
         type: object
     served: true
