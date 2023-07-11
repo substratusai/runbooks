@@ -54,6 +54,11 @@ spec:
                 required:
                 - name
                 type: object
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
               image:
                 description: Image that contains model code and dependencies.
                 properties:
@@ -205,12 +210,15 @@ spec:
                   type: object
                 type: array
               ready:
+                default: false
                 description: Ready indicates that the Model is ready to use. See Conditions
                   for more details.
                 type: boolean
               url:
                 description: URL of model artifacts.
                 type: string
+            required:
+            - ready
             type: object
         type: object
     served: true

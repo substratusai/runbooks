@@ -289,23 +289,24 @@ func nbPodName(nb *apiv1.Notebook) string {
 	return nb.Name + "-notebook"
 }
 
-func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
+func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	var volumes []corev1.Volume
 	var volumeMounts []corev1.VolumeMount
 
+	annotations := map[string]string{}
+
 	if model != nil {
-		if err := mountModel(volumes, volumeMounts, model.Status.URL, "", true); err != nil {
+		if err := mountModel(annotations, &volumes, &volumeMounts, model.Status.URL, "", true); err != nil {
 			return nil, fmt.Errorf("appending model volume: %w", err)
 		}
 	}
 	if dataset != nil {
-		if err := mountDataset(volumes, volumeMounts, dataset.Status.URL, true); err != nil {
+		if err := mountDataset(annotations, &volumes, &volumeMounts, dataset.Status.URL, true); err != nil {
 			return nil, fmt.Errorf("appending dataset volume: %w", err)
 		}
 	}
 
 	const containerName = "notebook"
-	annotations := map[string]string{}
 	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -313,8 +314,8 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model,
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        nbPodName(nb),
-			Namespace:   nb.Namespace,
+			Name:        nbPodName(notebook),
+			Namespace:   notebook.Namespace,
 			Annotations: annotations,
 		},
 		Spec: corev1.PodSpec{
@@ -327,12 +328,10 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model,
 			Containers: []corev1.Container{
 				{
 					Name:  containerName,
-					Image: nb.Spec.Image.Name,
+					Image: notebook.Spec.Image.Name,
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
-					Args: []string{
-						"notebook.sh",
-					},
+					Command: notebook.Spec.Command,
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
@@ -371,12 +370,12 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model,
 		},
 	}
 
-	if err := ctrl.SetControllerReference(nb, pod, r.Scheme); err != nil {
+	if err := ctrl.SetControllerReference(notebook, pod, r.Scheme); err != nil {
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 
 	if err := resources.Apply(&pod.ObjectMeta, &pod.Spec, containerName,
-		r.CloudContext.Name, nb.Spec.Resources); err != nil {
+		r.CloudContext.Name, notebook.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 

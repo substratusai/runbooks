@@ -7,6 +7,9 @@ import (
 
 // ModelSpec defines the desired state of Model
 type ModelSpec struct {
+	// Command to run in the container.
+	Command []string `json:"command,omitempty"`
+
 	// Image that contains model code and dependencies.
 	Image Image `json:"image"`
 
@@ -44,7 +47,8 @@ func (m *Model) SetStatusReady(r bool) {
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	//+kubebuilder:default:=false
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

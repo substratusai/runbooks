@@ -25,12 +25,6 @@ import (
 	"github.com/substratusai/substratus/internal/resources"
 )
 
-const (
-	ReasonDeploymentReady    = "DeploymentReady"
-	ReasonModelNotReady      = "ModelNotReady"
-	ReasonDeploymentNotReady = "DeploymentNotReady"
-)
-
 // ModelServerReconciler reconciles a ModelServer object.
 type ModelServerReconciler struct {
 	client.Client
@@ -112,8 +106,17 @@ func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconci
 func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
-	const containerName = "serve"
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
 	annotations := map[string]string{}
+
+	if model != nil {
+		if err := mountModel(annotations, &volumes, &volumeMounts, model.Status.URL, "", true); err != nil {
+			return nil, fmt.Errorf("appending model volume: %w", err)
+		}
+	}
+
+	const containerName = "serve"
 	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -138,6 +141,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: modelServerServiceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
@@ -145,15 +149,17 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
-							Args: []string{"serve.sh"},
+							Command: server.Spec.Command,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,
 									ContainerPort: 8080,
 								},
 							},
+							VolumeMounts: volumeMounts,
 						},
 					},
+					Volumes: volumes,
 				},
 			},
 		},
@@ -210,6 +216,18 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 		}
 
 		return result{}, nil
+	}
+
+	// ServiceAccount for loading the Model.
+	// Within the context of GCP, this ServiceAccount will need IAM permissions
+	// to read the GCS bucket containing the model.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      modelServerServiceAccountName,
+			Namespace: model.Namespace,
+		},
+	}); !result.success {
+		return result, err
 	}
 
 	service, err := r.serverService(server, &model)

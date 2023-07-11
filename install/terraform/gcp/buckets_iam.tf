@@ -6,26 +6,40 @@ resource "google_project_iam_member" "container_builder_gar_repo_admin" {
   member  = "serviceAccount:${google_service_account.container_builder.email}"
 }
 
-# Model Trainer #
+# Modeller #
 
-resource "google_storage_bucket_iam_member" "model_trainer_datasets_storage_admin" {
+resource "google_storage_bucket_iam_member" "modeller_datasets_storage_admin" {
   bucket = google_storage_bucket.datasets.name
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.model_trainer.email}"
+  member = "serviceAccount:${google_service_account.modeller.email}"
 }
 
-resource "google_storage_bucket_iam_member" "model_trainer_models_storage_admin" {
+resource "google_storage_bucket_iam_member" "modeller_models_storage_admin" {
   bucket = google_storage_bucket.models.name
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.model_trainer.email}"
+  member = "serviceAccount:${google_service_account.modeller.email}"
 }
 
-# Model Loader #
+# Model Server #
 
-resource "google_storage_bucket_iam_member" "model_loader_models_storage_admin" {
+resource "google_storage_bucket_iam_member" "model_server_models_storage_admin" {
   bucket = google_storage_bucket.models.name
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.model_loader.email}"
+  member = "serviceAccount:${google_service_account.model_server.email}"
+}
+
+# Notebook #
+
+resource "google_storage_bucket_iam_member" "notebook_datasets_storage_admin" {
+  bucket = google_storage_bucket.datasets.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.notebook.email}"
+}
+
+resource "google_storage_bucket_iam_member" "notebook_models_storage_admin" {
+  bucket = google_storage_bucket.models.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.notebook.email}"
 }
 
 # Data Loader #

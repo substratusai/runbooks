@@ -64,18 +64,20 @@ func parseBucketURL(bucketURL string) (string, string, error) {
 	return bucket, subpath, nil
 }
 
-func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, datasetURL string, readOnly bool) error {
+func mountDataset(annotations map[string]string, volumes *[]corev1.Volume, volumeMounts *[]corev1.VolumeMount, datasetURL string, readOnly bool) error {
+	annotations["gke-gcsfuse/volumes"] = "true"
+
 	bucket, subpath, err := parseBucketURL(datasetURL)
 	if err != nil {
 		return fmt.Errorf("parsing dataset url: %w", err)
 	}
 
-	volumes = append(volumes, corev1.Volume{
+	*volumes = append(*volumes, corev1.Volume{
 		Name: "data",
 		VolumeSource: corev1.VolumeSource{
 			CSI: &corev1.CSIVolumeSource{
 				Driver:   "gcsfuse.csi.storage.gke.io",
-				ReadOnly: ptr.Bool(true),
+				ReadOnly: ptr.Bool(readOnly),
 				VolumeAttributes: map[string]string{
 					"bucketName":   bucket,
 					"mountOptions": "implicit-dirs,uid=0,gid=3003",
@@ -83,7 +85,7 @@ func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, da
 			},
 		},
 	})
-	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+	*volumeMounts = append(*volumeMounts, corev1.VolumeMount{
 		Name:      "data",
 		MountPath: "/data",
 		SubPath:   subpath,
@@ -93,18 +95,20 @@ func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, da
 	return nil
 }
 
-func mountModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, modelURL string, prefix string, readOnly bool) error {
+func mountModel(annotations map[string]string, volumes *[]corev1.Volume, volumeMounts *[]corev1.VolumeMount, modelURL string, prefix string, readOnly bool) error {
+	annotations["gke-gcsfuse/volumes"] = "true"
+
 	bucket, subpath, err := parseBucketURL(modelURL)
 	if err != nil {
 		return fmt.Errorf("parsing dataset url: %w", err)
 	}
 
-	volumes = append(volumes, corev1.Volume{
+	*volumes = append(*volumes, corev1.Volume{
 		Name: prefix + "model",
 		VolumeSource: corev1.VolumeSource{
 			CSI: &corev1.CSIVolumeSource{
 				Driver:   "gcsfuse.csi.storage.gke.io",
-				ReadOnly: ptr.Bool(true),
+				ReadOnly: ptr.Bool(readOnly),
 				VolumeAttributes: map[string]string{
 					"bucketName":   bucket,
 					"mountOptions": "implicit-dirs,uid=0,gid=3003",
@@ -113,7 +117,7 @@ func mountModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, mode
 		},
 	})
 
-	volumeMounts = append(volumeMounts,
+	*volumeMounts = append(*volumeMounts,
 		corev1.VolumeMount{
 			Name:      prefix + "model",
 			MountPath: "/" + prefix + "model/logs",

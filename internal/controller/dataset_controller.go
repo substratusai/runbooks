@@ -155,10 +155,10 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  containerName,
-							Image: dataset.Spec.Image.Name,
-							Args:  []string{"load.sh"},
-							Env:   env,
+							Name:    containerName,
+							Image:   dataset.Spec.Image.Name,
+							Command: dataset.Spec.Command,
+							Env:     env,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "data",

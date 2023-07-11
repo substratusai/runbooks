@@ -39,6 +39,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.NotebookSpec{
+			Command: []string{"notebook.sh"},
 			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/notebook-test-test",
@@ -52,7 +53,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 	require.NoError(t, k8sClient.Create(ctx, notebook), "creating a notebook")
 	t.Cleanup(debugObject(t, notebook))
 
-	testContainerBuild(t, notebook)
+	testContainerBuild(t, notebook, "Notebook")
 
 	// Test that a notebook Pod gets created by the controller.
 	var pod corev1.Pod
@@ -61,7 +62,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 		assert.NoError(t, err, "getting the notebook pod")
 	}, timeout, interval, "waiting for the notebook pod to be created")
 	require.Equal(t, "notebook", pod.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(pod.Spec.Containers[0].Args, " "), "notebook.sh")
+	require.Contains(t, strings.Join(pod.Spec.Containers[0].Command, " "), "notebook.sh")
 
 	fakePodReady(t, &pod)
 	t.Cleanup(debugObject(t, &pod))

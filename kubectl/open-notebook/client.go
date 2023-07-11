@@ -66,7 +66,7 @@ func (c *notebookClient) waitReady(ctx context.Context, nb *unstructured.Unstruc
 			if err != nil {
 				return false, err
 			}
-			return hasCondition(notebook, "Ready", "True"), nil
+			return isReady(notebook), nil
 		},
 	); err != nil {
 		return fmt.Errorf("waiting for notebook to be ready: %w", err)

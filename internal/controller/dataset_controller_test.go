@@ -37,7 +37,7 @@ func TestDataset(t *testing.T) {
 	t.Cleanup(debugObject(t, dataset))
 	t.Cleanup(debugObject(t, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader"}}))
 
-	testContainerBuild(t, dataset)
+	testContainerBuild(t, dataset, "Dataset")
 
 	testDatasetLoad(t, dataset)
 }

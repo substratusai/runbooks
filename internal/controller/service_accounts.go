@@ -13,6 +13,7 @@ import (
 const (
 	containerBuilderServiceAccountName = "container-builder"
 	modellerServiceAccountName         = "modeller"
+	modelServerServiceAccountName      = "model-server"
 	notebookServiceAccountName         = "notebook"
 	dataLoaderServiceAccountName       = "data-loader"
 )

@@ -3,5 +3,13 @@ kind: Notebook
 metadata:
   name: facebook-opt-125m
 spec:
+  command: ["notebook.sh"]
   suspend: true
-  modelName: facebook-opt-125m
+  image:
+    git:
+      url: https://github.com/substratusai/model-loader-huggingface
+      branch: nick-refactor
+  model:
+    name: facebook-opt-125m
+  dataset:
+    name: squad

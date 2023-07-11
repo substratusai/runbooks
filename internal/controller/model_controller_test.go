@@ -33,7 +33,7 @@ func TestModelLoaderFromGit(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
 
-	testContainerBuild(t, model)
+	testContainerBuild(t, model, "Model")
 
 	testModelLoad(t, model)
 }
@@ -102,6 +102,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: baseModel.Namespace,
 		},
 		Spec: apiv1.ModelSpec{
+			Command: []string{"model.sh"},
 			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://test.com/test/test",
@@ -119,7 +120,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 
 	t.Cleanup(debugObject(t, trainedModel))
 
-	testContainerBuild(t, trainedModel)
+	testContainerBuild(t, trainedModel, "Model")
 
 	testModelTrain(t, trainedModel)
 }
@@ -140,7 +141,7 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 		assert.NoError(t, err, "getting the model training job")
 	}, timeout, interval, "waiting for the model training job to be created")
 	require.Equal(t, "model", job.Spec.Template.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Args, " "), "model.sh")
+	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Command, " "), "model.sh")
 
 	fakeJobComplete(t, &job)
 

@@ -38,6 +38,7 @@ func TestModelServerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelServerSpec{
+			Command: []string{"serve.sh"},
 			Image: apiv1.Image{
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/some-modelserver",
@@ -51,7 +52,7 @@ func TestModelServerFromGit(t *testing.T) {
 	require.NoError(t, k8sClient.Create(ctx, modelServer), "creating a modelserver")
 	t.Cleanup(debugObject(t, modelServer))
 
-	testContainerBuild(t, modelServer)
+	testContainerBuild(t, modelServer, "ModelServer")
 
 	// Test that a model server Service gets created by the controller.
 	var service corev1.Service
@@ -68,5 +69,5 @@ func TestModelServerFromGit(t *testing.T) {
 		assert.NoError(t, err, "getting the modelserver deployment")
 	}, timeout, interval, "waiting for the server deployment to be created")
 	require.Equal(t, "serve", deploy.Spec.Template.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(deploy.Spec.Template.Spec.Containers[0].Args, " "), "serve.sh")
+	require.Contains(t, strings.Join(deploy.Spec.Template.Spec.Containers[0].Command, " "), "serve.sh")
 }

@@ -7,6 +7,9 @@ import (
 
 // DatasetSpec defines the desired state of Dataset.
 type DatasetSpec struct {
+	// Command to run in the container.
+	Command []string `json:"command,omitempty"`
+
 	// Filename is the name of the file when it is downloaded.
 	Filename string `json:"filename"`
 
@@ -39,7 +42,8 @@ func (d *Dataset) SetStatusReady(r bool) {
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	//+kubebuilder:default:=false
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

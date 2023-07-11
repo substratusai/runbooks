@@ -273,25 +273,19 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 	var volumes []corev1.Volume
 	var volumeMounts []corev1.VolumeMount
 
-	if err := mountModel(volumes, volumeMounts, r.modelURL(model), "", false); err != nil {
+	if err := mountModel(annotations, &volumes, &volumeMounts, r.modelURL(model), "", false); err != nil {
 		return nil, fmt.Errorf("appending current model volume: %w", err)
 	}
 
-	switch r.CloudContext.Name {
-	case cloud.GCP:
-		// GKE will injects GCS Fuse sidecar based on this annotation.
-		annotations["gke-gcsfuse/volumes"] = "true"
-
-		if dataset != nil {
-			if err := mountDataset(volumes, volumeMounts, dataset.Status.URL, true); err != nil {
-				return nil, fmt.Errorf("appending dataset volume: %w", err)
-			}
+	if dataset != nil {
+		if err := mountDataset(annotations, &volumes, &volumeMounts, dataset.Status.URL, true); err != nil {
+			return nil, fmt.Errorf("appending dataset volume: %w", err)
 		}
+	}
 
-		if baseModel != nil {
-			if err := mountModel(volumes, volumeMounts, baseModel.Status.URL, "base-", true); err != nil {
-				return nil, fmt.Errorf("appending base model volume: %w", err)
-			}
+	if baseModel != nil {
+		if err := mountModel(annotations, &volumes, &volumeMounts, baseModel.Status.URL, "base-", true); err != nil {
+			return nil, fmt.Errorf("appending base model volume: %w", err)
 		}
 	}
 
@@ -331,7 +325,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 							Image: model.Spec.Image.Name,
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
-							Args:         []string{"model.sh"},
+							Command:      model.Spec.Command,
 							Env:          env,
 							VolumeMounts: volumeMounts,
 						},

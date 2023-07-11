@@ -207,7 +207,7 @@ ENTRYPOINT ["/tini", "--"]
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			// TODO(nstogner): Ensure this name does not exceed the name character limit.
-			Name: obj.GetName() + "-container-builder",
+			Name: obj.GetName() + "-" + strings.ToLower(r.Kind) + "-container-builder",
 			// NOTE: Cross-Namespace owners not allowed, must be same as obj.
 			Namespace: obj.GetNamespace(),
 		},

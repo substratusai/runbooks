@@ -50,6 +50,11 @@ spec:
           spec:
             description: Spec is the desired state of the Dataset.
             properties:
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
               filename:
                 description: Filename is the name of the file when it is downloaded.
                 type: string
@@ -195,12 +200,15 @@ spec:
                   type: object
                 type: array
               ready:
+                default: false
                 description: Ready indicates that the Dataset is ready to use. See
                   Conditions for more details.
                 type: boolean
               url:
                 description: URL of the loaded data.
                 type: string
+            required:
+            - ready
             type: object
         type: object
     served: true

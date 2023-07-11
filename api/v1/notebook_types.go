@@ -7,11 +7,14 @@ import (
 
 // NotebookSpec defines the desired state of Notebook
 type NotebookSpec struct {
+	// Command to run in the container.
+	Command []string `json:"command,omitempty"`
+
 	// Suspend should be set to true to stop the notebook (Pod) from running.
 	Suspend bool `json:"suspend,omitempty"`
 
 	// Image that contains notebook and dependencies.
-	Image Image `json:"image,omitempty"`
+	Image Image `json:"image"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -48,7 +51,8 @@ func (n *Notebook) SetStatusReady(r bool) {
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
 	// Ready indicates that the Notebook is ready to serve. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	//+kubebuilder:default:=false
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
