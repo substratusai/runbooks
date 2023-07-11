@@ -19,7 +19,7 @@ type ModelServerSpec struct {
 // ModelServerStatus defines the observed state of ModelServer
 type ModelServerStatus struct {
 	// Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details.
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the ModelServer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

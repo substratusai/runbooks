@@ -78,32 +78,28 @@ spec:
               filename:
                 description: Filename is the name of the file when it is downloaded.
                 type: string
-              loader:
-                description: Loader configures the loading process.
-                properties:
-                  params:
-                    additionalProperties:
-                      type: string
-                    description: Params will be passed into the loading process as
-                      environment variables. Environment variable name will be `"PARAM_"
-                      + uppercase(key)`.
-                    type: object
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Params will be passed into the loading process as environment
+                  variables.
                 type: object
               resources:
                 description: Resources are the compute resources required by the container.
                 properties:
                   cpu:
+                    default: 2
                     description: CPU resources.
-                    properties:
-                      count:
-                        description: Count is the number of CPU cores.
-                        format: int64
-                        type: integer
-                      memory:
-                        description: Memory is the amount of RAM in Gigabytes.
-                        format: int64
-                        type: integer
-                    type: object
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
                   gpu:
                     description: GPU resources.
                     properties:
@@ -115,6 +111,11 @@ spec:
                         description: Type of GPU.
                         type: string
                     type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
                 type: object
             required:
             - container
@@ -200,8 +201,6 @@ spec:
               url:
                 description: URL of the loaded data.
                 type: string
-            required:
-            - ready
             type: object
         type: object
     served: true

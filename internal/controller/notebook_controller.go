@@ -11,10 +11,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/resources"
@@ -27,12 +31,6 @@ type NotebookReconciler struct {
 
 	*ContainerReconciler
 }
-
-//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -56,13 +54,69 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
+//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Notebook{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Pod{}).
+		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForModel))).
+		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForDataset))).
 		Complete(r)
+}
+
+func (r *NotebookReconciler) findNotebooksForModel(obj client.Object) []reconcile.Request {
+	model := obj.(*apiv1.Model)
+
+	var notebooks apiv1.NotebookList
+	if err := r.List(context.Background(), &notebooks,
+		client.MatchingFields{notebookModelIndex: model.Name},
+		client.InNamespace(obj.GetNamespace()),
+	); err != nil {
+		log.Log.Error(err, "unable to list notebooks for base model")
+		return nil
+	}
+
+	reqs := []reconcile.Request{}
+	for _, nb := range notebooks.Items {
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      nb.Name,
+				Namespace: nb.Namespace,
+			},
+		})
+	}
+	return reqs
+}
+
+func (r *NotebookReconciler) findNotebooksForDataset(obj client.Object) []reconcile.Request {
+	dataset := obj.(*apiv1.Dataset)
+
+	var notebooks apiv1.NotebookList
+	if err := r.List(context.Background(), &notebooks,
+		client.MatchingFields{notebookDatasetIndex: dataset.Name},
+		client.InNamespace(obj.GetNamespace()),
+	); err != nil {
+		log.Log.Error(err, "unable to list notebooks for dataset")
+		return nil
+	}
+
+	reqs := []reconcile.Request{}
+	for _, nb := range notebooks.Items {
+		reqs = append(reqs, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      nb.Name,
+				Namespace: nb.Namespace,
+			},
+		})
+	}
+	return reqs
 }
 
 func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *apiv1.Notebook) (result, error) {
@@ -89,6 +143,18 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 			}
 		}
 		return result{}, nil
+	}
+
+	// ServiceAccount for the model Job.
+	// Within the context of GCP, this ServiceAccount will need IAM permissions
+	// to read the GCS buckets containing the training data and model artifacts.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      notebookServiceAccountName,
+			Namespace: notebook.Namespace,
+		},
+	}); !result.success {
+		return result, err
 	}
 
 	var model *apiv1.Model
@@ -133,6 +199,48 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 
 	}
 
+	var dataset *apiv1.Dataset
+	if notebook.Spec.Dataset != nil {
+		dataset = &apiv1.Dataset{}
+		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Dataset.Name, Namespace: notebook.Namespace}, dataset); err != nil {
+			if apierrors.IsNotFound(err) {
+				// Update this Model's status.
+				notebook.Status.Ready = false
+				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+					Type:               apiv1.ConditionDeployed,
+					Status:             metav1.ConditionFalse,
+					Reason:             apiv1.ReasonModelNotFound,
+					ObservedGeneration: notebook.Generation,
+				})
+				if err := r.Status().Update(ctx, notebook); err != nil {
+					return result{}, fmt.Errorf("failed to update notebook status: %w", err)
+				}
+
+				// TODO: Implement watch on source Model.
+				return result{}, nil
+			}
+			return result{}, fmt.Errorf("getting dataset: %w", err)
+		}
+
+		if !dataset.Status.Ready {
+			log.Info("Dataset not ready", "dataset", dataset.Name)
+
+			notebook.Status.Ready = false
+			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
+				Type:               apiv1.ConditionDeployed,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonDatasetNotReady,
+				ObservedGeneration: notebook.Generation,
+			})
+			if err := r.Status().Update(ctx, notebook); err != nil {
+				return result{}, fmt.Errorf("failed to update notebook status: %w", err)
+			}
+
+			return result{}, nil
+		}
+
+	}
+
 	//pvc, err := r.notebookPVC(&notebook)
 	//if err != nil {
 	//	return result{}, fmt.Errorf("failed to construct pvc: %w", err)
@@ -142,7 +250,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	//	return result{}, fmt.Errorf("failed to apply pvc: %w", err)
 	//}
 
-	pod, err := r.notebookPod(notebook, model)
+	pod, err := r.notebookPod(notebook, model, dataset)
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
@@ -181,10 +289,24 @@ func nbPodName(nb *apiv1.Notebook) string {
 	return nb.Name + "-notebook"
 }
 
-func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model) (*corev1.Pod, error) {
-	const notebookContainerName = "notebook"
+func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+
+	if model != nil {
+		if err := mountModel(volumes, volumeMounts, model.Status.URL, "", true); err != nil {
+			return nil, fmt.Errorf("appending model volume: %w", err)
+		}
+	}
+	if dataset != nil {
+		if err := mountDataset(volumes, volumeMounts, dataset.Status.URL, true); err != nil {
+			return nil, fmt.Errorf("appending dataset volume: %w", err)
+		}
+	}
+
+	const containerName = "notebook"
 	annotations := map[string]string{}
-	annotations["kubectl.kubernetes.io/default-container"] = notebookContainerName
+	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -201,9 +323,10 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 			//	RunAsGroup: int64Ptr(100),
 			//	FSGroup:    int64Ptr(100),
 			//},
+			ServiceAccountName: notebookServiceAccountName,
 			Containers: []corev1.Container{
 				{
-					Name:  notebookContainerName,
+					Name:  containerName,
 					Image: nb.Spec.Container.Image,
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
@@ -225,6 +348,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 							},
 						},
 					},
+					VolumeMounts: volumeMounts,
 					//VolumeMounts: []corev1.VolumeMount{
 					//	{
 					//		Name:      "notebook",
@@ -233,6 +357,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 					//},
 				},
 			},
+			Volumes: volumes,
 			//Volumes: []corev1.Volume{
 			//	{
 			//		Name: "notebook",
@@ -250,7 +375,7 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 
-	if err := resources.Apply(&pod.ObjectMeta, &pod.Spec, notebookContainerName,
+	if err := resources.Apply(&pod.ObjectMeta, &pod.Spec, containerName,
 		r.CloudContext.Name, nb.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}

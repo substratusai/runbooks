@@ -25,7 +25,6 @@ func TestModelServerFromGit(t *testing.T) {
 			Container: apiv1.Container{
 				Image: "some-image",
 			},
-			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the modelserver")
@@ -60,7 +59,7 @@ func TestModelServerFromGit(t *testing.T) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: modelServer.Namespace, Name: modelServer.Name + "-modelserver"}, &service)
 		assert.NoError(t, err, "getting the modelserver service")
 	}, timeout, interval, "waiting for the server service to be created")
-	require.Equal(t, "http-app", service.Spec.Ports[0].TargetPort.String())
+	require.Equal(t, "http-serve", service.Spec.Ports[0].TargetPort.String())
 
 	// Test that a model server Deployment gets created by the controller.
 	var deploy appsv1.Deployment
@@ -68,6 +67,6 @@ func TestModelServerFromGit(t *testing.T) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: modelServer.Namespace, Name: modelServer.Name + "-modelserver"}, &deploy)
 		assert.NoError(t, err, "getting the modelserver deployment")
 	}, timeout, interval, "waiting for the server deployment to be created")
-	require.Equal(t, "server", deploy.Spec.Template.Spec.Containers[0].Name)
+	require.Equal(t, "serve", deploy.Spec.Template.Spec.Containers[0].Name)
 	require.Contains(t, strings.Join(deploy.Spec.Template.Spec.Containers[0].Args, " "), "serve.sh")
 }

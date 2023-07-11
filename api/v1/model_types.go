@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // ModelSpec defines the desired state of Model
@@ -12,11 +13,16 @@ type ModelSpec struct {
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
 
-	// Loader should be set to run a loading job. Cannot also be set with Trainer.
-	Loader *ModelLoader `json:"loader,omitempty"`
+	// BaseModel should be set in order to mount another model to be
+	// used for transfer learning.
+	BaseModel *ObjectRef `json:"baseModel,omitempty"`
 
-	// Trainer should be set to run a training job. Cannot also be set with Loader.
-	Trainer *ModelTrainer `json:"trainer,omitempty"`
+	// Dataset to mount for training.
+	TrainingDataset *ObjectRef `json:"trainingDataset,omitempty"`
+
+	// Parameters are passing into the model training/loading container as environment variables.
+	// Environment variable name will be `"PARAM_" + uppercase(key)`.
+	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
 func (m *Model) GetContainer() *Container {
@@ -33,44 +39,6 @@ func (m *Model) GetStatusReady() bool {
 
 func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
-}
-
-type ModelLoader struct {
-	// Params will be passed into the loading process as environment variables.
-	// Environment variable name will be `"PARAM_" + uppercase(key)`.
-	Params map[string]string `json:"params,omitempty"`
-}
-
-type ModelTrainer struct {
-	// BaseModel should be set in order to mount another model to be
-	// used for transfer learning.
-	BaseModel *ObjectRef `json:"baseModel,omitempty"`
-
-	// Dataset to mount for training.
-	Dataset ObjectRef `json:"dataset"`
-
-	//+kubebuilder:default:=3
-	// Epochs is the total number of iterations that should be run through the training data.
-	// Increasing this number will increase training time.
-	// The EPOCHS environment variable will be set during training.
-	Epochs int64 `json:"epochs,omitempty"`
-
-	//+kubebuilder:default:=1000000000000
-	// DataLimit is the maximum number of training records to use. In the case of JSONL, this would be the total number of lines
-	// to train with. Increasing this number will increase training time.
-	// The DATA_LIMIT environment variable will be set during training.
-	DataLimit int64 `json:"dataLimit,omitempty"`
-
-	//+kubebuilder:default:=1
-	// BatchSize is the number of training records to use per (forward and backward) pass through the model.
-	// Increasing this number will increase the memory requirements of the training process.
-	// The BATCH_SIZE environment variable will be set during training.
-	BatchSize int64 `json:"batchSize,omitempty"`
-
-	// Params will be passed into the loading process as environment variables.
-	// Environment variable name will be `"PARAM_" + uppercase(key)`.
-	// For standard parameters like Epochs, use the well-defined Trainer fields.
-	Params map[string]string `json:"params,omitempty"`
 }
 
 // ModelStatus defines the observed state of Model

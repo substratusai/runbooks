@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // NotebookSpec defines the desired state of Notebook
@@ -19,6 +20,9 @@ type NotebookSpec struct {
 
 	// Dataset to load into the notebook container.
 	Dataset *ObjectRef `json:"dataset,omitempty"`
+
+	// Params will be passed into the notebook container as environment variables.
+	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
 func (n *Notebook) GetContainer() *Container {
@@ -43,7 +47,7 @@ func (n *Notebook) SetStatusReady(r bool) {
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
 	// Ready indicates that the Notebook is ready to serve. See Conditions for more details.
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

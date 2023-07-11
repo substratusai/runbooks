@@ -44,6 +44,16 @@ spec:
           spec:
             description: Spec is the desired state of the Model.
             properties:
+              baseModel:
+                description: BaseModel should be set in order to mount another model
+                  to be used for transfer learning.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
               container:
                 description: Container that contains model code and dependencies.
                 properties:
@@ -69,33 +79,29 @@ spec:
                     description: Image of a container.
                     type: string
                 type: object
-              loader:
-                description: Loader should be set to run a loading job. Cannot also
-                  be set with Trainer.
-                properties:
-                  params:
-                    additionalProperties:
-                      type: string
-                    description: Params will be passed into the loading process as
-                      environment variables. Environment variable name will be `"PARAM_"
-                      + uppercase(key)`.
-                    type: object
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Parameters are passing into the model training/loading
+                  container as environment variables. Environment variable name will
+                  be `"PARAM_" + uppercase(key)`.
                 type: object
               resources:
                 description: Resources are the compute resources required by the container.
                 properties:
                   cpu:
+                    default: 2
                     description: CPU resources.
-                    properties:
-                      count:
-                        description: Count is the number of CPU cores.
-                        format: int64
-                        type: integer
-                      memory:
-                        description: Memory is the amount of RAM in Gigabytes.
-                        format: int64
-                        type: integer
-                    type: object
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
                   gpu:
                     description: GPU resources.
                     properties:
@@ -107,66 +113,20 @@ spec:
                         description: Type of GPU.
                         type: string
                     type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
                 type: object
-              trainer:
-                description: Trainer should be set to run a training job. Cannot also
-                  be set with Loader.
+              trainingDataset:
+                description: Dataset to mount for training.
                 properties:
-                  baseModel:
-                    description: BaseModel should be set in order to mount another
-                      model to be used for transfer learning.
-                    properties:
-                      name:
-                        description: Name of Kubernetes object.
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  batchSize:
-                    default: 1
-                    description: BatchSize is the number of training records to use
-                      per (forward and backward) pass through the model. Increasing
-                      this number will increase the memory requirements of the training
-                      process. The BATCH_SIZE environment variable will be set during
-                      training.
-                    format: int64
-                    type: integer
-                  dataLimit:
-                    default: 1000000000000
-                    description: DataLimit is the maximum number of training records
-                      to use. In the case of JSONL, this would be the total number
-                      of lines to train with. Increasing this number will increase
-                      training time. The DATA_LIMIT environment variable will be set
-                      during training.
-                    format: int64
-                    type: integer
-                  dataset:
-                    description: Dataset to mount for training.
-                    properties:
-                      name:
-                        description: Name of Kubernetes object.
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  epochs:
-                    default: 3
-                    description: Epochs is the total number of iterations that should
-                      be run through the training data. Increasing this number will
-                      increase training time. The EPOCHS environment variable will
-                      be set during training.
-                    format: int64
-                    type: integer
-                  params:
-                    additionalProperties:
-                      type: string
-                    description: Params will be passed into the loading process as
-                      environment variables. Environment variable name will be `"PARAM_"
-                      + uppercase(key)`. For standard parameters like Epochs, use
-                      the well-defined Trainer fields.
-                    type: object
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
                 required:
-                - dataset
+                - name
                 type: object
             required:
             - container

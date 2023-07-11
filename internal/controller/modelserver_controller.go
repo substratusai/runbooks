@@ -89,7 +89,7 @@ func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconci
 
 	var servers apiv1.ModelServerList
 	if err := r.List(context.Background(), &servers,
-		client.MatchingFields{"spec.model.name": model.Name},
+		client.MatchingFields{modelServerModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
 		log.Log.Error(err, "unable to list servers for model")
@@ -112,9 +112,9 @@ func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconci
 func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
-	const serverContainerName = "server"
+	const containerName = "serve"
 	annotations := map[string]string{}
-	annotations["kubectl.kubernetes.io/default-container"] = serverContainerName
+	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -140,7 +140,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            serverContainerName,
+							Name:            containerName,
 							Image:           model.Spec.Container.Image,
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
@@ -148,7 +148,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 							Args: []string{"serve.sh"},
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "http-app",
+									Name:          modelServerHTTPServePortName,
 									ContainerPort: 8080,
 								},
 							},
@@ -163,7 +163,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 
-	if err := resources.Apply(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, serverContainerName,
+	if err := resources.Apply(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, containerName,
 		r.CloudContext.Name, server.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
@@ -257,6 +257,8 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 	return result{success: true}, nil
 }
 
+const modelServerHTTPServePortName = "http-serve"
+
 func (r *ModelServerReconciler) serverService(server *apiv1.ModelServer, model *apiv1.Model) (*corev1.Service, error) {
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -274,7 +276,7 @@ func (r *ModelServerReconciler) serverService(server *apiv1.ModelServer, model *
 					Name:       "http",
 					Protocol:   corev1.ProtocolTCP,
 					Port:       8080,
-					TargetPort: intstr.FromString("http-app"),
+					TargetPort: intstr.FromString(modelServerHTTPServePortName),
 				},
 			},
 		},

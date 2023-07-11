@@ -27,17 +27,20 @@ type ObjectRef struct {
 }
 
 type Resources struct {
+	//+kubebuilder:default:=2
 	// CPU resources.
-	CPU *CPUResources `json:"cpu,omitempty"`
-	// GPU resources.
-	GPU *GPUResources `json:"gpu,omitempty"`
-}
+	CPU int64 `json:"cpu,omitempty"`
 
-type CPUResources struct {
-	// Count is the number of CPU cores.
-	Count int64 `json:"count,omitempty"`
+	//+kubebuilder:default:=10
+	// Disk size in Gigabytes.
+	Disk int64 `json:"disk,omitempty"`
+
+	//+kubebuilder:default:=10
 	// Memory is the amount of RAM in Gigabytes.
 	Memory int64 `json:"memory,omitempty"`
+
+	// GPU resources.
+	GPU *GPUResources `json:"gpu,omitempty"`
 }
 
 type GPUType string

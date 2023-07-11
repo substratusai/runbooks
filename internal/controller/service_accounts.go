@@ -12,8 +12,8 @@ import (
 
 const (
 	containerBuilderServiceAccountName = "container-builder"
-	modelTrainerServiceAccountName     = "model-trainer"
-	modelLoaderServiceAccountName      = "model-loader"
+	modellerServiceAccountName         = "modeller"
+	notebookServiceAccountName         = "notebook"
 	dataLoaderServiceAccountName       = "data-loader"
 )
 

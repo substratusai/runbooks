@@ -16,21 +16,6 @@ Package v1 contains API Schema definitions for Substratus.
 
 ## Types
 
-### CPUResources
-
-
-
-
-
-_Appears in:_
-- [Resources](#resources)
-
-| Field | Description |
-| --- | --- |
-| `count` _integer_ | Count is the number of CPU cores. |
-| `memory` _integer_ | Memory is the amount of RAM in Gigabytes. |
-
-
 ### Container
 
 
@@ -288,7 +273,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
-| `datasetName` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
+| `dataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
 | `epochs` _integer_ | Epochs is the total number of iterations that should be run through the training data. Increasing this number will increase training time. The EPOCHS environment variable will be set during training. |
 | `dataLimit` _integer_ | DataLimit is the maximum number of training records to use. In the case of JSONL, this would be the total number of lines to train with. Increasing this number will increase training time. The DATA_LIMIT environment variable will be set during training. |
 | `batchSize` _integer_ | BatchSize is the number of training records to use per (forward and backward) pass through the model. Increasing this number will increase the memory requirements of the training process. The BATCH_SIZE environment variable will be set during training. |
@@ -377,7 +362,9 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `cpu` _[CPUResources](#cpuresources)_ | CPU resources. |
+| `cpu` _integer_ | CPU resources. |
+| `disk` _integer_ | Disk size in Gigabytes. |
+| `memory` _integer_ | Memory is the amount of RAM in Gigabytes. |
 | `gpu` _[GPUResources](#gpuresources)_ | GPU resources. |
 
 

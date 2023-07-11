@@ -3,7 +3,7 @@ package v1
 const (
 	ConditionBuilt    = "Built"
 	ConditionLoaded   = "Loaded"
-	ConditionTrained  = "Trained"
+	ConditionModelled = "Modelled"
 	ConditionDeployed = "Deployed"
 )
 

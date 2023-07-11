@@ -57,7 +57,7 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader"}, &loaderJob)
 		assert.NoError(t, err, "getting the data loader job")
 	}, timeout, interval, "waiting for the data loader job to be created")
-	require.Equal(t, "loader", loaderJob.Spec.Template.Spec.Containers[0].Name)
+	require.Equal(t, "load", loaderJob.Spec.Template.Spec.Containers[0].Name)
 
 	fakeJobComplete(t, &loaderJob)
 

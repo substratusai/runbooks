@@ -26,44 +26,36 @@ func TestModelLoaderFromGit(t *testing.T) {
 		Spec: apiv1.ModelSpec{
 			Container: apiv1.Container{
 				Git: &apiv1.GitSource{
-					URL: "https://test.com/test/test.git",
+					URL: "https://test.internal/test/model-loader.git",
 				},
 			},
-			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
 
 	testContainerBuild(t, model)
 
-	// Test that a model loader Job gets created by the controller.
-	var job batchv1.Job
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Name + "-model-loader"}, &job)
-		assert.NoError(t, err, "getting the model loader job")
-	}, timeout, interval, "waiting for the image loader job to be created")
-	require.Equal(t, "loader", job.Spec.Template.Spec.Containers[0].Name)
-
+	testModelLoad(t, model)
 }
 
 func testModelLoad(t *testing.T, model *apiv1.Model) {
 	// Test that a container loader Job gets created by the controller.
 	var loaderJob batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName() + "-model-loader"}, &loaderJob)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName() + "-modeller"}, &loaderJob)
 		assert.NoError(t, err, "getting the model loader job")
 	}, timeout, interval, "waiting for the  model loader job to be created")
-	require.Equal(t, "loader", loaderJob.Spec.Template.Spec.Containers[0].Name)
+	require.Equal(t, "model", loaderJob.Spec.Template.Spec.Containers[0].Name)
 
 	fakeJobComplete(t, &loaderJob)
 
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionLoaded))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/trained/", model.UID), model.Status.URL)
+	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
 }
 
 func TestModelTrainerFromGit(t *testing.T) {
@@ -78,7 +70,6 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Container: apiv1.Container{
 				Image: "some-test-image",
 			},
-			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, baseModel), "create a model to be referenced by the trained model")
@@ -116,13 +107,11 @@ func TestModelTrainerFromGit(t *testing.T) {
 					URL: "https://test.com/test/test",
 				},
 			},
-			Trainer: &apiv1.ModelTrainer{
-				BaseModel: &apiv1.ObjectRef{
-					Name: baseModel.Name,
-				},
-				Dataset: apiv1.ObjectRef{
-					Name: dataset.Name,
-				},
+			BaseModel: &apiv1.ObjectRef{
+				Name: baseModel.Name,
+			},
+			TrainingDataset: &apiv1.ObjectRef{
+				Name: dataset.Name,
 			},
 		},
 	}
@@ -139,27 +128,27 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 	// Test that a model trainer ServiceAccount gets created by the controller.
 	var sa corev1.ServiceAccount
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "model-trainer"}, &sa)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "modeller"}, &sa)
 		assert.NoError(t, err, "getting the model trainer serviceaccount")
 	}, timeout, interval, "waiting for the model trainer serviceaccount to be created")
-	require.Equal(t, "substratus-model-trainer@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+	require.Equal(t, "substratus-modeller@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a trainer Job gets created by the controller.
 	var job batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Name + "-model-trainer"}, &job)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Name + "-modeller"}, &job)
 		assert.NoError(t, err, "getting the model training job")
 	}, timeout, interval, "waiting for the model training job to be created")
-	require.Equal(t, "trainer", job.Spec.Template.Spec.Containers[0].Name)
-	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Args, " "), "train.sh")
+	require.Equal(t, "model", job.Spec.Template.Spec.Containers[0].Name)
+	require.Contains(t, strings.Join(job.Spec.Template.Spec.Containers[0].Args, " "), "model.sh")
 
 	fakeJobComplete(t, &job)
 
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionTrained))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/trained/", model.UID), model.Status.URL)
+	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
 }

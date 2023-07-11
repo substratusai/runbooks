@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // DatasetSpec defines the desired state of Dataset.
@@ -15,8 +16,8 @@ type DatasetSpec struct {
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
 
-	// Loader configures the loading process.
-	Loader DatasetLoader `json:"loader,omitempty"`
+	// Params will be passed into the loading process as environment variables.
+	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
 func (d *Dataset) GetContainer() *Container {
@@ -35,16 +36,10 @@ func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
 }
 
-type DatasetLoader struct {
-	// Params will be passed into the loading process as environment variables.
-	// Environment variable name will be `"PARAM_" + uppercase(key)`.
-	Params map[string]string `json:"params,omitempty"`
-}
-
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ptr "k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,8 +64,8 @@ func parseBucketURL(bucketURL string) (string, string, error) {
 	return bucket, subpath, nil
 }
 
-func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, dataset *apiv1.Dataset) error {
-	bucket, subpath, err := parseBucketURL(dataset.Status.URL)
+func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, datasetURL string, readOnly bool) error {
+	bucket, subpath, err := parseBucketURL(datasetURL)
 	if err != nil {
 		return fmt.Errorf("parsing dataset url: %w", err)
 	}
@@ -87,20 +87,20 @@ func mountDataset(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, da
 		Name:      "data",
 		MountPath: "/data",
 		SubPath:   subpath,
-		ReadOnly:  true,
+		ReadOnly:  readOnly,
 	})
 
 	return nil
 }
 
-func mountSavedModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, savedModel *apiv1.Model) error {
-	bucket, subpath, err := parseBucketURL(savedModel.Status.URL)
+func mountModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, modelURL string, prefix string, readOnly bool) error {
+	bucket, subpath, err := parseBucketURL(modelURL)
 	if err != nil {
 		return fmt.Errorf("parsing dataset url: %w", err)
 	}
 
 	volumes = append(volumes, corev1.Volume{
-		Name: "saved-model",
+		Name: prefix + "model",
 		VolumeSource: corev1.VolumeSource{
 			CSI: &corev1.CSIVolumeSource{
 				Driver:   "gcsfuse.csi.storage.gke.io",
@@ -112,12 +112,20 @@ func mountSavedModel(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount,
 			},
 		},
 	})
-	volumeMounts = append(volumeMounts, corev1.VolumeMount{
-		Name:      "saved-model",
-		MountPath: "/model/saved",
-		SubPath:   subpath,
-		ReadOnly:  true,
-	})
+
+	volumeMounts = append(volumeMounts,
+		corev1.VolumeMount{
+			Name:      prefix + "model",
+			MountPath: "/" + prefix + "model/logs",
+			SubPath:   subpath + "/logs",
+		},
+		corev1.VolumeMount{
+			Name:      prefix + "model",
+			MountPath: "/" + prefix + "model/saved",
+			SubPath:   subpath + "/saved",
+			ReadOnly:  readOnly,
+		},
+	)
 
 	return nil
 }
@@ -154,11 +162,11 @@ func isPodReady(pod *corev1.Pod) bool {
 	return false
 }
 
-func paramsToEnv(params map[string]string) []corev1.EnvVar {
+func paramsToEnv(params map[string]intstr.IntOrString) []corev1.EnvVar {
 	envs := []corev1.EnvVar{}
 	// TODO(nstogner): Order by key to avoid randomness.
 	for k, v := range params {
-		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v})
+		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v.String()})
 	}
 	return envs
 }

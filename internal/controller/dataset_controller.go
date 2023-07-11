@@ -125,14 +125,14 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
-	env := append(paramsToEnv(dataset.Spec.Loader.Params),
+	env := append(paramsToEnv(dataset.Spec.Params),
 		corev1.EnvVar{
 			Name:  "DATA_PATH",
 			Value: "/data/" + dataset.Spec.Filename,
 		},
 	)
 
-	const loaderContainerName = "loader"
+	const containerName = "load"
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dataset.Name + "-data-loader",
@@ -143,7 +143,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"kubectl.kubernetes.io/default-container": loaderContainerName,
+						"kubectl.kubernetes.io/default-container": containerName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -155,7 +155,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  loaderContainerName,
+							Name:  containerName,
 							Image: dataset.Spec.Container.Image,
 							Args:  []string{"load.sh"},
 							Env:   env,
@@ -202,7 +202,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 		return nil, fmt.Errorf("setting owner reference: %w", err)
 	}
 
-	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, loaderContainerName,
+	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, containerName,
 		r.CloudContext.Name, dataset.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}

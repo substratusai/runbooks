@@ -26,7 +26,6 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Container: apiv1.Container{
 				Image: "some-image",
 			},
-			Loader: &apiv1.ModelLoader{},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the notebook")
