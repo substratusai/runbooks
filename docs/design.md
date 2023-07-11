@@ -115,12 +115,12 @@ User flow: Iterate on model training code
 
 1. `git clone https://substratusai/hf-llm-trainer && cd hf-llm-trainer`
 2. Modify Dockerfile
-2. Create a Notebook that mounts source model
-3. `kubectl open notebook notebook-training-experiment`
+3. Create a Notebook manifest and apply the Notebook CR mounting a source model
+4. `kubectl open notebook -f notebook-training-experiment` - the `kubectl` plugin does each of the following additional steps when `spec.container.local = true`
    * tar up directory respecting dockerignore
-   * Get GCS signed url from controller notebook status
+   * Get GCS signed url from controller notebook status 
    * upload to workspace.tar to signed URL
-3. Notebook automatically has all my local directory in the notebook when using the kubectl plugin
+5. Notebook automatically has the local directory contents in the notebook when using the `kubectl` plugin (via cp sync operations)
 
 ```yaml
 kind: Notebook
