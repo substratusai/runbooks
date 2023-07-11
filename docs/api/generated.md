@@ -16,6 +16,21 @@ Package v1 contains API Schema definitions for Substratus.
 
 ## Types
 
+### CPUResources
+
+
+
+
+
+_Appears in:_
+- [Resources](#resources)
+
+| Field | Description |
+| --- | --- |
+| `count` _integer_ | Count is the number of CPU cores. |
+| `memory` _integer_ | Memory is the amount of RAM in Gi. |
+
+
 ### Container
 
 
@@ -84,6 +99,7 @@ _Appears in:_
 | --- | --- |
 | `filename` _string_ | Filename is the name of the file when it is downloaded. |
 | `container` _[Container](#container)_ | Container that contains dataset loading code and dependencies. |
+| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `loader` _[DatasetLoader](#datasetloader)_ | Loader configures the loading process. |
 
 
@@ -101,6 +117,32 @@ _Appears in:_
 | `ready` _boolean_ | Ready indicates that the Dataset is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Dataset. |
 | `url` _string_ | URL of the loaded data. |
+
+
+### GPUResources
+
+
+
+
+
+_Appears in:_
+- [Resources](#resources)
+
+| Field | Description |
+| --- | --- |
+| `type` _[GPUType](#gputype)_ | Type of GPU. |
+| `count` _integer_ | Count is the number of GPUs. |
+
+
+### GPUType
+
+_Underlying type:_ `string`
+
+
+
+_Appears in:_
+- [GPUResources](#gpuresources)
+
 
 
 ### GitSource
@@ -182,6 +224,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `container` _[Container](#container)_ | Container that contains model serving application and dependencies. |
+| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
 
 
@@ -212,6 +255,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `container` _[Container](#container)_ | Container that contains model code and dependencies. |
+| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `loader` _[ModelLoader](#modelloader)_ | Loader should be set to run a loading job. Cannot also be set with Trainer. |
 | `trainer` _[ModelTrainer](#modeltrainer)_ | Trainer should be set to run a training job. Cannot also be set with Loader. |
 
@@ -283,8 +327,9 @@ _Appears in:_
 | --- | --- |
 | `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. |
 | `container` _[Container](#container)_ |  |
-| `model` _[ObjectRef](#objectref)_ |  |
-| `dataset` _[ObjectRef](#objectref)_ |  |
+| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
+| `model` _[ObjectRef](#objectref)_ | Model to load into the notebook container. |
+| `dataset` _[ObjectRef](#objectref)_ | Dataset to load into the notebook container. |
 
 
 ### NotebookStatus
@@ -316,5 +361,23 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | Name of Kubernetes object. |
+
+
+### Resources
+
+
+
+
+
+_Appears in:_
+- [DatasetSpec](#datasetspec)
+- [ModelServerSpec](#modelserverspec)
+- [ModelSpec](#modelspec)
+- [NotebookSpec](#notebookspec)
+
+| Field | Description |
+| --- | --- |
+| `cpu` _[CPUResources](#cpuresources)_ |  |
+| `gpu` _[GPUResources](#gpuresources)_ |  |
 
 

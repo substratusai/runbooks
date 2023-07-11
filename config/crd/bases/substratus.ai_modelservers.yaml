@@ -18,7 +18,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+    - jsonPath: .status.ready
       name: Ready
       type: string
     - jsonPath: .status.conditions[?(@.type=='Ready')].reason
@@ -79,6 +79,31 @@ spec:
                     type: string
                 required:
                 - name
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    properties:
+                      count:
+                        description: Count is the number of CPU cores.
+                        format: int64
+                        type: integer
+                      memory:
+                        description: Memory is the amount of RAM in Gi.
+                        format: int64
+                        type: integer
+                    type: object
+                  gpu:
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
                 type: object
             required:
             - container

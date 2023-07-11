@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/resources"
 )
 
 // NotebookReconciler reconciles a Notebook object.
@@ -247,6 +248,11 @@ func (r *NotebookReconciler) notebookPod(nb *apiv1.Notebook, model *apiv1.Model)
 
 	if err := ctrl.SetControllerReference(nb, pod, r.Scheme); err != nil {
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
+	}
+
+	if err := resources.Apply(&pod.ObjectMeta, &pod.Spec, notebookContainerName,
+		r.CloudContext.Name, nb.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
 	return pod, nil

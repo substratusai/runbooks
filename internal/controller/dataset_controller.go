@@ -17,6 +17,7 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
+	"github.com/substratusai/substratus/internal/resources"
 )
 
 // DatasetReconciler reconciles a Dataset object.
@@ -124,6 +125,13 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
+	env := append(paramsToEnv(dataset.Spec.Loader.Params),
+		corev1.EnvVar{
+			Name:  "DATA_PATH",
+			Value: "/data/" + dataset.Spec.Filename,
+		},
+	)
+
 	const loaderContainerName = "loader"
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -150,12 +158,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 							Name:  loaderContainerName,
 							Image: dataset.Spec.Container.Image,
 							Args:  []string{"load.sh"},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "LOAD_DATA_PATH",
-									Value: "/data/" + dataset.Spec.Filename,
-								},
-							},
+							Env:   env,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "data",
@@ -197,6 +200,11 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
 		return nil, fmt.Errorf("setting owner reference: %w", err)
+	}
+
+	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, loaderContainerName,
+		r.CloudContext.Name, dataset.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
 	return job, nil

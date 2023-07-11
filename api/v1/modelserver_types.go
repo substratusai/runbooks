@@ -9,6 +9,9 @@ type ModelServerSpec struct {
 	// Container that contains model serving application and dependencies.
 	Container Container `json:"container"`
 
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
 	// Model references the Model object to be served.
 	Model ObjectRef `json:"model,omitempty"`
 }
@@ -25,7 +28,7 @@ type ModelServerStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
 //+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 
 // The ModelServer API is used to deploy a server that exposes the capabilities of a Model

@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/resources"
 )
 
 const (
@@ -161,6 +162,12 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 	if err := ctrl.SetControllerReference(server, deploy, r.Scheme); err != nil {
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
+
+	if err := resources.Apply(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, serverContainerName,
+		r.CloudContext.Name, server.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
+	}
+
 	return deploy, nil
 }
 

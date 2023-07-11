@@ -4,6 +4,7 @@ metadata:
   name: squad
 spec:
   filename: all.jsonl
-  source:
+  container:
     git:
       url: https://github.com/substratusai/dataset-squad
+      branch: nick-refactor

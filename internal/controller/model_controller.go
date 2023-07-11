@@ -23,6 +23,7 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
+	"github.com/substratusai/substratus/internal/resources"
 )
 
 // ModelReconciler reconciles a Model object.
@@ -412,6 +413,11 @@ func (r *ModelReconciler) loaderJob(ctx context.Context, model *apiv1.Model) (*b
 		return nil, fmt.Errorf("setting owner reference: %w", err)
 	}
 
+	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, loaderContainerName,
+		r.CloudContext.Name, model.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
+	}
+
 	return job, nil
 }
 
@@ -526,6 +532,11 @@ func (r *ModelReconciler) trainerJob(ctx context.Context, model, baseModel *apiv
 
 	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {
 		return nil, fmt.Errorf("setting owner reference: %w", err)
+	}
+
+	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, trainerContainerName,
+		r.CloudContext.Name, model.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
 	return job, nil

@@ -11,7 +11,13 @@ type NotebookSpec struct {
 
 	Container Container `json:"container,omitempty"`
 
-	Model   *ObjectRef `json:"model,omitempty"`
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
+	// Model to load into the notebook container.
+	Model *ObjectRef `json:"model,omitempty"`
+
+	// Dataset to load into the notebook container.
 	Dataset *ObjectRef `json:"dataset,omitempty"`
 }
 
@@ -46,7 +52,7 @@ type NotebookStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
 //+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 
 // The Notebook API can be used to quickly spin up a development environment backed by high performance compute.

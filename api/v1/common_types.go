@@ -25,3 +25,29 @@ type ObjectRef struct {
 	// FUTURE: Possibly allow for cross-namespace references.
 	// FUTURE: Possibly allow for cross-cluster references.
 }
+
+type Resources struct {
+	CPU *CPUResources `json:"cpu,omitempty"`
+	GPU *GPUResources `json:"gpu,omitempty"`
+}
+
+type CPUResources struct {
+	// Count is the number of CPU cores.
+	Count int64 `json:"count,omitempty"`
+	// Memory is the amount of RAM in Gi.
+	Memory int64 `json:"memory,omitempty"`
+}
+
+type GPUType string
+
+const (
+	GPUTypeNvidiaTeslaT4 = GPUType("nvidia-tesla-t4")
+	GPUTypeNvidiaL4      = GPUType("nvidia-l4")
+)
+
+type GPUResources struct {
+	// Type of GPU.
+	Type GPUType `json:"type,omitempty"`
+	// Count is the number of GPUs.
+	Count int64 `json:"count,omitempty"`
+}

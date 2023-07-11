@@ -9,6 +9,9 @@ type ModelSpec struct {
 	// Container that contains model code and dependencies.
 	Container Container `json:"container"`
 
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
 	// Loader should be set to run a loading job. Cannot also be set with Trainer.
 	Loader *ModelLoader `json:"loader,omitempty"`
 
@@ -85,7 +88,7 @@ type ModelStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
 //+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 
 // The Model API is used to build and train machine learning models.

@@ -12,6 +12,9 @@ type DatasetSpec struct {
 	// Container that contains dataset loading code and dependencies.
 	Container Container `json:"container"`
 
+	// Resources are the compute resources required by the container.
+	Resources *Resources `json:"resources,omitempty"`
+
 	// Loader configures the loading process.
 	Loader DatasetLoader `json:"loader,omitempty"`
 }
@@ -53,7 +56,7 @@ type DatasetStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
 //+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 
 // The Dataset API is used to describe data that can be referenced for training Models.

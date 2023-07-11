@@ -1,0 +1,12 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: facebook-opt-125m
+spec:
+  container:
+    git:
+      url: https://github.com/substratusai/model-loader-huggingface
+      branch: nick-refactor
+  loader:
+    params:
+      name: facebook/opt-125m
