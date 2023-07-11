@@ -16,17 +16,13 @@ kubectl open notebook -f notebook.yaml
 
 ### Installation
 
-Clone the repo:
+Release binaries are created for most architectures when the repo is tagged.
+[Identify the release](https://github.com/substratusai/substratus/releases) you
+want to use and replace the value of RELEASE in the command below:
 
 ```sh
-git clone https://github.com/substratusai/substratus && cd substratus
-```
-
-Install the binary:
-
-```sh
-go build ./kubectl/open-notebook
-sudo mv open-notebook /usr/local/bin/kubectl-open-notebook
+RELEASE="v0.4.0-alpha" wget -qO- $(uname -sm | awk -v release="$RELEASE" '{print "https://github.com/substratusai/substratus/releases/download/" release "/kubectl-open-notebook_" $1 "_" $2 ".tar.gz"}') | tar zxv && \
+sudo mv kubectl-open-notebook /usr/local/bin/
 ```
 
 If the plugin installed correctly, you should see it listed as a `kubectl plugin`:
