@@ -4,7 +4,8 @@
 
 `kubectl open notebook`
 
-Starts and opens a Jupyter Notebook in the user's browser. Will suspend the Notebook (delete the running Pod) upon cancelling the command.
+Starts and opens a Jupyter Notebook in the user's browser. Will suspend the
+Notebook (delete the running Pod) upon cancelling the command.
 
 Examples:
 
@@ -17,9 +18,9 @@ kubectl open notebook -f notebook.yaml
 ### Installation
 
 Release binaries are created for most architectures when the repo is tagged.
-[Identify the release](https://github.com/substratusai/substratus/releases) you
-want to use and replace the value of RELEASE in the command below. Note, moving
-the binary to your path :
+Be aware that moving the binary to your PATH might fail due to permissions
+(observed on mac). If it fails, the script will retry the `mv` with `sudo` and
+prompt you for your password:
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/substratusai/substratus/main/hack/install_kubectl_plugin.sh)"
