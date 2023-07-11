@@ -76,7 +76,7 @@ type ModelTrainer struct {
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -88,8 +88,7 @@ type ModelStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The Model API is used to build and train machine learning models.
 //

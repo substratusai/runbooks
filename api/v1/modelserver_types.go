@@ -19,7 +19,7 @@ type ModelServerSpec struct {
 // ModelServerStatus defines the observed state of ModelServer
 type ModelServerStatus struct {
 	// Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the ModelServer.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -28,8 +28,7 @@ type ModelServerStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The ModelServer API is used to deploy a server that exposes the capabilities of a Model
 // via a HTTP interface.

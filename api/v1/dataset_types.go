@@ -44,7 +44,7 @@ type DatasetLoader struct {
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -56,8 +56,7 @@ type DatasetStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The Dataset API is used to describe data that can be referenced for training Models.
 //

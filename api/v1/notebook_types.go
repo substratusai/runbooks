@@ -43,7 +43,7 @@ func (n *Notebook) SetStatusReady(r bool) {
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
 	// Ready indicates that the Notebook is ready to serve. See Conditions for more details.
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -52,8 +52,7 @@ type NotebookStatus struct {
 //+kubebuilder:resource:categories=ai
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
-//+kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
 // The Notebook API can be used to quickly spin up a development environment backed by high performance compute.
 //

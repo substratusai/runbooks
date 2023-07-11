@@ -20,10 +20,7 @@ spec:
   - additionalPrinterColumns:
     - jsonPath: .status.ready
       name: Ready
-      type: string
-    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
-      name: Condition
-      type: string
+      type: boolean
     name: v1
     schema:
       openAPIV3Schema:
@@ -88,17 +85,19 @@ spec:
                 description: Resources are the compute resources required by the container.
                 properties:
                   cpu:
+                    description: CPU resources.
                     properties:
                       count:
                         description: Count is the number of CPU cores.
                         format: int64
                         type: integer
                       memory:
-                        description: Memory is the amount of RAM in Gi.
+                        description: Memory is the amount of RAM in Gigabytes.
                         format: int64
                         type: integer
                     type: object
                   gpu:
+                    description: GPU resources.
                     properties:
                       count:
                         description: Count is the number of GPUs.
@@ -252,6 +251,8 @@ spec:
               url:
                 description: URL of model artifacts.
                 type: string
+            required:
+            - ready
             type: object
         type: object
     served: true
