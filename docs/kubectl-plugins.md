@@ -14,10 +14,23 @@ kubectl open notebook -n my-namespace my-nb-name
 kubectl open notebook -f notebook.yaml
 ```
 
-Install with:
+### Installation
+
+Clone the repo:
 
 ```sh
-# TODO: Install from GitHub release.
-go build ./kubectl/open-notebook && mv open-notebook /usr/local/bin/kubectl-open-notebook
+git clone https://github.com/substratusai/substratus && cd substratus
 ```
 
+Install the binary:
+
+```sh
+go build ./kubectl/open-notebook
+sudo mv open-notebook /usr/local/bin/kubectl-open-notebook
+```
+
+If the plugin installed correctly, you should see it listed as a `kubectl plugin`:
+
+```sh
+kubectl plugin list 2>/dev/null | grep kubectl-open-notebook
+```
