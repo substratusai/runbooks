@@ -18,11 +18,11 @@ kubectl open notebook -f notebook.yaml
 
 Release binaries are created for most architectures when the repo is tagged.
 [Identify the release](https://github.com/substratusai/substratus/releases) you
-want to use and replace the value of RELEASE in the command below:
+want to use and replace the value of RELEASE in the command below. Note, moving
+the binary to your path :
 
 ```sh
-RELEASE="v0.4.0-alpha" wget -qO- $(uname -sm | awk -v release="$RELEASE" '{print "https://github.com/substratusai/substratus/releases/download/" release "/kubectl-open-notebook_" $1 "_" $2 ".tar.gz"}') | tar zxv && \
-sudo mv kubectl-open-notebook /usr/local/bin/
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/substratusai/substratus/main/hack/install_kubectl_plugin.sh)"
 ```
 
 If the plugin installed correctly, you should see it listed as a `kubectl plugin`:
