@@ -3,6 +3,8 @@ before:
   hooks:
     - go mod tidy
     - go generate ./...
+release:
+  prerelease: "true"
 builds:
   - main: ./kubectl/open-notebook/
     env:
