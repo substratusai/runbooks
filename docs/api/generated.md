@@ -28,7 +28,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `count` _integer_ | Count is the number of CPU cores. |
-| `memory` _integer_ | Memory is the amount of RAM in Gi. |
+| `memory` _integer_ | Memory is the amount of RAM in Gigabytes. |
 
 
 ### Container
@@ -377,7 +377,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `cpu` _[CPUResources](#cpuresources)_ |  |
-| `gpu` _[GPUResources](#gpuresources)_ |  |
+| `cpu` _[CPUResources](#cpuresources)_ | CPU resources. |
+| `gpu` _[GPUResources](#gpuresources)_ | GPU resources. |
 
 

@@ -27,14 +27,16 @@ type ObjectRef struct {
 }
 
 type Resources struct {
+	// CPU resources.
 	CPU *CPUResources `json:"cpu,omitempty"`
+	// GPU resources.
 	GPU *GPUResources `json:"gpu,omitempty"`
 }
 
 type CPUResources struct {
 	// Count is the number of CPU cores.
 	Count int64 `json:"count,omitempty"`
-	// Memory is the amount of RAM in Gi.
+	// Memory is the amount of RAM in Gigabytes.
 	Memory int64 `json:"memory,omitempty"`
 }
 
