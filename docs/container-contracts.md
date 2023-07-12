@@ -46,7 +46,7 @@ The following parameters are communicated through environment variables when `tr
 
 | Environment Variable | Source                                     |
 | -------------------- | ------------------------------------------ |
-| `TRAIN_DATA_PATH`    | Dataset (`/data/` + `.spec.filename`)      |  
+| `TRAIN_DATA_PATH`    | Dataset (`/data/` + `.spec.filename`)      |
 | `TRAIN_DATA_LIMIT`   | Model (`.spec.training.params.dataLimit`)  |
 | `TRAIN_BATCH_SIZE`   | Model (`.spec.training.params.batchSize`)  |
 | `TRAIN_EPOCHS`       | Model (`.spec.training.params.epochs`)     |
@@ -71,7 +71,7 @@ Must be located in `$PATH`:
 
 ### Directory Structure
 
-```
+```sh
 /dataset/  # Working directory
   src/     # Data loading source code
   logs/    # Output of data loading jobs for debugging purposes
