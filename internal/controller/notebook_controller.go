@@ -293,6 +293,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	var volumes []corev1.Volume
 	var volumeMounts []corev1.VolumeMount
 
+	env := []corev1.EnvVar{}
 	annotations := map[string]string{}
 
 	if model != nil {
@@ -304,6 +305,12 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := mountDataset(annotations, &volumes, &volumeMounts, dataset.Status.URL, true); err != nil {
 			return nil, fmt.Errorf("appending dataset volume: %w", err)
 		}
+		env = append(env,
+			corev1.EnvVar{
+				Name:  "DATA_PATH",
+				Value: "/data/" + dataset.Spec.Filename,
+			})
+
 	}
 
 	const containerName = "notebook"
@@ -332,6 +339,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Command: notebook.Spec.Command,
+					Env:     env,
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
@@ -347,6 +355,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 							},
 						},
 					},
+
 					VolumeMounts: volumeMounts,
 					//VolumeMounts: []corev1.VolumeMount{
 					//	{
