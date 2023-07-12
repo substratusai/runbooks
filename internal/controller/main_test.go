@@ -2,16 +2,24 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,14 +27,16 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
 const (
-	timeout  = time.Second * 10
+	timeout  = time.Second * 5
 	interval = time.Second / 10
 )
 
@@ -68,42 +78,64 @@ func TestMain(m *testing.M) {
 		MetricsBindAddress: "0",
 	})
 	requireNoError(err)
+	requireNoError(controller.SetupIndexes(mgr))
 
-	cloudContext := &controller.CloudContext{
-		CloudType: controller.CloudTypeGCP,
-		GCP: &controller.GCPCloudContext{
+	cloudContext := &cloud.Context{
+		Name: cloud.GCP,
+		GCP: &cloud.GCPContext{
 			ProjectID:       "test-project-id",
 			ClusterName:     "test-cluster-name",
 			ClusterLocation: "us-central1",
 		},
 	}
 
-	runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
-	requireNoError(err)
+	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
+	//requireNoError(err)
 
 	err = (&controller.ModelReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		CloudContext:   cloudContext,
-		RuntimeManager: runtimeMgr,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		CloudContext: cloudContext,
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Model",
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.ModelServerReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		RuntimeManager: runtimeMgr,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "ModelServer",
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.NotebookReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		RuntimeManager: runtimeMgr,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Notebook",
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		CloudContext: cloudContext,
+		ContainerImageReconciler: &controller.ContainerImageReconciler{
+			Scheme:       mgr.GetScheme(),
+			Client:       mgr.GetClient(),
+			CloudContext: cloudContext,
+			Kind:         "Dataset",
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 
@@ -142,4 +174,70 @@ func slurpTestFile(t *testing.T, filename string) string {
 	require.NoError(t, err)
 
 	return string(contents)
+}
+
+type testObject interface {
+	client.Object
+	GetConditions() *[]metav1.Condition
+	GetStatusReady() bool
+	SetStatusReady(bool)
+	GetImage() *apiv1.Image
+}
+
+func testContainerBuild(t *testing.T, obj testObject, kind string) {
+	var sa corev1.ServiceAccount
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: "container-builder"}, &sa)
+		assert.NoError(t, err, "getting the container builder serviceaccount")
+	}, timeout, interval, "waiting for the container builder serviceaccount to be created")
+	require.Equal(t, "substratus-container-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+
+	// Test that a container builder Job gets created by the controller.
+	var builderJob batchv1.Job
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-container-builder"}, &builderJob)
+		assert.NoError(t, err, "getting the container builder job")
+	}, timeout, interval, "waiting for the container builder job to be created")
+	require.Equal(t, "builder", builderJob.Spec.Template.Spec.Containers[0].Name)
+
+	fakeJobComplete(t, &builderJob)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, obj)
+		assert.NoError(t, err, "getting object")
+		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionBuilt))
+	}, timeout, interval, "waiting for the container to be ready")
+}
+
+func fakeJobComplete(t *testing.T, job *batchv1.Job) {
+	updated := job.DeepCopy()
+	updated.Status.Succeeded = 1
+	require.NoError(t, k8sClient.Status().Patch(ctx, updated, client.MergeFrom(job)), "patching the job with completed count")
+}
+
+func fakePodReady(t *testing.T, pod *corev1.Pod) {
+	updated := pod.DeepCopy()
+	updated.Status.Phase = corev1.PodRunning
+	updated.Status.Conditions = append(updated.Status.Conditions, corev1.PodCondition{
+		Type:   corev1.PodReady,
+		Status: corev1.ConditionTrue,
+	})
+	require.NoError(t, k8sClient.Status().Patch(ctx, updated, client.MergeFrom(pod)), "patching the pod with ready status")
+}
+
+func debugObject(t *testing.T, obj client.Object) func() {
+	return func() {
+		if !t.Failed() {
+			return
+		}
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj)
+		if err != nil {
+			fmt.Printf("TEST DEBUG: Error getting object: %v\n", err)
+		}
+		pretty, err := json.MarshalIndent(obj, "", "    ")
+		if err != nil {
+			fmt.Printf("TEST DEBUG: Marshalling object: %v\n", err)
+		}
+		fmt.Printf("TEST DEBUG: %T: %v\n", obj, string(pretty))
+	}
 }

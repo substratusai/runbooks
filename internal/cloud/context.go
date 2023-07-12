@@ -1,4 +1,4 @@
-package controller
+package cloud
 
 import (
 	"fmt"
@@ -10,19 +10,19 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// CloudContext carries information about the cloud the controller is running in.
-type CloudContext struct {
-	CloudType CloudType
-	GCP       *GCPCloudContext
+// Context carries information about the cloud the controller is running in.
+type Context struct {
+	Name Name
+	GCP  *GCPContext
 }
 
-type GCPCloudContext struct {
+type GCPContext struct {
 	ProjectID       string `envconfig:"PROJECT_ID" required:"true"`
 	ClusterName     string `envconfig:"CLUSTER_NAME" required:"true"`
 	ClusterLocation string `envconfig:"CLUSTER_LOCATION" required:"true"`
 }
 
-func (gcp *GCPCloudContext) Region() string {
+func (gcp *GCPContext) Region() string {
 	split := strings.Split(gcp.ClusterLocation, "-")
 	if len(split) < 2 {
 		panic("invalid cluster location: " + gcp.ClusterLocation)
@@ -30,19 +30,19 @@ func (gcp *GCPCloudContext) Region() string {
 	return strings.Join(split[:2], "-")
 }
 
-func ConfigureCloud() (*CloudContext, error) {
+func NewContext() (*Context, error) {
 	// If CLOUD is set, then pull configuration from environment variables.
 	envCloud, ok := os.LookupEnv("CLOUD")
 	if ok {
-		switch CloudType(envCloud) {
-		case CloudTypeGCP:
-			var gcp GCPCloudContext
+		switch Name(envCloud) {
+		case GCP:
+			var gcp GCPContext
 			if err := envconfig.Process("GCP", &gcp); err != nil {
 				return nil, fmt.Errorf("failed to process GCP environment variables: %w", err)
 			}
-			return &CloudContext{
-				CloudType: CloudTypeGCP,
-				GCP:       &gcp,
+			return &Context{
+				Name: GCP,
+				GCP:  &gcp,
 			}, nil
 		default:
 			return nil, fmt.Errorf("unsupported cloud: %s", envCloud)
@@ -50,23 +50,23 @@ func ConfigureCloud() (*CloudContext, error) {
 	}
 
 	if metadata.OnGCE() {
-		gcp, err := lookupGCPCloudContext()
+		gcp, err := lookupGCPContext()
 		if err != nil {
 			return nil, fmt.Errorf("looking up in cluster cloud context: %w", err)
 		}
-		return &CloudContext{
-			CloudType: CloudTypeGCP,
-			GCP:       gcp,
+		return &Context{
+			Name: GCP,
+			GCP:  gcp,
 		}, nil
 	}
 
 	return nil, fmt.Errorf("unable to determine cloud")
 }
 
-func lookupGCPCloudContext() (*GCPCloudContext, error) {
+func lookupGCPContext() (*GCPContext, error) {
 	md := metadata.NewClient(&http.Client{})
 
-	var c GCPCloudContext
+	var c GCPContext
 
 	var err error
 	c.ProjectID, err = md.ProjectID()

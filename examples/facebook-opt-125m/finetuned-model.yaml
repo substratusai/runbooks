@@ -1,16 +1,18 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: fb-opt-125m-k8s-instructions
+  name: fb-opt-125m-squad
 spec:
-  source:
-    modelName: facebook-opt-125m
-  training:
-    datasetName: k8s-instructions
-    params:
-      epochs: 1
-  size:
-    parameterBits: 32
-    parameterCount: 125000000
-  compute:
-    types: ["CPU", "GPU"]
+  container:
+    git:
+      url: https://github.com/substratusai/model-trainer-huggingface
+  trainer:
+    model:
+      name: facebook-opt-125m
+    dataset:
+      name: squad
+    epochs: 1
+  resources:
+    cpu:
+      count: 4
+      memory: 4

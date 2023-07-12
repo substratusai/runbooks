@@ -6,21 +6,18 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ptr "k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-)
-
-const (
-	ReasonLoading = "Loading"
-	ReasonLoaded  = "Loaded"
+	"github.com/substratusai/substratus/internal/cloud"
+	"github.com/substratusai/substratus/internal/resources"
 )
 
 // DatasetReconciler reconciles a Dataset object.
@@ -28,136 +25,34 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	CloudContext *CloudContext
+	*ContainerImageReconciler
+
+	CloudContext *cloud.Context
 }
 
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	lg.Info("Reconciling Dataset")
-	defer lg.Info("Done reconciling Dataset")
+	log.Info("Reconciling Dataset")
+	defer log.Info("Done reconciling Dataset")
 
 	var dataset apiv1.Dataset
 	if err := r.Get(ctx, req.NamespacedName, &dataset); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// TODO(nstogner): Consider checking if the dataset is already loaded to the bucket instead of just
-	// checking the status.
-	if ready := meta.FindStatusCondition(dataset.Status.Conditions, ConditionReady); ready != nil && ready.Status == metav1.ConditionTrue {
-		return ctrl.Result{}, nil
+	if result, err := r.ReconcileContainerImage(ctx, &dataset); !result.success {
+		return result.Result, err
 	}
 
-	// Service account used for building and pushing the loader image.
-	bldrSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataLoaderBuilderServiceAccountName,
-			Namespace: dataset.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, bldrSA, func() error {
-		return r.authNServiceAccount(bldrSA)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
-	}
-
-	// Service account used for loading the data.
-	loaderSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dataLoaderServiceAccountName,
-			Namespace: dataset.Namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, loaderSA, func() error {
-		return r.authNServiceAccount(loaderSA)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create or update service account: %w", err)
-	}
-
-	// The Job that will build the data-loader container image.
-	buildJob, err := r.buildJob(ctx, &dataset)
-	if err != nil {
-		lg.Error(err, "unable to construct image-builder Job")
-		// No use in retrying...
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
-		if apierrors.IsNotFound(err) {
-			if err := r.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-				return ctrl.Result{}, fmt.Errorf("creating image-builder Job: %w", err)
-			}
-		} else {
-			return ctrl.Result{}, fmt.Errorf("getting image-builder Job: %w", err)
-		}
-	}
-
-	if buildJob.Status.Succeeded < 1 {
-		lg.Info("The image-builder Job has not succeeded yet")
-
-		meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-			Type:               ConditionReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             ReasonBuilding,
-			ObservedGeneration: dataset.Generation,
-			Message:            fmt.Sprintf("Waiting for image-builder Job to complete: %v", buildJob.Name),
-		})
-		if err := r.Status().Update(ctx, &dataset); err != nil {
-			return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonBuilding, err)
-		}
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
-	}
-
-	// Job that will run the data-loader image that was built by the previous Job.
-	loadJob, err := r.loadJob(ctx, &dataset)
-	if err != nil {
-		lg.Error(err, "unable to construct data-loader Job")
-		// No use in retrying...
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Create(ctx, loadJob); client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("creating Job: %w", err)
-	}
-
-	meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionFalse,
-		Reason:             ReasonLoading,
-		ObservedGeneration: dataset.Generation,
-		Message:            fmt.Sprintf("Waiting for data-loader Job to complete: %v", loadJob.Name),
-	})
-	if err := r.Status().Update(ctx, &dataset); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionFalse, ReasonLoading, err)
-	}
-
-	if err := r.Get(ctx, client.ObjectKeyFromObject(loadJob), loadJob); err != nil {
-		return ctrl.Result{}, fmt.Errorf("geting Job: %w", err)
-	}
-	if loadJob.Status.Succeeded < 1 {
-		lg.Info("Job has not succeeded yet")
-
-		// Allow Job watch to requeue.
-		return ctrl.Result{}, nil
-	}
-
-	meta.SetStatusCondition(&dataset.Status.Conditions, metav1.Condition{
-		Type:               ConditionReady,
-		Status:             metav1.ConditionTrue,
-		Reason:             ReasonLoaded,
-		ObservedGeneration: dataset.Generation,
-	})
-
-	if err := r.Status().Update(ctx, &dataset); err != nil {
-		return ctrl.Result{}, fmt.Errorf("updating status with Ready=%v, Reason=%v: %w", metav1.ConditionTrue, ReasonLoaded, err)
+	if result, err := r.reconcileData(ctx, &dataset); !result.success {
+		return result.Result, err
 	}
 
 	return ctrl.Result{}, nil
@@ -171,155 +66,73 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-const (
-	dataLoaderServiceAccountName        = "data-loader"
-	dataLoaderBuilderServiceAccountName = "data-loader-builder"
-)
+func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
+	log := log.FromContext(ctx)
 
-func (r *DatasetReconciler) authNServiceAccount(sa *corev1.ServiceAccount) error {
-	if sa.Annotations == nil {
-		sa.Annotations = make(map[string]string)
-	}
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
-		sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.GetName(), r.CloudContext.GCP.ProjectID)
-	default:
-		return fmt.Errorf("unsupported cloud type: %q", r.CloudContext.CloudType)
-	}
-	return nil
-}
-
-func (r *DatasetReconciler) buildJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
-
-	var job *batchv1.Job
-
-	annotations := map[string]string{}
-
-	buildArgs := []string{
-		"--dockerfile=Dockerfile",
-		"--destination=" + r.loaderImage(dataset),
-		// Cache will default to the image registry.
-		"--cache=true",
-		// Disable compressed caching to decrease memory usage.
-		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
-		"--compressed-caching=false",
-		"--log-format=text",
+	if dataset.Status.URL != "" {
+		return result{success: true}, nil
 	}
 
-	var initContainers []corev1.Container
-	var volumeMounts []corev1.VolumeMount
-	var volumes []corev1.Volume
-
-	const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
-	cloneArgs := []string{
-		"clone",
-		dataset.Spec.Source.Git.URL,
-	}
-	if dataset.Spec.Source.Git.Branch != "" {
-		cloneArgs = append(cloneArgs, "--branch", dataset.Spec.Source.Git.Branch)
-	}
-	cloneArgs = append(cloneArgs, "/workspace")
-
-	if dataset.Spec.Source.Git.Path != "" {
-		buildArgs = append(buildArgs, "--context-sub-path="+dataset.Spec.Source.Git.Path)
-	}
-
-	// Add an init container that will clone the Git repo and
-	// another that will append tini to the Dockerfile.
-	initContainers = append(initContainers,
-		corev1.Container{
-			Name:  "git-clone",
-			Image: "alpine/git",
-			Args:  cloneArgs,
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		},
-		corev1.Container{
-			Name:  "dockerfile-tini-appender",
-			Image: "busybox",
-			Args: []string{
-				"sh",
-				"-c",
-				"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		},
-	)
-
-	volumeMounts = []corev1.VolumeMount{
-		{
-			Name:      "workspace",
-			MountPath: "/workspace",
-		},
-	}
-	volumes = []corev1.Volume{
-		{
-			Name: "workspace",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-	}
-
-	const builderContainerName = "loader-builder"
-	annotations["kubectl.kubernetes.io/default-container"] = builderContainerName
-	job = &batchv1.Job{
+	// ServiceAccount for the loader job.
+	// Within the context of GCP, this ServiceAccount will need IAM permissions
+	// to write the GCS bucket containing training data.
+	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: dataset.Name + "-data-loader-builder",
-			// Cross-Namespace owners not allowed, must be same as dataset:
+			Name:      dataLoaderServiceAccountName,
 			Namespace: dataset.Namespace,
 		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: int32Ptr(1),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: annotations,
-				},
-				Spec: corev1.PodSpec{
-					InitContainers: initContainers,
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  int64Ptr(0),
-						RunAsGroup: int64Ptr(0),
-						FSGroup:    int64Ptr(3003),
-					},
-					ServiceAccountName: dataLoaderBuilderServiceAccountName,
-					Containers: []corev1.Container{{
-						Name:         builderContainerName,
-						Image:        "gcr.io/kaniko-project/executor:latest",
-						Args:         buildArgs,
-						VolumeMounts: volumeMounts,
-					}},
-					RestartPolicy: "Never",
-					Volumes:       volumes,
-				},
-			},
-		},
+	}); !result.success {
+		return result, err
 	}
 
-	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
-		return nil, fmt.Errorf("setting owner reference: %w", err)
+	// Job that will run the data-loader image that was built by the previous Job.
+	loadJob, err := r.loadJob(ctx, dataset)
+	if err != nil {
+		log.Error(err, "unable to construct data-loader Job")
+		// No use in retrying...
+		return result{}, nil
 	}
 
-	return job, nil
+	dataset.Status.Ready = false
+	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionFalse,
+		Reason:             apiv1.ReasonJobNotComplete,
+		ObservedGeneration: dataset.Generation,
+		Message:            fmt.Sprintf("Waiting for data loader Job to complete"),
+	})
+	if err := r.Status().Update(ctx, dataset); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	if result, err := reconcileJob(ctx, r.Client, dataset, loadJob, apiv1.ConditionLoaded); !result.success {
+		return result, err
+	}
+
+	dataset.Status.Ready = true
+	dataset.Status.URL = r.datasetStatusURL(dataset)
+	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+		Type:               apiv1.ConditionLoaded,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonJobComplete,
+		ObservedGeneration: dataset.Generation,
+	})
+	if err := r.Status().Update(ctx, dataset); err != nil {
+		return result{}, fmt.Errorf("updating status: %w", err)
+	}
+
+	return result{success: true}, nil
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
-	const loaderContainerName = "loader"
+	env := append(paramsToEnv(dataset.Spec.Params),
+		corev1.EnvVar{
+			Name:  "DATA_PATH",
+			Value: "/data/" + dataset.Spec.Filename,
+		},
+	)
+
+	const containerName = "load"
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dataset.Name + "-data-loader",
@@ -330,27 +143,22 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"kubectl.kubernetes.io/default-container": loaderContainerName,
+						"kubectl.kubernetes.io/default-container": containerName,
 					},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  int64Ptr(1001),
-						RunAsGroup: int64Ptr(2002),
-						FSGroup:    int64Ptr(3003),
+						RunAsUser:  ptr.Int64(1001),
+						RunAsGroup: ptr.Int64(2002),
+						FSGroup:    ptr.Int64(3003),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  loaderContainerName,
-							Image: r.loaderImage(dataset),
-							Args:  []string{"load.sh"},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "LOAD_DATA_PATH",
-									Value: "/data/" + dataset.Spec.Filename,
-								},
-							},
+							Name:    containerName,
+							Image:   dataset.Spec.Image.Name,
+							Command: dataset.Spec.Command,
+							Env:     env,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "data",
@@ -372,8 +180,8 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 		},
 	}
 
-	switch r.CloudContext.CloudType {
-	case CloudTypeGCP:
+	switch r.CloudContext.Name {
+	case cloud.GCP:
 		// GKE will injects GCS Fuse sidecar based on this annotation.
 		job.Spec.Template.Annotations["gke-gcsfuse/volumes"] = "true"
 		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
@@ -388,23 +196,21 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 			},
 		})
-		dataset.Status.URL = "gcs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
-			"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 	}
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
 		return nil, fmt.Errorf("setting owner reference: %w", err)
 	}
 
+	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, containerName,
+		r.CloudContext.Name, dataset.Spec.Resources); err != nil {
+		return nil, fmt.Errorf("applying resources: %w", err)
+	}
+
 	return job, nil
 }
 
-func (r *DatasetReconciler) loaderImage(d *apiv1.Dataset) string {
-	switch typ := r.CloudContext.CloudType; typ {
-	case CloudTypeGCP:
-		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/dataset-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, d.Namespace, d.Name)
-	default:
-		panic("unsupported cloud type: " + typ)
-	}
+func (r *DatasetReconciler) datasetStatusURL(dataset *apiv1.Dataset) string {
+	return "gs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
+		"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 }

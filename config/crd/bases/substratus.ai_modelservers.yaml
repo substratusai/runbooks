@@ -18,12 +18,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+    - jsonPath: .status.ready
       name: Ready
-      type: string
-    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
-      name: Condition
-      type: string
+      type: boolean
     name: v1
     schema:
       openAPIV3Schema:
@@ -45,9 +42,77 @@ spec:
           spec:
             description: Spec is the desired state of the ModelServer.
             properties:
-              modelName:
-                description: ModelName is the .metadata.name of the Model to be served.
-                type: string
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model serving application and dependencies.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      Image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  name:
+                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
+                    type: string
+                type: object
+              model:
+                description: Model references the Model object to be served.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
+                type: object
+            required:
+            - image
             type: object
           status:
             description: Status is the observed state of the ModelServer.
@@ -122,6 +187,13 @@ spec:
                   - type
                   type: object
                 type: array
+              ready:
+                default: false
+                description: Ready indicates whether the ModelServer is ready to serve
+                  traffic. See Conditions for more details.
+                type: boolean
+            required:
+            - ready
             type: object
         type: object
     served: true

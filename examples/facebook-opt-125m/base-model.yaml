@@ -1,15 +1,12 @@
 apiVersion: substratus.ai/v1
-kind: Notebook
+kind: Model
 metadata:
   name: facebook-opt-125m
 spec:
-  command: ["notebook.sh"]
-  suspend: true
+  command: ["load.sh"]
   image:
     git:
       url: https://github.com/substratusai/model-loader-huggingface
       branch: nick-refactor
-  model:
-    name: facebook-opt-125m
-  dataset:
-    name: squad
+  params:
+    name: facebook/opt-125m

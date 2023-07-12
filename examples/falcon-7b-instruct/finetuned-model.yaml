@@ -1,16 +1,21 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: falcon-7b-instruct-k8s
+  name: falcon-7b-instruct-squad
 spec:
-  source:
-    modelName: falcon-7b-instruct
-  training:
-    datasetName: k8s-instructions
-    params:
-      epochs: 1
-  size:
-    parameterBits: 16
-    parameterCount: 7000000000
-  compute:
-    types: ["GPU"]
+  container:
+    git:
+      url: https://github.com/substratusai/model-trainer-huggingface
+  trainer:
+    baseModel:
+      name: falcon-7b-instruct
+    dataset:
+      name: squad
+    epochs: 1
+  resources:
+    cpu:
+      count: 4
+      memory: 8
+    gpu:
+      count: 4
+      type: nvidia-l4
