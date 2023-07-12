@@ -4,8 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ModelServerSpec defines the desired state of ModelServer
-type ModelServerSpec struct {
+// ServerSpec defines the desired state of Server
+type ServerSpec struct {
 	// Command to run in the container.
 	Command []string `json:"command,omitempty"`
 
@@ -19,13 +19,13 @@ type ModelServerSpec struct {
 	Model ObjectRef `json:"model,omitempty"`
 }
 
-// ModelServerStatus defines the observed state of ModelServer
-type ModelServerStatus struct {
-	// Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details.
+// ServerStatus defines the observed state of Server
+type ServerStatus struct {
+	// Ready indicates whether the Server is ready to serve traffic. See Conditions for more details.
 	//+kubebuilder:default:=false
 	Ready bool `json:"ready"`
 
-	// Conditions is the list of conditions that describe the current state of the ModelServer.
+	// Conditions is the list of conditions that describe the current state of the Server.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
@@ -34,43 +34,43 @@ type ModelServerStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"
 
-// The ModelServer API is used to deploy a server that exposes the capabilities of a Model
+// The Server API is used to deploy a server that exposes the capabilities of a Model
 // via a HTTP interface.
-type ModelServer struct {
+type Server struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec is the desired state of the ModelServer.
-	Spec ModelServerSpec `json:"spec,omitempty"`
-	// Status is the observed state of the ModelServer.
-	Status ModelServerStatus `json:"status,omitempty"`
+	// Spec is the desired state of the Server.
+	Spec ServerSpec `json:"spec,omitempty"`
+	// Status is the observed state of the Server.
+	Status ServerStatus `json:"status,omitempty"`
 }
 
-func (s *ModelServer) GetImage() *Image {
+func (s *Server) GetImage() *Image {
 	return &s.Spec.Image
 }
 
-func (s *ModelServer) GetConditions() *[]metav1.Condition {
+func (s *Server) GetConditions() *[]metav1.Condition {
 	return &s.Status.Conditions
 }
 
-func (s *ModelServer) GetStatusReady() bool {
+func (s *Server) GetStatusReady() bool {
 	return s.Status.Ready
 }
 
-func (s *ModelServer) SetStatusReady(r bool) {
+func (s *Server) SetStatusReady(r bool) {
 	s.Status.Ready = r
 }
 
 //+kubebuilder:object:root=true
 
-// ModelServerList contains a list of ModelServer
-type ModelServerList struct {
+// ServerList contains a list of Server
+type ServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ModelServer `json:"items"`
+	Items           []Server `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&ModelServer{}, &ModelServerList{})
+	SchemeBuilder.Register(&Server{}, &ServerList{})
 }

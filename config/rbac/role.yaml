@@ -120,32 +120,6 @@ rules:
 - apiGroups:
   - substratus.ai
   resources:
-  - modelservers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - substratus.ai
-  resources:
-  - modelservers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - substratus.ai
-  resources:
-  - modelservers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - substratus.ai
-  resources:
   - notebooks
   verbs:
   - create
@@ -165,6 +139,32 @@ rules:
   - substratus.ai
   resources:
   - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/status
   verbs:
   - get
   - patch

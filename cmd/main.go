@@ -96,17 +96,17 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
 		os.Exit(1)
 	}
-	if err = (&controller.ModelServerReconciler{
+	if err = (&controller.ServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
-			Kind:         "ModelServer",
+			Kind:         "Server",
 		},
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ModelServer")
+		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
 	}
 	if err = (&controller.NotebookReconciler{
