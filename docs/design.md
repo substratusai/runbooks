@@ -1,175 +1,241 @@
 # Design
 
-## Models
+## Common Functionality across all Kinds
 
-A Model object represents a logical ML model. The object describes a location
-where ML model files can be stored for a specific model. 
+### Container Images
 
-Optionally, a loader can be specified to load ML models weights and biases from specific sources.
-For example, a commonly used model loader would be the HuggingFace model loader
-where by providing the model name would load the model to the Model object
-bucket location. Model loaders are defined as container images and can either
-point to prebuilt container images or a Git repository with Dockerfile.
-
-A model
-
-The Model object can optionally describe the training parameters including a reference to the Dataset that should be used for training. In this case, the Model object represents the eventual output of a training/finetuning operation.
+All Substratus kinds correspond to actions that are taken by containers. These containers can be built
+by Substratus (from git, or from an upload) or referenced from external registries.
 
 ```yaml
-kind: Model
 spec:
-  container: # used for either loader or trainer
-  loader: {} # Optional, when empty an just a location will be created with no files in it
-  trainer: {} # Optional, will run a training job
+  image:
+    # Optional git source.
+    git:
+      url: https://github.com/substratusai/hf-model-loader
+    
+    # Optional upload source.
+    upload: {}
+
+    # Optionally specify image name.
+    # This field will be set by the controller if a build-source (above) was used.
+    name: substratusai/hf-model-loader
 ```
 
-### Model Sources
+### Resources
 
-A Model can be sourced from Git or a prebuilt image. Using Git will trigger a container build Job.
+```yaml
+spec:
+  resources:
+    gpu:
+      count: 3
+      type: nvidia-l4
+    cpu: 6
+    disk: 30 # Gigabytes
+    memory: 48 # Gigabytes
+```
+
+### Command
+
+```yaml
+spec:
+  command: ["train.sh"]
+```
+
+## Kind: Model
+
+A Model object represents a logical ML model.
+
+The user specifies all the information needed to either A. Import a model, or B. Train/Finetune
+a model in the `.spec` block.
+
+The controller reports the stored location of the model (bucket URL) in the `.status` block.
+
+### Spec
+
+#### .spec.params
+
+```yaml
+spec:
+  params:
+    abc: xyz # Environment variable will look like: PARAM_ABC=xyz
+```
+
+Parameters get converted to environment variables using the following scheme:
+
+`PARAM_{upper(param_key)}={param_value}`
+
+### Status
+
+#### .status.url
+
+This URL is used by the controller when other resources reference this Model. The controller can mount the artifacts into other Model containers for training, into Notebooks for development purposes, or into a Server for loading and serving the Model over HTTP.
+
+```yaml
+status:
+  url: gs://some-substratus-bucket/some-path/to/where-the/model-is-stored/
+```
+
+### Usecases
+
+#### Usecase: Importing Huggingface Models
+
+A Model object could specify a Huggingface importer container which would download model weights and biases. The reference to the
+Huggingface model is passed in via `.spec.params`.
 
 ```yaml
 kind: Model
 name: falcon-7b
 spec:
-  container:
+  image:
     git:
-      url: https://github.com/substratusai/hf-model-loader
-    image: substratusai/hf-model-loader
-  loader:
-    params: {name: tiuu/falcon-7b}
-    # optional future
-  status:
-    url: gcs://my-bucket/my-model/
-    files: ["pytorch-001.bin", "config.json"]
-    size: 27Gi
+      url: https://github.com/substratusai/model-loader-huggingface
+      branch: main
+  params: {name: tiuu/falcon-7b}
+  # ...
+status:
+  url: gcs://my-bucket/my-model/
+  files: ["pytorch-001.bin", "config.json"]
+  diskSize: 27Gi
 ```
-
-`params` get converted to environment variables following a specific scheme
 
 The controller will orchestrate the following flow in this case:
 
 <img src="./diagrams/model-building.excalidraw.png" width="80%"></img>
 
+#### Usecase: Finetuning a Base Model
 
-### Model Training
-
-Approach 1: Include in Model object
-
-Models can be trained by specifying the `.spec.training` section.
-
-This will orchestrate a training Job with multiple FUSE mounted buckets.
-
-<img src="./diagrams/model-training.excalidraw.png" width="80%"></img>
+Models can be trained by specifying the `.spec.baseModel` section. 
 
 ```yaml
 kind: Model
 name: falcon-7b-k8s
 spec:
-  container:
-  # can only specify git or image not both
+  image:
     git: 
-      url: https://github.com/substratusai/hf-llm-trainer
-      ref: refs/branch/main
-    image: substratusai/hf-llm-peft-trainer # eventually introduce native pytorch trainer
-
-  trainer:
-    # baseModel can be left out for creating new base model
-    baseModel:
-      name: falcon-7b
-      namespace: other-namespace
-    dataset:
-      name: k8s-instructions
-      namespace: other-namespace
-    resources: {}
-    params: {epochs: 1}
+      url: https://github.com/substratusai/model-trainer-huggingface
+      branch: main
+  baseModel:
+    name: falcon-7b
+    #namespace: other-namespace
+  trainingDataset:
+    name: k8s-instructions
+    #namespace: other-namespace
+  params: {epochs: 1}
+  # ...
 ```
 
+This will orchestrate a training Job with the base model artifacts FUSE mounted.
 
+<img src="./diagrams/model-training.excalidraw.png" width="80%"></img>
 
-### Model Training with Notebook
-Notebook container contract is to run notebook.sh and serve
-notebook compatible HTTP endpoint on port 8888.
+## Kind: Notebook
 
-User flow: Random experiments
+Notebooks are used for development and experimentation purposes.
 
-notebook-gpu image has transformers, pytorch, cuda, python 3, etc.. most everything you need to get started.
+### Usecases
 
-Example notebook worflow for a user starting with no specific model or dataset in mind. The spec here uses a stock substratus container image:
+#### Usecase: Random Experimenting with Juptyer Notebooks
 
-1. Create Notebook with no sourceModel
-2. Load a model dynamically in my notebook session
-3. Experiment with the model and training and only save my notebook somewhere for reference
+Example notebook worflow for a user starting with no specific model or dataset in mind. The spec here could use a stock substratus container image.
+
+In this case, the `notebook-gpu` image would have all the `transformers`, `pytorch`, `cuda`, `python 3`, etc. libraries pre-installed.
 
 ```yaml
 kind: Notebook
-name: notebooks-for-anything
+metadata:
+  name: notebooks-for-anything
 spec:
-  container:
-    # or git repo as a source
-    image: substratusai/notebook-gpu
-  resources: {gpuCount: 4, type: L4}
+  image:
+    name: substratusai/notebook-gpu
+  resources:
+    gpu:
+      count: 4
+      type: nvidia-l4
 ```
 
+#### Usecase: Iterate on Model Training Code
 
-Lab user flow: Iterate on model training code using a customized trainer image
+In this case, a user might want to update the code used for training in a Model object. The goal here is to create a development environment for the user that exactly mimics the training environment.
+
+Steps:
 
 1. `git clone https://substratusai/hf-llm-trainer && cd hf-llm-trainer`
-2. Modify Dockerfile
-3. Create a Notebook manifest and apply the Notebook CR mounting a source model
-4. `kubectl open notebook -f notebook-training-experiment` - the `kubectl` plugin does each of the following additional steps when `spec.container.local = true`
-   * tar up directory respecting dockerignore
-   * Get GCS signed url from controller notebook status 
-   * upload to workspace.tar to signed URL
-5. Notebook automatically has the local directory contents in the notebook when using the `kubectl` plugin (via cp sync operations)
+2. [Optionally] Modify Dockerfile.
+3. `kubectl open notebook -f .`
+4. The kubectl plugin does the following:
+   * Creates a Notebook with `.image.upload` set.
+   * Tars local directory respecting `.dockerignore`
+5. A Substratus controller in the background:
+   * Creates a signed URL for the upload.
+   * Updates the Notebook status with the signed URL.
+6. The kubectl plugin continues:
+   * Uploads tar to signed URL.
+7. The Substratus controller is now orchestrating the build of this image using kaniko.
+8. After the Notebook is marked as Ready (`.status.ready: true`), the kubectl plugin:
+   * Copies local `*.py` files into the running notebook Pod.
+   * Fetches a token reported in the Notebook `.status.token` field.
+   * Opens browser to `http://localhost:8888?with-token=...`.
 
 ```yaml
 kind: Notebook
 name: notebook-training-experiment
 spec:
-  container:
-    local: true
-  sourceModel: falcon-7b
-  resources: {}
+  image:
+    upload: {} # This is how the plugin signals it wants to upload a directory for building.
+  model: falcon-7b # Mounts the model. Plugin autopopulated this by finding the corresponding `model.yaml` file.
+  resources: {...} # Plugin autopopulated this by finding the corresponding `model.yaml` file.
 status:
-    uploadUrl: gs://substratusai-notebooks/workspace.tar
+  uploadUrl: https://some-signed-url... # Controller populated this.
+  token: aklsdjfkasdljfs # Reported by the controller.
 ```
 
-
-User flow: How to get from Notebook to trainer?
+#### Possible Future Usecase: Notebook to Model Trainer
 
 1. As `kubectl open notebook ...` is terminated by the user, files will be synced from the Notebook back to the local directory. We can hope but not guarantee this is a git repo.
 2. Optional: During `kubectl open notebook ...` termination, a signal will be sent to the controller to build a container image which can serve as the trainer.
 3. Potentially the user is prompted for this auto-generation: A `model-${epoch}.yaml` manifest having the values of that trainer will be generated into the repo root having either spec.container.image populated with the build from step 2 OR the repo/branch info taken from the local dir. 
 
-  ```yaml
-  kind: Model
-  name: falcon-7b-k8s-${epoch_or_branch_name}
-  spec:
-    container:
-      image: my-org/model-falcon-7b-k8s-trainer-${epoch_or_branch_name} # the just-built trainer image
-  
-    trainer:
-      sourceModel:
-        name: falcon-7b
-        namespace: other-namespace
-      dataset: # determine this based on the running notebook - was a single dataset attached to it? In any other case, leave blank `{}` with a comment requiring more
-        name: k8s-instructions
-        namespace: other-namespace
-      resources: {}
-      params:
-        epochs: 1
+```yaml
+kind: Model
+name: falcon-7b-k8s-${epoch_or_branch_name}
+spec:
+  image:
+    name: my-org/model-falcon-7b-k8s-trainer-${epoch_or_branch_name} # the just-built trainer image
+  baseModel:
+    name: falcon-7b
+    #namespace: other-namespace
+  trainingDataset: # determine this based on the running notebook - was a single dataset attached to it? In any other case, leave blank `{}` with a comment requiring more
+    name: k8s-instructions
+    #namespace: other-namespace
+  resources: {}
+  params:
+    epochs: 1
+```
 
+## Kind: Server
 
-### Model Serving
+Servers run Models to serve inference endpoints.
+
 ```yaml
 kind: Server
 spec:
-  container:
-    image: substratusai/basaran # or git repo
-  # model gets mounted to /model/saved
-  model: falcon-7b-k8s
-  # optional
+  image:
+    image: substratusai/basaran
+  # model artifacts get mounted to /model/saved
+  model:
+    name: falcon-7b-k8s
+  # FUTURE:
+  resources: {}
+```
+
+### Possible Future Features
+
+* Support embeddings?
+* Support quantization?
+
+```yaml
+spec:
   quantization:
     bits: 4 # default is 16
-  resources: {}
 ```
