@@ -46,11 +46,10 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	}
 
 	opts := &storage.SignedURLOptions{
-		// this is optional storage.SigningSchemeV2 is the default. storage.SigningSchemeV4 is also available.
-		Scheme: storage.SigningSchemeV2,
-		Method: http.MethodPost,
+		Scheme: storage.SigningSchemeV4,
+		Method: http.MethodPut,
 		Headers: []string{
-			"Content-Type:multipart/form-data",
+			"Content-Type:application/octet-stream",
 		},
 		Expires:        time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
 		GoogleAccessID: saEmail,

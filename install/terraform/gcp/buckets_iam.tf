@@ -1,11 +1,3 @@
-# Container Builder #
-
-resource "google_project_iam_member" "container_builder_gar_repo_admin" {
-  project = var.project_id
-  role    = "roles/artifactregistry.repoAdmin"
-  member  = "serviceAccount:${google_service_account.container_builder.email}"
-}
-
 # Modeller #
 
 resource "google_storage_bucket_iam_member" "modeller_datasets_storage_admin" {
