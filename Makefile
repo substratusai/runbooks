@@ -55,13 +55,13 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate protogen fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
 .PHONY: releases
@@ -69,7 +69,7 @@ dev: manifests kustomize install
 	go run ./cmd/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate protogen fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
@@ -143,6 +143,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 EMBEDMD ?= $(LOCALBIN)/embedmd
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
+PROTOC ?= $(LOCALBIN)/protoc
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.0.0
@@ -180,3 +181,15 @@ $(EMBEDMD): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: protogen
+protogen: protoc ## Generate protobuf files.
+	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
+
+.PHONY: protoc
+protoc: $(PROTOC) ## download and install protoc.
+$(PROTOC): $(LOCALBIN)
+	test -s $(LOCALBIN)/protoc || \
+		brew install protobuf && \
+		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0 && \
+		ln -sf $(shell which protoc) $(LOCALBIN)/protoc

@@ -1,6 +1,5 @@
-// Package gcs provides a gRPC server implementation for the Blob Storage Interface (BSI).
-// Google Cloud Storage (GCS) is the implemented storage service.
-package gcs
+// Package gcp provides a GCP implementation of the Substratus Cloud Interface (SCI).
+package gcpmanager
 
 import (
 	"context"
@@ -8,24 +7,24 @@ import (
 	"net"
 	"time"
 
-	bsi "github.com/substratusai/substratus/internal/bsi"
+	sci "github.com/substratusai/substratus/internal/sci"
 
 	storage "cloud.google.com/go/storage"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// server implements the bsi.ControllerServer interface.
+// server implements the sci.ControllerServer interface.
 type server struct {
-	bsi.UnimplementedControllerServer
+	sci.UnimplementedControllerServer
 	storageClient *storage.Client
 }
 
 // CreateSignedURL generates a signed URL for a specified GCS bucket and object path.
-func (s *server) CreateSignedURL(ctx context.Context, req *bsi.CreateSignedURLRequest) (*bsi.CreateSignedURLResponse, error) {
-	// Use the bucket and object path from the request
-	bucket := s.storageClient.Bucket(req.GetBucketName())
-	obj := bucket.Object(req.GetObjectPath())
+func (s *server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRequest) (*sci.CreateSignedURLResponse, error) {
+	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+
+	bucket := s.storageClient.Bucket(bucketName)
+	obj := bucket.Object(objectName)
 	if _, err := obj.Attrs(ctx); err != nil {
 		if err != storage.ErrObjectNotExist {
 			// An error occurred that was NOT ErrObjectNotExist.
@@ -35,22 +34,20 @@ func (s *server) CreateSignedURL(ctx context.Context, req *bsi.CreateSignedURLRe
 		// the object doesn't exist and we want to continue and create the signed URL.
 	}
 
-	// Create a signed URL
-	url, err := storage.SignedURL(req.GetBucketName(), req.GetObjectPath(), &storage.SignedURLOptions{
-		Method:  "GET",
+	opts := &storage.SignedURLOptions{
+		// this is optional storage.SigningSchemeV2 is the default. storage.SigningSchemeV4 is also available.
+		Scheme:  storage.SigningSchemeV2,
+		Method:  "POST",
 		Expires: time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
-	})
+	}
+
+	// Create a signed URL
+	url, err := storage.SignedURL(bucketName, objectName, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Format the completion time to the proto spec
-	completionTime := timestamppb.New(time.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	return &bsi.CreateSignedURLResponse{Url: url, CompletedAt: completionTime}, nil
+	return &sci.CreateSignedURLResponse{Url: url}, nil
 }
 
 func main() {
@@ -61,7 +58,7 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	bsi.RegisterControllerServer(s, &server{
+	sci.RegisterControllerServer(s, &server{
 		storageClient: storageClient,
 	})
 

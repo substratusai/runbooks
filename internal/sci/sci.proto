@@ -1,9 +1,7 @@
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
-
-package bsi.v1;
-option go_package = "github.com/substratusai/substratus/internal/bsi";
+package sci.v1;
+option go_package = "github.com/substratusai/substratus/internal/sci";
 
 service Controller {
   rpc CreateSignedURL(CreateSignedURLRequest) returns (CreateSignedURLResponse) {}
@@ -11,11 +9,10 @@ service Controller {
 
 message CreateSignedURLRequest {
   string bucketName = 1;
-  string objectPath = 2;
+  string objectName = 2;
   int64 expirationSeconds = 3;
 }
 
 message CreateSignedURLResponse {
   string url = 1;
-  google.protobuf.Timestamp completedAt = 2;
 }
