@@ -104,14 +104,14 @@ func TestMain(m *testing.M) {
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
-	err = (&controller.ModelServerReconciler{
+	err = (&controller.ServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),
 			CloudContext: cloudContext,
-			Kind:         "ModelServer",
+			Kind:         "Server",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)

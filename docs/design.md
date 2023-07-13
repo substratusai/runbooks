@@ -162,7 +162,7 @@ User flow: How to get from Notebook to trainer?
 
 ### Model Serving
 ```yaml
-kind: ModelServer
+kind: Server
 spec:
   container:
     image: substratusai/basaran # or git repo

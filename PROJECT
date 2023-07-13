@@ -23,7 +23,7 @@ resources:
   controller: true
   domain: substratus.ai
   group: ""
-  kind: ModelServer
+  kind: Server
   path: github.com/substratusai/substratus/api/v1
   version: v1
 - api:

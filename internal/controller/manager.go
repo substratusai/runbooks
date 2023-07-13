@@ -60,11 +60,11 @@ func SetupIndexes(mgr manager.Manager) error {
 		return fmt.Errorf("Model: %w", err)
 	}
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.ModelServer{}, modelServerModelIndex, func(rawObj client.Object) []string {
-		server := rawObj.(*apiv1.ModelServer)
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Server{}, modelServerModelIndex, func(rawObj client.Object) []string {
+		server := rawObj.(*apiv1.Server)
 		return []string{server.Spec.Model.Name}
 	}); err != nil {
-		return fmt.Errorf("ModelServer: %w", err)
+		return fmt.Errorf("Server: %w", err)
 	}
 
 	return nil

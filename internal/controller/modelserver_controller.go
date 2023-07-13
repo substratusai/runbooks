@@ -25,8 +25,8 @@ import (
 	"github.com/substratusai/substratus/internal/resources"
 )
 
-// ModelServerReconciler reconciles a ModelServer object.
-type ModelServerReconciler struct {
+// ServerReconciler reconciles a Server object.
+type ServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
@@ -36,20 +36,20 @@ type ModelServerReconciler struct {
 	log logr.Logger
 }
 
-//+kubebuilder:rbac:groups=substratus.ai,resources=modelservers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=substratus.ai,resources=modelservers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=substratus.ai,resources=modelservers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=substratus.ai,resources=servers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=substratus.ai,resources=servers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=substratus.ai,resources=servers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
-func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	log.Info("Reconciling ModelServer")
-	defer log.Info("Done reconciling ModelServer")
+	log.Info("Reconciling Server")
+	defer log.Info("Done reconciling Server")
 
-	var server apiv1.ModelServer
+	var server apiv1.Server
 	if err := r.Get(ctx, req.NamespacedName, &server); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -66,11 +66,11 @@ func (r *ModelServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ModelServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.log = mgr.GetLogger()
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.ModelServer{}).
+		For(&apiv1.Server{}).
 		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findServersForModel))).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
@@ -78,10 +78,10 @@ func (r *ModelServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconcile.Request {
+func (r *ServerReconciler) findServersForModel(obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
-	var servers apiv1.ModelServerList
+	var servers apiv1.ServerList
 	if err := r.List(context.Background(), &servers,
 		client.MatchingFields{modelServerModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
@@ -103,7 +103,7 @@ func (r *ModelServerReconciler) findServersForModel(obj client.Object) []reconci
 	return reqs
 }
 
-func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, model *apiv1.Model) (*appsv1.Deployment, error) {
+func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
 	var volumes []corev1.Volume
@@ -124,7 +124,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name + "-modelserver",
+			Name:      server.Name + "-server",
 			Namespace: server.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -132,12 +132,12 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"modelserver": server.Name,
+					"server": server.Name,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      withModelServerSelector(server, map[string]string{}),
+					Labels:      withServerSelector(server, map[string]string{}),
 					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
@@ -177,7 +177,7 @@ func (r *ModelServerReconciler) serverDeployment(server *apiv1.ModelServer, mode
 	return deploy, nil
 }
 
-func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *apiv1.ModelServer) (result, error) {
+func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Server) (result, error) {
 	log := log.FromContext(ctx)
 
 	var model apiv1.Model
@@ -212,7 +212,7 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 			ObservedGeneration: server.Generation,
 		})
 		if err := r.Status().Update(ctx, server); err != nil {
-			return result{}, fmt.Errorf("failed to update modelserver status: %w", err)
+			return result{}, fmt.Errorf("failed to update server status: %w", err)
 		}
 
 		return result{}, nil
@@ -234,7 +234,7 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct service: %w", err)
 	}
-	if err := r.Patch(ctx, service, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
+	if err := r.Patch(ctx, service, client.Apply, client.FieldOwner("server-controller")); err != nil {
 		return result{}, fmt.Errorf("failed to apply service: %w", err)
 	}
 
@@ -242,7 +242,7 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct deployment: %w", err)
 	}
-	if err := r.Patch(ctx, deploy, client.Apply, client.FieldOwner("modelserver-controller")); err != nil {
+	if err := r.Patch(ctx, deploy, client.Apply, client.FieldOwner("server-controller")); err != nil {
 		return result{}, fmt.Errorf("failed to apply deployment: %w", err)
 	}
 
@@ -277,18 +277,18 @@ func (r *ModelServerReconciler) reconcileServer(ctx context.Context, server *api
 
 const modelServerHTTPServePortName = "http-serve"
 
-func (r *ModelServerReconciler) serverService(server *apiv1.ModelServer, model *apiv1.Model) (*corev1.Service, error) {
+func (r *ServerReconciler) serverService(server *apiv1.Server, model *apiv1.Model) (*corev1.Service, error) {
 	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name + "-modelserver",
+			Name:      server.Name + "-server",
 			Namespace: server.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: withModelServerSelector(server, map[string]string{}),
+			Selector: withServerSelector(server, map[string]string{}),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "http",
@@ -307,8 +307,8 @@ func (r *ModelServerReconciler) serverService(server *apiv1.ModelServer, model *
 	return s, nil
 }
 
-func withModelServerSelector(server *apiv1.ModelServer, labels map[string]string) map[string]string {
-	labels["component"] = "modelserver"
-	labels["modelserver"] = server.Name
+func withServerSelector(server *apiv1.Server, labels map[string]string) map[string]string {
+	labels["component"] = "server"
+	labels["server"] = server.Name
 	return labels
 }
