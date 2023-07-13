@@ -23,7 +23,7 @@ Be aware that moving the binary to your PATH might fail due to permissions
 prompt you for your password:
 
 ```sh
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/substratusai/substratus/main/hack/install_kubectl_plugin.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/substratusai/substratus/main/install/scripts/install_kubectl_plugin.sh)"
 ```
 
 If the plugin installed correctly, you should see it listed as a `kubectl plugin`:
