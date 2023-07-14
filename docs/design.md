@@ -69,7 +69,7 @@ Parameters get converted to environment variables using the following scheme:
 
 #### .status.url
 
-This URL is used by the controller when other resources reference this Model. The controller can mount the artifacts into other Model containers for training, into Notebooks for development purposes, or into a Server for loading and serving the Model over HTTP.
+This URL is used by the controller when other resources reference this Model by name. The controller can mount Model artifacts into other Model containers for training, into Notebooks for development purposes, or into a Server for loading and serving the Model over HTTP.
 
 ```yaml
 status:
