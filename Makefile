@@ -180,6 +180,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.11.3
 CRD_REF_DOCS_VERSION ?= v0.0.9
 PROTOC_VERSION ?= 23.4
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
+PROTOC_GEN_GO_VERSION ?= v1.31.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -223,7 +224,7 @@ $(PROTOC): $(LOCALBIN)
 	rm -rf /tmp/protoc/
 	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
-	ls -lah /home/runner/go/bin/
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
 
 ### GCP installer targets
 
