@@ -43,3 +43,11 @@ resource "google_service_account_iam_member" "data_loader_workload_identity" {
   depends_on = [google_container_cluster.main]
 }
 
+resource "google_service_account_iam_member" "gcp_manager_workload_identity" {
+  service_account_id = google_service_account.gcp_manager.id
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[substratus/gcp-manager]"
+
+  # Workload identity pool does not exist until the first cluster exists.
+  depends_on = [google_container_cluster.main]
+}

@@ -4,7 +4,7 @@
 
 Update `IMG` in `Makefile`.
 
-```
+```makefile
 IMG ?= docker.io/substratusai/controller-manager:v0.0.1-alpha
 ```
 

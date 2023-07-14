@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package sci.v1;
+option go_package = "github.com/substratusai/substratus/internal/sci";
+
+service Controller {
+  rpc CreateSignedURL(CreateSignedURLRequest) returns (CreateSignedURLResponse) {}
+}
+
+message CreateSignedURLRequest {
+  string bucketName = 1;
+  string objectName = 2;
+  int64 expirationSeconds = 3;
+}
+
+message CreateSignedURLResponse {
+  string url = 1;
+}

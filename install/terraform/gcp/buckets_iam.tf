@@ -1,11 +1,3 @@
-# Container Builder #
-
-resource "google_project_iam_member" "container_builder_gar_repo_admin" {
-  project = var.project_id
-  role    = "roles/artifactregistry.repoAdmin"
-  member  = "serviceAccount:${google_service_account.container_builder.email}"
-}
-
 # Modeller #
 
 resource "google_storage_bucket_iam_member" "modeller_datasets_storage_admin" {
@@ -50,3 +42,30 @@ resource "google_storage_bucket_iam_member" "data_loader_datasets_storage_admin"
   member = "serviceAccount:${google_service_account.data_loader.email}"
 }
 
+# GCP manager #
+
+resource "google_storage_bucket_iam_member" "gcp_manager_models_storage_admin" {
+  bucket = google_storage_bucket.models.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.gcp_manager.email}"
+}
+
+resource "google_storage_bucket_iam_member" "gcp_manager_datasets_storage_admin" {
+  bucket = google_storage_bucket.datasets.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.gcp_manager.email}"
+}
+
+resource "google_storage_bucket_iam_member" "gcp_manager_notebooks_storage_admin" {
+  bucket = google_storage_bucket.notebooks.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.gcp_manager.email}"
+}
+
+# Container builder #
+
+resource "google_storage_bucket_iam_member" "container_builder_notebooks_storage_objectViewer" {
+  bucket = google_storage_bucket.notebooks.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.container_builder.email}"
+}

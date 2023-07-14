@@ -4,6 +4,30 @@ IMG ?= docker.io/substratusai/controller-manager:v0.4.0-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
+PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
+
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+ifeq ($(UNAME_S),Linux)
+	PROTOC_OS := linux
+else
+	ifeq ($(UNAME_S),Darwin)
+		PROTOC_OS := osx
+	else
+		PROTOC_OS := $(UNAME_S)
+	endif
+endif
+
+ifeq ($(UNAME_M),arm64)
+	PROTOC_ARCH := aarch_64
+else
+	PROTOC_ARCH := $(UNAME_M)
+endif
+
+PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -11,6 +35,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+export PATH := $(PATH):$(GOBIN):$(PWD)/bin:
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -55,22 +80,22 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+build: manifests generate protogen fmt vet ## Build manager binary.
+	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: releases
 dev: manifests kustomize install
-	go run ./cmd/main.go
+	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+run: manifests generate protogen fmt vet ## Run a controller from your host.
+	go run ./cmd/controllermanager/main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.
@@ -118,17 +143,21 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+.PHONY: install-crds
+install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+.PHONY: uninstall-crds
+uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 install/kubernetes/system.yaml: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
+
+.PHONY: protogen
+protogen: protoc ## Generate protobuf files.
+	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
 
 ##@ Build Dependencies
 
@@ -143,11 +172,15 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 EMBEDMD ?= $(LOCALBIN)/embedmd
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
+PROTOC ?= $(LOCALBIN)/protoc
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.11.3
 CRD_REF_DOCS_VERSION ?= v0.0.9
+PROTOC_VERSION ?= 23.4
+PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
+PROTOC_GEN_GO_VERSION ?= v1.31.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -180,3 +213,41 @@ $(EMBEDMD): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: protoc
+protoc: $(PROTOC) ## download and install protoc.
+$(PROTOC): $(LOCALBIN)
+	test -s $(LOCALBIN)/protoc || \
+	curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+	unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
+	cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
+	rm -rf /tmp/protoc/
+	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
+
+### GCP installer targets
+
+RUN_SUBSTRATUS_INSTALLER := docker run -it \
+	-v ${HOME}/.kube:/root/.kube \
+	-e PROJECT=$(shell gcloud config get project) \
+	-e TOKEN=$(shell gcloud auth print-access-token) \
+	substratus-installer
+
+.PHONY: build-installer
+build-installer: ## Build the GCP installer.
+	@ docker build ./install -t substratus-installer
+
+DISABLE_CONTROLLER ?= false
+
+.PHONY: install
+install: build-installer ## invoke the GCP installer to build all infra.
+ifeq ($(DISABLE_CONTROLLER),true)
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
+else
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
+endif
+
+.PHONY: uninstall
+uninstall: build-installer ## invoke the GCP installer to destroy all infra.
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh

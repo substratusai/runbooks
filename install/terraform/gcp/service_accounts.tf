@@ -22,3 +22,8 @@ resource "google_service_account" "data_loader" {
   project    = var.project_id
   account_id = "${local.name}-data-loader"
 }
+
+resource "google_service_account" "gcp_manager" {
+  project    = var.project_id
+  account_id = "${local.name}-gcp-manager"
+}
