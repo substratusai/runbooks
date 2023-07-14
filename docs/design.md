@@ -17,8 +17,9 @@ spec:
     # Optional upload source.
     upload: {}
 
-    # Optionally specify image name.
-    # This field will be set by the controller if a build-source (above) was used.
+    # Optionally specify image name to externally published container image
+    # This field will be set by the controller if a build-source (above) was used
+    # and should not be set by end-user if a build-source was used.
     name: substratusai/hf-model-loader
 ```
 
@@ -28,7 +29,7 @@ spec:
 spec:
   resources:
     gpu:
-      count: 3
+      count: 8
       type: nvidia-l4
     cpu: 6
     disk: 30 # Gigabytes
@@ -36,7 +37,8 @@ spec:
 ```
 
 ### Command
-
+Optionally you can override the default command of a container by providing
+`command` in the Substratus resource:
 ```yaml
 spec:
   command: ["train.sh"]
@@ -73,7 +75,7 @@ This URL is used by the controller when other resources reference this Model by 
 
 ```yaml
 status:
-  url: gs://some-substratus-bucket/some-path/to/where-the/model-is-stored/
+  url: gs://substratus-models/82c2706c-b941-4d8d-84a5-8037cf35df82/
 ```
 
 ### Usecases
@@ -108,21 +110,27 @@ The controller will orchestrate the following flow in this case:
 Models can be trained by specifying the `.spec.baseModel` section. 
 
 ```yaml
+apiVersion: substratus.ai/v1
 kind: Model
-name: falcon-7b-k8s
+metadata:
+  name: falcon-7b-k8s
 spec:
   image:
-    git: 
+    git:
       url: https://github.com/substratusai/model-trainer-huggingface
-      branch: main
   baseModel:
     name: falcon-7b
-    #namespace: other-namespace
+    #namespace: base-models 
   trainingDataset:
     name: k8s-instructions
-    #namespace: other-namespace
-  params: {epochs: 1}
-  # ...
+  params:
+    epochs: 1
+  resources:
+    cpu: 2
+    memory: 8
+    gpu:
+      count: 4
+      type: nvidia-l4
 ```
 
 This will orchestrate a training Job with the base model artifacts FUSE mounted.
@@ -183,8 +191,9 @@ name: notebook-training-experiment
 spec:
   image:
     upload: {} # This is how the plugin signals it wants to upload a directory for building.
-  model: falcon-7b # Mounts the model. Plugin auto-populated this by finding the corresponding `model.yaml` file.
-  resources: {...} # Plugin auto-populated this by finding the corresponding `model.yaml` file.
+  model: # Mounts the model. Plugin auto-populated this by finding the corresponding `model.yaml` file.
+    name: falcon-7b  
+  resources: {...} 
 status:
   uploadUrl: https://some-signed-url... # Controller populated this.
   token: aklsdjfkasdljfs # Reported by the controller.
