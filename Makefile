@@ -3,7 +3,6 @@
 IMG ?= docker.io/substratusai/controller-manager:v0.4.0-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
-export PATH := $(PATH):$(PWD)/bin
 
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
@@ -36,6 +35,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+export PATH := $(PATH):$(GOBIN):$(PWD)/bin:
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -223,6 +223,7 @@ $(PROTOC): $(LOCALBIN)
 	rm -rf /tmp/protoc/
 	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
+	ls -lah /home/runner/go/bin/
 
 ### GCP installer targets
 
