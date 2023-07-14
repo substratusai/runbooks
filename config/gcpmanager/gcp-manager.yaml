@@ -8,6 +8,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gcp-manager
+  namespace: substratus
 spec:
   replicas: 1
   selector:
@@ -22,8 +23,8 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: gcp-manager
-          # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
-          image: substratusai/gcp-manager:latest
+          image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
+          # image: substratusai/gcp-manager:latest
           ports:
             - containerPort: 10080
           resources:
@@ -46,6 +47,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gcp-manager
+  namespace: substratus
 spec:
   selector:
     app: gcp-manager
