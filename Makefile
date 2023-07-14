@@ -7,26 +7,33 @@ ENVTEST_K8S_VERSION = 1.26.1
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
 
+PROJECT_ID := $(shell gcloud config get-value project)
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Linux)
 	PROTOC_OS := linux
+	SKAFFOLD_OS := linux
 else
 	ifeq ($(UNAME_S),Darwin)
 		PROTOC_OS := osx
+		SKAFFOLD_OS := darwin
 	else
 		PROTOC_OS := $(UNAME_S)
+		SKAFFOLD_OS := $(UNAME_S)
 	endif
 endif
 
 ifeq ($(UNAME_M),arm64)
 	PROTOC_ARCH := aarch_64
+	SKAFFOLD_ARCH := arm64
 else
 	PROTOC_ARCH := $(UNAME_M)
+	SKAFFOLD_ARCH := $(UNAME_M)
 endif
 
 PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
+SKAFFOLD_PLATFORM := $(SKAFFOLD_OS)-$(SKAFFOLD_ARCH)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -217,14 +224,29 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: protoc
 protoc: $(PROTOC) ## download and install protoc.
 $(PROTOC): $(LOCALBIN)
-	test -s $(LOCALBIN)/protoc || \
-	curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+	@ test -s $(LOCALBIN)/protoc || \
+	( curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip \
+		-o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip && \
 	unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
 	cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
-	rm -rf /tmp/protoc/
-	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
+	rm -rf /tmp/protoc/ && \
+	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip && \
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION} && \
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION) )
+
+.PHONY: skaffold
+skaffold:
+	@ test -s $(LOCALBIN)/skaffold || \
+	( curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
+	chmod +x skaffold && \
+	mv skaffold $(LOCALBIN)/skaffold )
+
+.PHONY: envsubst
+envsubst:
+	@ test -s $(LOCALBIN)/envsubst || \
+	( curl -L https://github.com/a8m/envsubst/releases/download/v1.2.0/envsubst-`uname -s`-`uname -m` -o envsubst && \
+	chmod +x envsubst && \
+	mv envsubst $(LOCALBIN)/envsubst )
 
 ### GCP installer targets
 
@@ -251,3 +273,9 @@ endif
 .PHONY: uninstall
 uninstall: build-installer ## invoke the GCP installer to destroy all infra.
 	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
+
+.PHONY: skaffold-dev-gcpmanager
+skaffold-dev-gcpmanager: skaffold envsubst ## Run skaffold dev against gcpmanager
+	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
+	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
+	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml

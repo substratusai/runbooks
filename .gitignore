@@ -66,3 +66,4 @@ secrets/*
 # personal hack dev scripts
 hack/dev/
 dist/
+gcpmanager-skaffold.yaml
