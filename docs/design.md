@@ -190,7 +190,7 @@ status:
   token: aklsdjfkasdljfs # Reported by the controller.
 ```
 
-#### Possible Future Usecase: Notebook to Model Trainer
+#### Future use case: Notebook to Model Trainer
 
 1. As `kubectl open notebook ...` is terminated by the user, files will be synced from the Notebook back to the local directory. We can hope but not guarantee this is a git repo.
 2. Optional: During `kubectl open notebook ...` termination, a signal will be sent to the controller to build a container image which can serve as the trainer.
