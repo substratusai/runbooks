@@ -76,7 +76,7 @@ This URL is used by the controller when other resources reference this Model by 
 
 ```yaml
 status:
-  url: gs://substratus-models/82c2706c-b941-4d8d-84a5-8037cf35df82/
+  url: gs://projectid-substratus-models/82c2706c-b941-4d8d-84a5-8037cf35df82/
 ```
 
 ### Use cases
@@ -197,7 +197,8 @@ spec:
   resources: {...} 
 status:
   uploadUrl: https://some-signed-url... # Controller populated this.
-  token: aklsdjfkasdljfs # Reported by the controller.
+  # FUTURE:
+  # token: aklsdjfkasdljfs # Jupyter notebook token reported by the controller.
 ```
 
 #### Future use case: Notebook to Model Trainer
