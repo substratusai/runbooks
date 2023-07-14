@@ -47,7 +47,7 @@ spec:
 A Model object represents a logical ML model.
 
 The user specifies all the information needed to either A. Import a model, or B. Train/Finetune
-a model in the `.spec` block.
+a base model in the `.spec` block.
 
 The controller reports the stored location of the model (bucket URL) in the `.status` block.
 
