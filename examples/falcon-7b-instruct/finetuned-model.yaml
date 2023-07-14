@@ -1,7 +1,7 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: falcon-7b-instruct-k8s-instruct
+  name: falcon-7b-instruct-k8s
 spec:
   image:
     git:
