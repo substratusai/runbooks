@@ -10,6 +10,8 @@ by Substratus (from git, or from an upload) or referenced from external registri
 ```yaml
 spec:
   image:
+    # Only one of the following fields should be set by the user:
+
     # Optional git source.
     git:
       url: https://github.com/substratusai/hf-model-loader
@@ -18,8 +20,7 @@ spec:
     upload: {}
 
     # Optionally specify image name to externally published container image
-    # This field will be set by the controller if a build-source (above) was used
-    # and should not be set by end-user if a build-source was used.
+    # This field will be set by the controller if a build-source (above) was used.
     name: substratusai/hf-model-loader
 ```
 

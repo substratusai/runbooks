@@ -10,7 +10,9 @@ As a part of building the Dockerfile:
 
 - Model artifacts (i.e. `model.pt`, `tokenizer.pt`) should be saved into `/model/saved/`.
 - Workspace directory should be `/model/` (i.e. `WORKDIR /model`).
-- `COMMAND` or `ENTRYPOINT` should be defined to execute the main purpose of the container. E.g. call `train.py` or `download-model.py`
+- `COMMAND` should be defined to execute the main purpose of the container. E.g. call `train.py` or `download-model.py`
+
+NOTE: The container `ENTRYPOINT` will be overridden. Every container built by Substratus will have its entrypoint set to [tini](https://github.com/krallin/tini). Any command that is run will be executed by the `tini` process.
 
 
 ### Scripts
