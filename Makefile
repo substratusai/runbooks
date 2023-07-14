@@ -3,6 +3,8 @@
 IMG ?= docker.io/substratusai/controller-manager:v0.4.0-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
+export PATH := $(PATH):$(PWD)/bin
+
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
 
@@ -141,12 +143,12 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+.PHONY: install-crds
+install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+.PHONY: uninstall-crds
+uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 install/kubernetes/system.yaml: manifests kustomize
@@ -230,18 +232,20 @@ RUN_SUBSTRATUS_INSTALLER := docker run -it \
 	-e TOKEN=$(shell gcloud auth print-access-token) \
 	substratus-installer
 
-.PHONY: build_gcp_installer
-build_gcp_installer: ## Build the GCP installer.
-	docker build ./install -t substratus-installer
+.PHONY: build-installer
+build-installer: ## Build the GCP installer.
+	@ docker build ./install -t substratus-installer
 
-.PHONY: gcp_installer_up
-gcp_installer_up: build_gcp_installer ## invoke the GCP installer to build all infra.
-	${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
+DISABLE_CONTROLLER ?= false
 
-.PHONY: gcp_installer_up_dev
-gcp_installer_up_dev: build_gcp_installer ## invoke the GCP installer to build all infra except for deploying the operator. This is helpful when developing the operator locally via `make dev`.
-	${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
+.PHONY: install
+install: build-installer ## invoke the GCP installer to build all infra.
+ifeq ($(DISABLE_CONTROLLER),true)
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
+else
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
+endif
 
-.PHONY: gcp_installer_down
-gcp_installer_down: build_gcp_installer ## invoke the GCP installer to destroy all infra.
-	${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
+.PHONY: uninstall
+uninstall: build-installer ## invoke the GCP installer to destroy all infra.
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh

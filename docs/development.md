@@ -5,7 +5,7 @@
 Create a GCP environment.
 
 ```sh
-make gcp_installer_up
+make install
 ```
 
 Setup controller for running locally.
@@ -58,7 +58,7 @@ kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
 Cleanup.
 
 ```sh
-make gcp_installer_down
+make uninstall
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.

@@ -6,21 +6,6 @@ set -u
 # Required env variables:
 : "$TOKEN $PROJECT"
 
-AUTO_APPROVE=""
-
-while (("$#")); do
-  case "$1" in
-  --auto-approve)
-    AUTO_APPROVE="-auto-approve"
-    shift
-    ;;
-  *)
-    echo "Error: Invalid argument"
-    exit 1
-    ;;
-  esac
-done
-
 # Used by gcloud:
 export CLOUDSDK_AUTH_ACCESS_TOKEN=${TOKEN}
 # Used by terraform:
@@ -43,7 +28,7 @@ echo "bucket = \"${tf_bucket}\"" >>backend.tfvars
 terraform init --backend-config=backend.tfvars
 
 export TF_VAR_project_id=${PROJECT}
-terraform apply ${AUTO_APPROVE}
+terraform apply
 cluster_name=$(terraform output --raw cluster_name)
 cluster_region=$(terraform output --raw cluster_region)
 

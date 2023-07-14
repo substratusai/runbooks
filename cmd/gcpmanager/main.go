@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"strconv"
 
+	"cloud.google.com/go/compute/metadata"
+	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/substratusai/substratus/internal/gcpmanager"
 	"github.com/substratusai/substratus/internal/sci"
@@ -22,21 +25,41 @@ func main() {
 	flag.IntVar(&port, "port", 10080, "port number to listen on")
 	flag.Parse()
 
-	// Create a storage client
+	ctx := context.Background()
+	iamClient, err := credentials.NewIamCredentialsClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to create iam client: %v", err)
+		log.Fatal(err)
+	}
+
 	storageClient, err := storage.NewClient(context.Background())
 	if err != nil {
 		log.Fatalf("failed to create storage client: %v", err)
 	}
 
-	s := grpc.NewServer()
-	sci.RegisterControllerServer(s, &gcpmanager.Server{
-		StorageClient: storageClient,
-	})
+	hc := &http.Client{}
+	mc := metadata.NewClient(hc)
+	saEmail, err := gcpmanager.GetServiceAccountEmail(mc)
+	if err != nil {
+		log.Fatalf("failed to get the SA email: %v", err)
+	}
+
+	s := gcpmanager.Server{
+		Clients: gcpmanager.Clients{
+			Iam:      iamClient,
+			Metadata: mc,
+			Storage:  storageClient,
+			Http:     hc,
+		},
+		SaEmail: saEmail,
+	}
+	gs := grpc.NewServer()
+	sci.RegisterControllerServer(gs, &s)
 
 	// Setup Health Check
 	hs := health.NewServer()
 	hs.SetServingStatus("", hv1.HealthCheckResponse_SERVING)
-	hv1.RegisterHealthServer(s, hs)
+	hv1.RegisterHealthServer(gs, hs)
 
 	fmt.Printf("gcpmanager server listening on port %v...", port)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
@@ -44,7 +67,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	if err := s.Serve(lis); err != nil {
+	if err := gs.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
