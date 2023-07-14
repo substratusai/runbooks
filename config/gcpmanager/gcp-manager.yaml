@@ -7,7 +7,7 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gcp-manager-deployment
+  name: gcp-manager
 spec:
   replicas: 1
   selector:
@@ -18,11 +18,12 @@ spec:
       labels:
         app: gcp-manager
     spec:
-      serviceAccountName:
+      serviceAccountName: gcp-manager
       terminationGracePeriodSeconds: 10
       containers:
         - name: gcp-manager
-          image: substratusai/gcp-manager:latest # TODO(bjb): replace this with the path to our image
+          # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
+          image: substratusai/gcp-manager:latest
           ports:
             - containerPort: 10080
           resources:
@@ -32,11 +33,19 @@ spec:
             requests:
               cpu: 10m
               memory: 64Mi
+          livenessProbe:
+            tcpSocket:
+              port: 10080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: gcp-manager-service
+  name: gcp-manager
 spec:
   selector:
     app: gcp-manager

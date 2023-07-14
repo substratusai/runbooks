@@ -12,7 +12,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["serviceaccounts"]
-    verbs: ["get", "update"]
+    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -33,6 +33,7 @@ kind: Job
 metadata:
   name: annotate-gcp-manager-sa
 spec:
+  backoffLimit: 0
   template:
     spec:
       serviceAccountName: gcp-manager-bootstrapper
@@ -51,5 +52,4 @@ spec:
               # Set the annotation value
               ANNOTATION_VALUE="substratus-gcp-manager@${PROJECT_ID}.iam.gserviceaccount.com"
               # Annotate the service account
-              gcloud container clusters get-credentials substratus --region ${REGION} --project ${PROJECT_ID}
               kubectl annotate serviceaccount -n default gcp-manager iam.gke.io/gcp-service-account=${ANNOTATION_VALUE}
