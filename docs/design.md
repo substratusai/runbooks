@@ -135,7 +135,7 @@ Notebooks are used for development and experimentation purposes.
 
 ### Use cases
 
-#### Usecase: Random Experimenting with Juptyer Notebooks
+#### Use case: Experimenting with a model using Juptyer Notebooks
 
 Example notebook worflow for a user starting with no specific model or dataset in mind. The spec here could use a stock substratus container image.
 
