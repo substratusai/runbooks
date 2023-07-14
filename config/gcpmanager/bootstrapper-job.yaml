@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gcp-manager-bootstrapper
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: service-account-annotator
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: service-account-annotator-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: gcp-manager-bootstrapper
+    namespace: default
+roleRef:
+  kind: Role
+  name: service-account-annotator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: annotate-gcp-manager-sa
+spec:
+  template:
+    spec:
+      serviceAccountName: gcp-manager-bootstrapper
+      restartPolicy: OnFailure
+      containers:
+        - name: gcloud
+          image: google/cloud-sdk:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Get the project ID
+              PROJECT_ID=$(gcloud config get-value project)
+              # Get the current region
+              REGION=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F '/' '{print $4}' | sed 's/-[a-z]$//')
+              # Set the annotation value
+              ANNOTATION_VALUE="substratus-gcp-manager@${PROJECT_ID}.iam.gserviceaccount.com"
+              # Annotate the service account
+              gcloud container clusters get-credentials substratus --region ${REGION} --project ${PROJECT_ID}
+              kubectl annotate serviceaccount -n default gcp-manager iam.gke.io/gcp-service-account=${ANNOTATION_VALUE}

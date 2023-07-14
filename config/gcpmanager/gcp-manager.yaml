@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gcp-manager
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gcp-manager-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gcp-manager
+  template:
+    metadata:
+      labels:
+        app: gcp-manager
+    spec:
+      serviceAccountName:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: gcp-manager
+          image: substratusai/gcp-manager:latest # TODO(bjb): replace this with the path to our image
+          ports:
+            - containerPort: 10443
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gcp-manager-service
+spec:
+  selector:
+    app: gcp-manager
+  ports:
+    - protocol: TCP
+      port: 10443
+      targetPort: 10443
+  type: LoadBalancer

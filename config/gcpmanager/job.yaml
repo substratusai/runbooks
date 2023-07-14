@@ -1,9 +1,0 @@
-# container that runs gcloud, get project_id, create and the ksa (or annotate existing)
-# updates the k annotate the KSA to the GSA
-
-## kubernetes job to
-# 1. get the project_id
-# 2. create the ksa (or annotate existing)
-# 3. annotate the KSA to the GSA
-# 4. update the k8s secret with the GSA key
-kind: Job

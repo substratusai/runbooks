@@ -25,8 +25,6 @@ func main() {
 		StorageClient: storageClient,
 	})
 
-	invokeManually(storageClient)
-
 	port := 10443
 	fmt.Printf("gcpmanager server listening on port %v...", port)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
@@ -37,22 +35,4 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-}
-
-func invokeManually(storageClient *storage.Client) {
-	payload := sci.CreateSignedURLRequest{
-		BucketName:        "substr-models1",
-		ObjectName:        "README.md",
-		ExpirationSeconds: 600,
-	}
-	serv := gcpmanager.Server{
-		StorageClient: storageClient,
-	}
-
-	fmt.Println("calling CreateSignedURL with payload:")
-	resp, err := serv.CreateSignedURL(context.Background(), &payload)
-	if err != nil {
-		log.Fatalf("failed to create signed URL: %v", err)
-	}
-	fmt.Printf("signed URL: %v\n", resp.Url)
 }
