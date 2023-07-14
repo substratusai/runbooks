@@ -133,7 +133,7 @@ This will orchestrate a training Job with the base model artifacts FUSE mounted.
 
 Notebooks are used for development and experimentation purposes.
 
-### Usecases
+### Use cases
 
 #### Usecase: Random Experimenting with Juptyer Notebooks
 
