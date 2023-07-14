@@ -8,7 +8,6 @@ set -u
 
 AUTO_APPROVE=""
 
-# Loop over all arguments
 while (("$#")); do
   case "$1" in
   --auto-approve)

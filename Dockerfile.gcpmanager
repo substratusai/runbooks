@@ -1,5 +1,7 @@
 # Start from the latest Golang base image
 FROM golang:1.20-bookworm AS builder
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 # Set the Current Working Directory inside the container
 WORKDIR /workspace
@@ -12,21 +14,21 @@ RUN go mod download
 
 # Copy the source from the current directory to the Working Directory inside the container
 COPY cmd/gcpmanager/main.go cmd/gcpmanager/main.go
-COPY internal/gcpmanager/ internal/gcpmanager/
-COPY internal/sci/ internal/sci/
+COPY internal/ internal/
 
 # Build the app
-RUN CGO_ENABLED=0 GOOS=linux go build -o main cmd/gcpmanager/main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -a -o main cmd/gcpmanager/main.go
 
 # Copy the Pre-built binary file from the previous stage
 
-# FROM gcr.io/distroless/static:nonroot
-# WORKDIR /
-# COPY --from=builder /workspace/main .
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/main .
 USER 65532:65532
 
 # Expose port 10443 to the outside
 EXPOSE 10443
 
 # Command to run the executable
-CMD ["./main"]
+CMD ["/main"]

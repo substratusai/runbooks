@@ -3,6 +3,24 @@
 IMG ?= docker.io/substratusai/controller-manager:v0.4.0-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
+PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
+
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+ifeq ($(UNAME_S),Linux)
+	PROTOC_OS := linux
+endif
+ifeq ($(UNAME_S),Darwin)
+	PROTOC_OS := osx
+endif
+
+ifeq ($(UNAME_M),arm64)
+	PROTOC_ARCH := aarch_64
+endif
+
+PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -62,15 +80,15 @@ test: manifests generate protogen fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: manifests generate protogen fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: releases
 dev: manifests kustomize install
-	go run ./cmd/main.go
+	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
 run: manifests generate protogen fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	go run ./cmd/controllermanager/main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.
@@ -149,6 +167,9 @@ PROTOC ?= $(LOCALBIN)/protoc
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.11.3
 CRD_REF_DOCS_VERSION ?= v0.0.9
+# TODO(bjb): update to latest, this is super old
+PROTOC_VERSION ?= 23.4
+PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -190,6 +211,32 @@ protogen: protoc ## Generate protobuf files.
 protoc: $(PROTOC) ## download and install protoc.
 $(PROTOC): $(LOCALBIN)
 	test -s $(LOCALBIN)/protoc || \
-		brew install protobuf && \
-		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0 && \
-		ln -sf $(shell which protoc) $(LOCALBIN)/protoc
+		curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+		unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
+		cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
+		rm -rf /tmp/protoc/
+		rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
+
+# curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PLATFORM}-${ARCH}.zip && \
+# unzip mv $(LOCALBIN)/protoc
+
+.PHONY: build_gcp_installer
+build_gcp_installer: ## Build the GCP installer.
+	docker build ./install -t substratus-installer
+
+.PHONY: gcp_installer_up
+gcp_installer_up: build_gcp_installer ## invoke the GCP installer to build all infra.
+	docker run -it \
+		-v ${HOME}/.kube:/root/.kube \
+		-e PROJECT=$(shell gcloud config get project) \
+		-e TOKEN=$(shell gcloud auth print-access-token) \
+		substratus-installer gcp-up.sh
+
+.PHONY: gcp_installer_down
+gcp_installer_down: build_gcp_installer ## invoke the GCP installer to destroy all infra.
+	docker run -it \
+		-v ${HOME}/.kube:/root/.kube \
+		-e PROJECT=$(shell gcloud config get project) \
+		-e TOKEN=$(shell gcloud auth print-access-token) \
+		substratus-installer gcp-up.sh
