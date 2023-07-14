@@ -184,7 +184,7 @@ spec:
   image:
     upload: {} # This is how the plugin signals it wants to upload a directory for building.
   model: falcon-7b # Mounts the model. Plugin auto-populated this by finding the corresponding `model.yaml` file.
-  resources: {...} # Plugin autopopulated this by finding the corresponding `model.yaml` file.
+  resources: {...} # Plugin auto-populated this by finding the corresponding `model.yaml` file.
 status:
   uploadUrl: https://some-signed-url... # Controller populated this.
   token: aklsdjfkasdljfs # Reported by the controller.
