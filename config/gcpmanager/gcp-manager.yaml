@@ -24,7 +24,7 @@ spec:
         - name: gcp-manager
           image: substratusai/gcp-manager:latest # TODO(bjb): replace this with the path to our image
           ports:
-            - containerPort: 10443
+            - containerPort: 10080
           resources:
             limits:
               cpu: 500m
@@ -42,6 +42,6 @@ spec:
     app: gcp-manager
   ports:
     - protocol: TCP
-      port: 10443
-      targetPort: 10443
+      port: 10080
+      targetPort: 10080
   type: LoadBalancer

@@ -93,7 +93,6 @@ resource "google_container_cluster" "main" {
       maximum       = 10480
     }
     # from https://cloud.google.com/compute/docs/gpus/#nvidia_gpus_for_compute_workloads
-    # TODO(bjb): ideally set these to align with regional quota on the project
     resource_limits {
       resource_type = "nvidia-l4"
       minimum       = 0

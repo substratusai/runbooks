@@ -11,13 +11,18 @@ UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Linux)
 	PROTOC_OS := linux
-endif
-ifeq ($(UNAME_S),Darwin)
-	PROTOC_OS := osx
+else
+	ifeq ($(UNAME_S),Darwin)
+		PROTOC_OS := osx
+	else
+		PROTOC_OS := $(UNAME_S)
+	endif
 endif
 
 ifeq ($(UNAME_M),arm64)
 	PROTOC_ARCH := aarch_64
+else
+	PROTOC_ARCH := $(UNAME_M)
 endif
 
 PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
@@ -167,7 +172,6 @@ PROTOC ?= $(LOCALBIN)/protoc
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.11.3
 CRD_REF_DOCS_VERSION ?= v0.0.9
-# TODO(bjb): update to latest, this is super old
 PROTOC_VERSION ?= 23.4
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
 
@@ -218,8 +222,13 @@ $(PROTOC): $(LOCALBIN)
 		rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
 		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
-# curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PLATFORM}-${ARCH}.zip && \
-# unzip mv $(LOCALBIN)/protoc
+### GCP installer targets
+
+RUN_SUBSTRATUS_INSTALLER := docker run -it \
+	-v ${HOME}/.kube:/root/.kube \
+	-e PROJECT=$(shell gcloud config get project) \
+	-e TOKEN=$(shell gcloud auth print-access-token) \
+	substratus-installer
 
 .PHONY: build_gcp_installer
 build_gcp_installer: ## Build the GCP installer.
@@ -227,16 +236,12 @@ build_gcp_installer: ## Build the GCP installer.
 
 .PHONY: gcp_installer_up
 gcp_installer_up: build_gcp_installer ## invoke the GCP installer to build all infra.
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=$(shell gcloud config get project) \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		substratus-installer gcp-up.sh
+	${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
+
+.PHONY: gcp_installer_up_dev
+gcp_installer_up_dev: build_gcp_installer ## invoke the GCP installer to build all infra except for deploying the operator. This is helpful when developing the operator locally via `make dev`.
+	${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
 
 .PHONY: gcp_installer_down
 gcp_installer_down: build_gcp_installer ## invoke the GCP installer to destroy all infra.
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=$(shell gcloud config get project) \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		substratus-installer gcp-up.sh
+	${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
