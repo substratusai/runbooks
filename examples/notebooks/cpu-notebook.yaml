@@ -1,0 +1,14 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: cpu-notebook
+spec:
+  suspend: false
+  image:
+    git:
+      url: https://github.com/substratusai/notebook-image
+  resources:
+    cpu: 2
+    memory: 4
+    disk: 50
+
