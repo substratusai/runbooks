@@ -91,7 +91,7 @@ spec:
     git:
       url: https://github.com/substratusai/model-loader-huggingface
       branch: main
-  params: {name: tiuu/falcon-7b}
+  params: {name: tiiuae/falcon-7b}
   # ...
 status:
   url: gcs://my-bucket/my-model/
