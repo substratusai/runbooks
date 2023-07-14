@@ -153,6 +153,10 @@ install/kubernetes/system.yaml: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
 
+.PHONY: protogen
+protogen: protoc ## Generate protobuf files.
+	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
+
 ##@ Build Dependencies
 
 ## Location to install dependencies to
@@ -207,20 +211,16 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: protogen
-protogen: protoc ## Generate protobuf files.
-	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
-
 .PHONY: protoc
 protoc: $(PROTOC) ## download and install protoc.
 $(PROTOC): $(LOCALBIN)
 	test -s $(LOCALBIN)/protoc || \
-		curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
-		unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
-		cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
-		rm -rf /tmp/protoc/
-		rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
-		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
+	curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+	unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
+	cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
+	rm -rf /tmp/protoc/
+	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
 ### GCP installer targets
 

@@ -83,8 +83,8 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 
 	var baseModel *apiv1.Model
 	if model.Spec.BaseModel != nil {
-		sourceModel := &apiv1.Model{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.BaseModel.Name}, sourceModel); err != nil {
+		baseModel = &apiv1.Model{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.BaseModel.Name}, baseModel); err != nil {
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
 				model.Status.Ready = false
@@ -104,7 +104,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 
 			return result{}, fmt.Errorf("getting source model: %w", err)
 		}
-		if !sourceModel.Status.Ready {
+		if !baseModel.Status.Ready {
 			// Update this Model's status.
 			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{

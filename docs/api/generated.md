@@ -10,8 +10,8 @@ Package v1 contains API Schema definitions for Substratus.
 ## Resources
 - [Dataset](#dataset)
 - [Model](#model)
-- [ModelServer](#modelserver)
 - [Notebook](#notebook)
+- [Server](#server)
 
 
 ## Types
@@ -123,9 +123,9 @@ _Appears in:_
 
 _Appears in:_
 - [DatasetSpec](#datasetspec)
-- [ModelServerSpec](#modelserverspec)
 - [ModelSpec](#modelspec)
 - [NotebookSpec](#notebookspec)
+- [ServerSpec](#serverspec)
 
 | Field | Description |
 | --- | --- |
@@ -151,55 +151,6 @@ The Model API is used to build and train machine learning models.
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
 | `spec` _[ModelSpec](#modelspec)_ | Spec is the desired state of the Model. |
 | `status` _[ModelStatus](#modelstatus)_ | Status is the observed state of the Model. |
-
-
-### ModelServer
-
-
-
-The ModelServer API is used to deploy a server that exposes the capabilities of a Model via a HTTP interface.
-
-
-
-| Field | Description |
-| --- | --- |
-| `apiVersion` _string_ | `substratus.ai/v1`
-| `kind` _string_ | `ModelServer`
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
-| `spec` _[ModelServerSpec](#modelserverspec)_ | Spec is the desired state of the ModelServer. |
-| `status` _[ModelServerStatus](#modelserverstatus)_ | Status is the observed state of the ModelServer. |
-
-
-### ModelServerSpec
-
-
-
-ModelServerSpec defines the desired state of ModelServer
-
-_Appears in:_
-- [ModelServer](#modelserver)
-
-| Field | Description |
-| --- | --- |
-| `command` _string array_ | Command to run in the container. |
-| `image` _[Image](#image)_ | Image that contains model serving application and dependencies. |
-| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
-| `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
-
-
-### ModelServerStatus
-
-
-
-ModelServerStatus defines the observed state of ModelServer
-
-_Appears in:_
-- [ModelServer](#modelserver)
-
-| Field | Description |
-| --- | --- |
-| `ready` _boolean_ | Ready indicates whether the ModelServer is ready to serve traffic. See Conditions for more details. |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the ModelServer. |
 
 
 ### ModelSpec
@@ -298,9 +249,9 @@ _Appears in:_
 
 
 _Appears in:_
-- [ModelServerSpec](#modelserverspec)
 - [ModelSpec](#modelspec)
 - [NotebookSpec](#notebookspec)
+- [ServerSpec](#serverspec)
 
 | Field | Description |
 | --- | --- |
@@ -315,9 +266,9 @@ _Appears in:_
 
 _Appears in:_
 - [DatasetSpec](#datasetspec)
-- [ModelServerSpec](#modelserverspec)
 - [ModelSpec](#modelspec)
 - [NotebookSpec](#notebookspec)
+- [ServerSpec](#serverspec)
 
 | Field | Description |
 | --- | --- |
@@ -325,5 +276,54 @@ _Appears in:_
 | `disk` _integer_ | Disk size in Gigabytes. |
 | `memory` _integer_ | Memory is the amount of RAM in Gigabytes. |
 | `gpu` _[GPUResources](#gpuresources)_ | GPU resources. |
+
+
+### Server
+
+
+
+The Server API is used to deploy a server that exposes the capabilities of a Model via a HTTP interface.
+
+
+
+| Field | Description |
+| --- | --- |
+| `apiVersion` _string_ | `substratus.ai/v1`
+| `kind` _string_ | `Server`
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
+| `spec` _[ServerSpec](#serverspec)_ | Spec is the desired state of the Server. |
+| `status` _[ServerStatus](#serverstatus)_ | Status is the observed state of the Server. |
+
+
+### ServerSpec
+
+
+
+ServerSpec defines the desired state of Server
+
+_Appears in:_
+- [Server](#server)
+
+| Field | Description |
+| --- | --- |
+| `command` _string array_ | Command to run in the container. |
+| `image` _[Image](#image)_ | Image that contains model serving application and dependencies. |
+| `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
+| `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
+
+
+### ServerStatus
+
+
+
+ServerStatus defines the observed state of Server
+
+_Appears in:_
+- [Server](#server)
+
+| Field | Description |
+| --- | --- |
+| `ready` _boolean_ | Ready indicates whether the Server is ready to serve traffic. See Conditions for more details. |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Server. |
 
 

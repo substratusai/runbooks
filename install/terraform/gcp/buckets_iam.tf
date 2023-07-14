@@ -67,5 +67,5 @@ resource "google_storage_bucket_iam_member" "gcp_manager_notebooks_storage_admin
 resource "google_storage_bucket_iam_member" "container_builder_notebooks_storage_objectViewer" {
   bucket = google_storage_bucket.notebooks.name
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.gcp_manager.email}"
+  member = "serviceAccount:${google_service_account.container_builder.email}"
 }

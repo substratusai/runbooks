@@ -1,6 +1,15 @@
 apiVersion: substratus.ai/v1
-kind: ModelServer
+kind: Server
 metadata:
   name: falcon-7b-instruct
 spec:
-  modelName: falcon-7b-instruct
+  command: ["serve.sh"]
+  image:
+    git:
+      url: https://github.com/substratusai/model-server-basaran
+  model:
+    name: falcon-7b-instruct
+  resources:
+    gpu:
+      type: nvidia-l4
+      count: 1

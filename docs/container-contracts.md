@@ -17,7 +17,7 @@ Must be located in `$PATH`:
 
 - `load.sh` for Model that specifies loader section
     * Loads a model from an external source to (`/model/saved`)
-- `serve.sh` for ModelServer container image
+- `serve.sh` for Server container image
     * Loads model from disk (`/model/saved/`).
     * Run a webserver on port `8080`. Right now, there is no contract on the specific endpoints to serve but this could change in the future
 - `train.sh` for Model that specifies trainer section
