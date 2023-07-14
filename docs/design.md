@@ -78,9 +78,9 @@ status:
   url: gs://substratus-models/82c2706c-b941-4d8d-84a5-8037cf35df82/
 ```
 
-### Usecases
+### Use cases
 
-#### Usecase: Importing Huggingface Models
+#### Use case: Importing Huggingface Models
 
 A Model object could specify a Huggingface importer container which would download model weights and biases. The reference to the
 Huggingface model is passed in via `.spec.params`.
@@ -105,7 +105,7 @@ The controller will orchestrate the following flow in this case:
 
 <img src="./diagrams/model-building.excalidraw.png" width="80%"></img>
 
-#### Usecase: Finetuning a Base Model
+#### Use case: Finetuning a Base Model
 
 Models can be trained by specifying the `.spec.baseModel` section. 
 
@@ -162,7 +162,7 @@ spec:
       type: nvidia-l4
 ```
 
-#### Usecase: Iterate on Model Training Code
+#### Use case: Iterate on Model Training Code
 
 In this case, a user might want to update the code used for training in a Model object. The goal here is to create a development environment for the user that exactly mimics the training environment.
 
