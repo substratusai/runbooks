@@ -46,25 +46,77 @@ spec:
   command: ["train.sh"]
 ```
 
+### User
+
+All containers should use the `ml` user for all training, importing, notebook, etc operations. The `/home/ml` directory should correspond to the `WORKDIR` of all Dockerfiles.
+
+Non-root users should be enforced using the `runAsNonRoot: true` field within Pod security contexts.
+
 ### Storage
 
 #### Bucket Paths
 
 In Kubernetes the combination of the following fields make up a unique reference to a given object (i.e. database key): `split(.apiVersion, "/")[0] + .kind + .metadata.namespace + .metadata.name`. By storing related artifacts using a similar scheme, restore operations are made trivial: the administrator will not need to worry about backing up the `.status.url` field (as opposed to a scheme where storage location is `.metadata.uid` based - which would be unique for a given in-time instance of an object). When deleting and recreating clusters, if the storage bucket persisted, objects (i.e. Models, Datasets) can simply be re-applied into the new cluster (i.e. [velero](https://velero.io/)/similar is not needed). This plays nicely with GitOps.
 
-Storage scheme:
+Process:
 
+Calculate a hash.
+
+Hashes are used to [prevent bucket hot-spots](https://cloud.google.com/blog/products/gcp/optimizing-your-cloud-storage-performance-google-cloud-performance-atlas).
+
+As opposed to a random id, a hash is used to provide a deterministic pattern storing and finding artifacts. By including a cluster name (which can default to `default`), Substratus can optionally store artifacts across multiple clusters in a single bucket if a compelling use-case arises in the future.
+
+```sh
+hash_input = "clusters/{cluster}/namespaces/{namespace}/{resource_plural}/{name}"
+
+hash = sha256(hash_input)
 ```
+
+For example, with the following Model, with a default Substratus installation (prefix = `default`):
+
+```yaml
+kind: Model
+metadata:
+  name: falcon-7b
+  namespace: team-a
+```
+
+The hash input string would be: `clusters/default/namespaces/team-a/models/falcon-7b`.
+
+The resulting MD5 hash would be: `5946866536a5f7b484818546b50bbcf6`.
+
+The following scheme can be used for storing artifacts for Models, Datasets, and Notebooks:
+
+```sh
 # Models
-gs://{project_id}-substratus-storage/namespaces/{namespace}/models/{name}/model
-gs://{project_id}-substratus-storage/namespaces/{namespace}/models/{name}/logs
+gs://{bucket}/{hash}/model # Model artifacts (*.pt, etc)
+gs://{bucket}/{hash}/logs  # Logs and converted notebooks
 
 # Datasets
-gs://{project_id}-substratus-storage/namespaces/{namespace}/datasets/{name}/data
-gs://{project_id}-substratus-storage/namespaces/{namespace}/datasets/{name}/logs
+gs://{bucket}/{hash}/data # Model artifacts (*.pt, etc)
+gs://{bucket}/{hash}/logs # Logs and converted notebooks
+
+# Notebooks
+gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
 ```
 
-NOTE: With this approach, a single bucket could be used to store all Models and Datasets for a given cluster.
+The example Model's backing storage would end up being:
+
+```sh
+gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6/model/
+gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6/logs/
+```
+
+The Model would report this URL in its status:
+
+```yaml
+kind: Model
+# ...
+status:
+  url: gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6
+```
+
+#### Reconcile Logic
 
 Pseudo-reconciler logic for a Model:
 
@@ -73,7 +125,7 @@ if .status.url != "" {
   return
 }
 
-url := "{bucket}/namespaces/{namespace}/models/{name}"
+url := "{bucket}/{hash}"
 if sci.bucketObjectExists(url) {
   # Use the bucket as the source of truth if .status.url did not exist.
   updateStatus(url)
@@ -87,61 +139,61 @@ runJob()
 
 #### Mount Points
 
-All mount points will are made under a standardized `/ml` directory which should correspond to the `WORKDIR` of a Dockerfile. This works well for Jupyter notebooks which can be run with `/ml` set as the serving directory: all relevant mounts will be populated on the file explorer sidebar.
+All mount points will are made under a standardized `/home/ml` directory which should correspond to the `WORKDIR` of a Dockerfile. This works well for Jupyter notebooks which can be run with `/home/ml` set as the serving directory: all relevant mounts will be populated on the file explorer sidebar.
 
 The `logs/` directories below are used to store the notebook cell output, python logs, tensorboard stats, etc. These directories are mounted as read-only in Notebooks to explore the output of other background jobs.
 
 ##### Dataset (importing)
 
 ```
-/ml/params.json  # Populated from .spec.params (also available as env vars).
+/home/ml/params.json  # Populated from .spec.params (also available as env vars).
 
-/ml/data/        # Mounted RW: initially empty dir to write new files
-/ml/logs/        # Mounted RW: initially empty dir to write new files
+/home/ml/data/        # Mounted RW: initially empty dir to write new files
+/home/ml/logs/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (importing)
 
 ```
-/ml/params.json  # Populated from .spec.params (also available as env vars).
+/home/ml/params.json  # Populated from .spec.params (also available as env vars).
 
-/ml/model/       # Mounted RW: initially empty dir to write new files
-/ml/logs/        # Mounted RW: initially empty dir to write new files
+/home/ml/model/       # Mounted RW: initially empty dir to write new files
+/home/ml/logs/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (training)
 
 ```
-/ml/params.json        # Populated from .spec.params (also available as env vars).
+/home/ml/params.json        # Populated from .spec.params (also available as env vars).
 
-/ml/data/              # Mounted RO: from .spec.trainingDataset
+/home/ml/data/              # Mounted RO: from .spec.trainingDataset
 
-/ml/saved-model/       # Mounted RO: from .spec.baseModel
+/home/ml/saved-model/       # Mounted RO: from .spec.baseModel
 
-/ml/model/             # Mounted RW: initially empty dir for writing new files
-/ml/logs/              # Mounted RW: initially empty dir for writing logs
+/home/ml/model/             # Mounted RW: initially empty dir for writing new files
+/home/ml/logs/              # Mounted RW: initially empty dir for writing logs
 ```
 
 ##### Notebook
 
-NOTE: The `/saved-model/` directory is the same as the container for the Model object when `.baseModel` is specified. This allows for easy development of Model training code.
+NOTE: The `saved-model/` directory is the same as the container for the Model object when `.baseModel` is specified. This allows for easy development of Model training code.
 
 ```
-/ml/params.json        # Populated from .spec.params (also available as env vars).
+/home/ml/params.json        # Populated from .spec.params (also available as env vars).
 
-/ml/data/              # Mounted RO: from .spec.dataset
-/ml/data-logs/         # Mounted RO: from .spec.dataset
+/home/ml/data/              # Mounted RO: from .spec.dataset
+/home/ml/data-logs/         # Mounted RO: from .spec.dataset
 
-/ml/saved-model/       # Mounted RO: from .spec.model
-/ml/saved-model-logs/  # Mounted RO: from .spec.model
+/home/ml/saved-model/       # Mounted RO: from .spec.model
+/home/ml/saved-model-logs/  # Mounted RO: from .spec.model
 ```
 
 ##### Server:
 
 ```
-/ml/params.json        # Populated from .spec.params (also available as env vars).
+/home/ml/params.json        # Populated from .spec.params (also available as env vars).
 
-/ml/saved-model/       # Mounted RO: from .spec.model
+/home/ml/saved-model/       # Mounted RO: from .spec.model
 ```
 
 ## Kind: Model
@@ -175,7 +227,7 @@ This URL is used by the controller when other resources reference this Model by 
 
 ```yaml
 status:
-  url: gs://projectid-substratus-models/82c2706c-b941-4d8d-84a5-8037cf35df82/
+  url: gs://bucket/82c2706c-b941-4d8d-84a5-8037cf35df82
 ```
 
 ### Use cases
@@ -272,8 +324,9 @@ Steps:
 2. [Optionally] Modify Dockerfile.
 3. `kubectl open notebook -f .`
 4. The kubectl plugin does the following:
-   * Creates a Notebook with `.image.upload` set.
-   * Tars local directory respecting `.dockerignore`
+   * Tars local directory respecting `.dockerignore`.
+   * Creates an MD5 checksum of the tar.
+   * Creates a Notebook with `.image.upload.checksum` set.
 5. A Substratus controller in the background:
    * Creates a signed URL for the upload.
    * Updates the Notebook status with the signed URL.
@@ -290,7 +343,8 @@ kind: Notebook
 name: notebook-training-experiment
 spec:
   image:
-    upload: {} # This is how the plugin signals it wants to upload a directory for building.
+    upload:
+      checksum: 11ddbaf3386aea1f2974eee984542152 # This is how the plugin signals it wants to upload a directory for building.
   model: # Mounts the model. Plugin auto-populated this by finding the corresponding `model.yaml` file.
     name: falcon-7b  
   resources: {...} 
