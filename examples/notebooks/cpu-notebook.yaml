@@ -6,7 +6,7 @@ spec:
   suspend: false
   image:
     git:
-      url: https://github.com/substratusai/notebook-image
+      url: https://github.com/substratusai/notebook-minimal-cpu
   resources:
     cpu: 2
     memory: 4
