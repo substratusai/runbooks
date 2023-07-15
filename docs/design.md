@@ -64,7 +64,7 @@ Calculate a hash.
 
 Hashes are used to [prevent bucket hot-spots](https://cloud.google.com/blog/products/gcp/optimizing-your-cloud-storage-performance-google-cloud-performance-atlas).
 
-As opposed to a random id, a hash is used to provide a deterministic pattern storing and finding artifacts. By including a cluster name (which can default to `default`), Substratus can optionally store artifacts across multiple clusters in a single bucket if a compelling use-case arises in the future.
+As opposed to a random id, a hash is used to provide a deterministic pattern storing and finding artifacts. By including a cluster name, Substratus can optionally store artifacts across multiple clusters in a single bucket if a compelling use-case arises in the future.
 
 ```sh
 hash_input = "clusters/{cluster}/namespaces/{namespace}/{resource_plural}/{name}"
