@@ -28,6 +28,7 @@ jobs:
         with:
           images: substratusai/controller-manager
       - name: Build and push
+        id: build-and-push-controller-manager
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -41,10 +42,11 @@ jobs:
         with:
           images: substratusai/gcp-manager
       - name: Build and push
+        id: build-and-push-gcp-manager
         uses: docker/build-push-action@v4
         with:
           context: .
-          dockerfile: Dockerfile.gcpmanager
+          file: Dockerfile.gcpmanager
           platforms: "linux/amd64"
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-gcp-manager.outputs.tags }}
@@ -55,6 +57,7 @@ jobs:
         with:
           images: substratusai/installer
       - name: Build and push
+        id: build-and-push-installer
         uses: docker/build-push-action@v4
         with:
           context: install/

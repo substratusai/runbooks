@@ -24,7 +24,8 @@ spec:
       containers:
         - name: gcp-manager
           image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
-          # image: substratusai/gcp-manager:latest
+          # image: substratusai/gcp-manager:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 10080
           resources:

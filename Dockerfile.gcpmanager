@@ -19,6 +19,7 @@ WORKDIR /
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /workspace/main .
+# use nobody:nogroup
 USER 65532:65532
 EXPOSE 10080
 
