@@ -24,6 +24,26 @@ spec:
     name: substratusai/hf-model-loader
 ```
 
+If a container is built, the resulting image will use the following naming scheme:
+
+```sh
+image_name = {registry}/{cluster}-{namespace}-{name}-{lower(kind)}
+```
+
+For example:
+
+```yaml
+kind: Model
+metadata:
+  name: falcon-7b
+  namespace: default
+spec:
+  image:
+    git:
+      # ...
+    name: us-central1-docker.pkg.dev/my-project/my-repo/cluster1-default-falcon-7b-model
+```
+
 ### Resources
 
 ```yaml
@@ -54,7 +74,7 @@ Non-root users should be enforced using the `runAsNonRoot: true` field within Po
 
 ### Storage
 
-#### Bucket Paths
+#### Buckets
 
 In Kubernetes the combination of the following fields make up a unique reference to a given object (i.e. database key): `split(.apiVersion, "/")[0] + .kind + .metadata.namespace + .metadata.name`. By storing related artifacts using a similar scheme, restore operations are made trivial: the administrator will not need to worry about backing up the `.status.url` field (as opposed to a scheme where storage location is `.metadata.uid` based - which would be unique for a given in-time instance of an object). When deleting and recreating clusters, if the storage bucket persisted, objects (i.e. Models, Datasets) can simply be re-applied into the new cluster (i.e. [velero](https://velero.io/)/similar is not needed). This plays nicely with GitOps.
 
