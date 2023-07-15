@@ -72,7 +72,7 @@ hash_input = "clusters/{cluster}/namespaces/{namespace}/{resource_plural}/{name}
 hash = sha256(hash_input)
 ```
 
-For example, with the following Model, with a default Substratus installation (prefix = `default`):
+For example, with the following Model, with a default Substratus installation (cluster = `substratus-1`):
 
 ```yaml
 kind: Model
@@ -81,9 +81,9 @@ metadata:
   namespace: team-a
 ```
 
-The hash input string would be: `clusters/default/namespaces/team-a/models/falcon-7b`.
+The hash input string would be: `clusters/substratus-1/namespaces/team-a/models/falcon-7b`.
 
-The resulting MD5 hash would be: `5946866536a5f7b484818546b50bbcf6`.
+The resulting MD5 hash would be: `f94a0d128bcbd9c1b824e9e5572baf86`.
 
 The following scheme can be used for storing artifacts for Models, Datasets, and Notebooks:
 
@@ -103,8 +103,8 @@ gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
 The example Model's backing storage would end up being:
 
 ```sh
-gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6/model/
-gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6/logs/
+gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/model/
+gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/logs/
 ```
 
 The Model would report this URL in its status:
@@ -113,7 +113,7 @@ The Model would report this URL in its status:
 kind: Model
 # ...
 status:
-  url: gs://abc123-substratus-artifacts/5946866536a5f7b484818546b50bbcf6
+  url: gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86
 ```
 
 #### Reconcile Logic
@@ -227,7 +227,7 @@ This URL is used by the controller when other resources reference this Model by 
 
 ```yaml
 status:
-  url: gs://bucket/82c2706c-b941-4d8d-84a5-8037cf35df82
+  url: gs://bucket/f94a0d128bcbd9c1b824e9e5572baf86
 ```
 
 ### Use cases
