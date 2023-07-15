@@ -4,8 +4,7 @@ metadata:
   name: falcon-7b-instruct-k8s
 spec:
   image:
-    git:
-      url: https://github.com/substratusai/model-server-basaran
+    name: substratusai/model-server-basaran
   model:
     name: falcon-7b-instruct-k8s
   resources:
