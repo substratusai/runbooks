@@ -15,7 +15,7 @@ build:
     serviceAccount: container-builder
   artifacts:
     - image: us-central1-docker.pkg.dev/${PROJECT_ID}/substratus/gcpmanager
-      # - image: substratusai/gcp-manager
+    # - image: substratusai/gcp-manager # this wont work without docker hub creds
       kaniko:
         dockerfile: Dockerfile.gcpmanager
         logFormat: text
@@ -29,3 +29,4 @@ manifests:
   rawYaml:
     - "config/gcpmanager/gcp-manager.yaml"
     - "config/gcpmanager/bootstrapper-job.yaml"
+    - "config/gcpmanager/container-builder-sa.yaml"

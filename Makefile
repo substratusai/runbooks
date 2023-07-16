@@ -274,8 +274,10 @@ endif
 uninstall: build-installer ## invoke the GCP installer to destroy all infra.
 	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
 
+# TODO: chicken and egg here - may need to deploy the SA first via kubectl
 .PHONY: skaffold-dev-gcpmanager
 skaffold-dev-gcpmanager: skaffold envsubst ## Run skaffold dev against gcpmanager
 	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
+	envsubst < config/gcpmanager/container-builder-sa.yaml.tpl > config/gcpmanager/container-builder-sa.yaml && \
 	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
 	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml

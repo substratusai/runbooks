@@ -67,3 +67,4 @@ secrets/*
 hack/dev/
 dist/
 gcpmanager-skaffold.yaml
+container-builder-sa.yaml
