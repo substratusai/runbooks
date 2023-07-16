@@ -11,21 +11,21 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: dataset-editor-role
 rules:
-- apiGroups:
-  - substratus.ai
-  resources:
-  - datasets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - substratus.ai
-  resources:
-  - datasets/status
-  verbs:
-  - get
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - datasets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - datasets/status
+    verbs:
+      - get

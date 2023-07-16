@@ -11,17 +11,17 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: dataset-viewer-role
 rules:
-- apiGroups:
-  - substratus.ai
-  resources:
-  - datasets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - substratus.ai
-  resources:
-  - datasets/status
-  verbs:
-  - get
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - datasets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - substratus.ai
+    resources:
+      - datasets/status
+    verbs:
+      - get
