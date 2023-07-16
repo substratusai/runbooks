@@ -1,4 +1,4 @@
-# Container Contracts
+# Container Contract
 
 Substratus orchestrates machine learning operations without requiring any language-specific library dependencies. As long as a container satisfies the "contract", that container can be orchestrated with Substratus. These contracts are designed to impose as few requirements as possible.
 
