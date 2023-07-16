@@ -68,9 +68,11 @@ spec:
 
 ### User
 
-All containers should use the `ml` user for all training, importing, notebook, etc operations. The `/home/ml` directory should correspond to the `WORKDIR` of all Dockerfiles.
+Substratus seeks to match the colab environment.
 
-Non-root users should be enforced using the `runAsNonRoot: true` field within Pod security contexts.
+All containers should use the `root` user for all training, importing, and notebook operations. This allows for users to easily install tools with `apt-get` similar to colab. The `/content` directory should correspond to the `WORKDIR` of all Dockerfiles.
+
+NOTE: gvisor can be used to mitigate security risks (See [GKE Sandbox](https://cloud.google.com/kubernetes-engine/docs/concepts/sandbox-pods)).
 
 ### Storage
 
@@ -159,39 +161,39 @@ runJob()
 
 #### Mount Points
 
-All mount points will are made under a standardized `/home/ml` directory which should correspond to the `WORKDIR` of a Dockerfile. This works well for Jupyter notebooks which can be run with `/home/ml` set as the serving directory: all relevant mounts will be populated on the file explorer sidebar.
+All mount points will are made under a standardized `/content` directory which should correspond to the `WORKDIR` of a Dockerfile. This works well for Jupyter notebooks which can be run with `/content` set as the serving directory: all relevant mounts will be populated on the file explorer sidebar.
 
 The `logs/` directories below are used to store the notebook cell output, python logs, tensorboard stats, etc. These directories are mounted as read-only in Notebooks to explore the output of other background jobs.
 
 ##### Dataset (importing)
 
 ```
-/home/ml/params.json  # Populated from .spec.params (also available as env vars).
+/content/params.json  # Populated from .spec.params (also available as env vars).
 
-/home/ml/data/        # Mounted RW: initially empty dir to write new files
-/home/ml/logs/        # Mounted RW: initially empty dir to write new files
+/content/data/        # Mounted RW: initially empty dir to write new files
+/content/logs/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (importing)
 
 ```
-/home/ml/params.json  # Populated from .spec.params (also available as env vars).
+/content/params.json  # Populated from .spec.params (also available as env vars).
 
-/home/ml/model/       # Mounted RW: initially empty dir to write new files
-/home/ml/logs/        # Mounted RW: initially empty dir to write new files
+/content/model/       # Mounted RW: initially empty dir to write new files
+/content/logs/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (training)
 
 ```
-/home/ml/params.json        # Populated from .spec.params (also available as env vars).
+/content/params.json        # Populated from .spec.params (also available as env vars).
 
-/home/ml/data/              # Mounted RO: from .spec.trainingDataset
+/content/data/              # Mounted RO: from .spec.trainingDataset
 
-/home/ml/saved-model/       # Mounted RO: from .spec.baseModel
+/content/saved-model/       # Mounted RO: from .spec.baseModel
 
-/home/ml/model/             # Mounted RW: initially empty dir for writing new files
-/home/ml/logs/              # Mounted RW: initially empty dir for writing logs
+/content/model/             # Mounted RW: initially empty dir for writing new files
+/content/logs/              # Mounted RW: initially empty dir for writing logs
 ```
 
 ##### Notebook
@@ -199,21 +201,21 @@ The `logs/` directories below are used to store the notebook cell output, python
 NOTE: The `saved-model/` directory is the same as the container for the Model object when `.baseModel` is specified. This allows for easy development of Model training code.
 
 ```
-/home/ml/params.json        # Populated from .spec.params (also available as env vars).
+/content/params.json        # Populated from .spec.params (also available as env vars).
 
-/home/ml/data/              # Mounted RO: from .spec.dataset
-/home/ml/data-logs/         # Mounted RO: from .spec.dataset
+/content/data/              # Mounted RO: from .spec.dataset
+/content/data-logs/         # Mounted RO: from .spec.dataset
 
-/home/ml/saved-model/       # Mounted RO: from .spec.model
-/home/ml/saved-model-logs/  # Mounted RO: from .spec.model
+/content/saved-model/       # Mounted RO: from .spec.model
+/content/saved-model-logs/  # Mounted RO: from .spec.model
 ```
 
 ##### Server:
 
 ```
-/home/ml/params.json        # Populated from .spec.params (also available as env vars).
+/content/params.json        # Populated from .spec.params (also available as env vars).
 
-/home/ml/saved-model/       # Mounted RO: from .spec.model
+/content/saved-model/       # Mounted RO: from .spec.model
 ```
 
 ## Kind: Model
