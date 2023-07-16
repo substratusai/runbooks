@@ -5,167 +5,167 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - serviceaccounts
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - services
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - apps
-    resources:
-      - deployments
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - batch
-    resources:
-      - jobs
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - datasets
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - datasets/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - datasets/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - models
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - models/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - models/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - notebooks
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - notebooks/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - notebooks/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - servers
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - servers/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - substratus.ai
-    resources:
-      - servers/status
-    verbs:
-      - get
-      - patch
-      - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/status
+  verbs:
+  - get
+  - patch
+  - update
