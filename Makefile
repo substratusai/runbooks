@@ -90,6 +90,14 @@ vet: ## Run go vet against code.
 test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
+# TODO: chicken and egg here - may need to deploy the SA first via kubectl
+.PHONY: skaffold-dev-gcpmanager
+skaffold-dev-gcpmanager: skaffold envsubst ## Run skaffold dev against gcpmanager
+	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
+	envsubst < config/gcpmanager/container-builder-sa.yaml.tpl > config/gcpmanager/container-builder-sa.yaml && \
+	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
+	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml
+
 ##@ Build
 
 .PHONY: build
@@ -97,7 +105,7 @@ build: manifests generate protogen fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: releases
-dev: manifests kustomize install
+dev: manifests kustomize install-crds
 	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
@@ -126,7 +134,6 @@ docs: crd-ref-docs embedmd
 	# TODO: Embed YAML examples into the generate API documentation.
 	# $(EMBEDMD) -w ./docs/api/generated.md
 
-
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
@@ -143,6 +150,10 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
+
+.PHONY: protogen
+protogen: protoc ## Generate protobuf files.
+	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
 
 ##@ Deployment
 
@@ -162,9 +173,25 @@ install/kubernetes/system.yaml: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
 
-.PHONY: protogen
-protogen: protoc ## Generate protobuf files.
-	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
+RUN_SUBSTRATUS_INSTALLER := docker run -it \
+	-v ${HOME}/.kube:/root/.kube \
+	-e PROJECT=$(shell gcloud config get project) \
+	-e TOKEN=$(shell gcloud auth print-access-token) \
+	substratus-installer
+
+DISABLE_CONTROLLER ?= false
+
+.PHONY: install
+install: build-installer ## invoke the GCP installer to build all infra.
+ifeq ($(DISABLE_CONTROLLER),true)
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
+else
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
+endif
+
+.PHONY: uninstall
+uninstall: build-installer ## invoke the GCP installer to destroy all infra.
+	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
 
 ##@ Build Dependencies
 
@@ -248,36 +275,6 @@ envsubst:
 	chmod +x envsubst && \
 	mv envsubst $(LOCALBIN)/envsubst )
 
-### GCP installer targets
-
-RUN_SUBSTRATUS_INSTALLER := docker run -it \
-	-v ${HOME}/.kube:/root/.kube \
-	-e PROJECT=$(shell gcloud config get project) \
-	-e TOKEN=$(shell gcloud auth print-access-token) \
-	substratus-installer
-
 .PHONY: build-installer
 build-installer: ## Build the GCP installer.
 	@ docker build ./install -t substratus-installer
-
-DISABLE_CONTROLLER ?= false
-
-.PHONY: install
-install: build-installer ## invoke the GCP installer to build all infra.
-ifeq ($(DISABLE_CONTROLLER),true)
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
-else
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
-endif
-
-.PHONY: uninstall
-uninstall: build-installer ## invoke the GCP installer to destroy all infra.
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
-
-# TODO: chicken and egg here - may need to deploy the SA first via kubectl
-.PHONY: skaffold-dev-gcpmanager
-skaffold-dev-gcpmanager: skaffold envsubst ## Run skaffold dev against gcpmanager
-	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
-	envsubst < config/gcpmanager/container-builder-sa.yaml.tpl > config/gcpmanager/container-builder-sa.yaml && \
-	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
-	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml
