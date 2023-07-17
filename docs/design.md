@@ -91,7 +91,7 @@ As opposed to a random id, a hash is used to provide a deterministic pattern sto
 ```sh
 hash_input = "clusters/{cluster}/namespaces/{namespace}/{resource_plural}/{name}"
 
-hash = sha256(hash_input)
+hash = md5(hash_input)
 ```
 
 For example, with the following Model, with a default Substratus installation (cluster = `substratus-1`):

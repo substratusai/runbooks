@@ -4,7 +4,7 @@ Substratus orchestrates machine learning operations without requiring any langua
 
 ## Workdir
 
-The workdir MUST be set to `/content`.
+The working directory MUST be set to `/content`.
 
 ```Dockerfile
 WORKDIR /content
@@ -19,6 +19,8 @@ The `notebook.sh` script MUST be located in `$PATH`. It is recommended that this
 * Starts a Jupyter Lab/Notebook environment.
 * Serve on port `8888`.
 * Respects the `NOTEBOOK_TOKEN` environment variable.
+
+Note: This requirement is satisfied by default when using Substratus base images.
 
 ### Directory Structure
 
