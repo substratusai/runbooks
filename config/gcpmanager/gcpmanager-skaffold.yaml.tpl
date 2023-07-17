@@ -12,7 +12,7 @@ build:
       requests:
         cpu: 300m
         memory: 512Mi
-    serviceAccount: container-builder
+    serviceAccount: skaffold-container-builder
   artifacts:
     - image: us-central1-docker.pkg.dev/${PROJECT_ID}/substratus/gcpmanager
     # - image: substratusai/gcp-manager # this wont work without docker hub creds
@@ -27,6 +27,6 @@ build:
           ttl: "24h"
 manifests:
   rawYaml:
+    - "config/gcpmanager/gcpmanager-dependencies.yaml"
     - "config/gcpmanager/gcp-manager.yaml"
     - "config/gcpmanager/bootstrapper-job.yaml"
-    - "config/gcpmanager/container-builder-sa.yaml"

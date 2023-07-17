@@ -90,26 +90,28 @@ vet: ## Run go vet against code.
 test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
-# TODO: chicken and egg here - may need to deploy the SA first via kubectl
 .PHONY: skaffold-dev-gcpmanager
-skaffold-dev-gcpmanager: skaffold envsubst ## Run skaffold dev against gcpmanager
+skaffold-dev-gcpmanager: protoc skaffold envsubst protogen ## Run skaffold dev against gcpmanager
 	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
-	envsubst < config/gcpmanager/container-builder-sa.yaml.tpl > config/gcpmanager/container-builder-sa.yaml && \
+	envsubst < config/skaffold-dependencies.sh.tpl > config/skaffold-dependencies.sh && \
+	chmod +x config/skaffold-dependencies.sh && \
+	config/skaffold-dependencies.sh && \
+	envsubst < config/gcpmanager/gcpmanager-dependencies.yaml.tpl > config/gcpmanager/gcpmanager-dependencies.yaml && \
 	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
 	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate protogen fmt vet ## Build manager binary.
+build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
-.PHONY: releases
+.PHONY: dev
 dev: manifests kustomize install-crds
 	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
-run: manifests generate protogen fmt vet ## Run a controller from your host.
+run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/controllermanager/main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
