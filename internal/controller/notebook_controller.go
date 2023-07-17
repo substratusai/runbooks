@@ -50,17 +50,17 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
-	if notebook.Spec.Upload.Md5Checksum != "" && (notebook.Status.UploadUrl == "") {
-		uploadUrl, err := r.callSignedUrlGenerator(&notebook)
+	if notebook.Spec.Upload.Md5Checksum != "" && (notebook.Status.UploadURL == "") {
+		url, err := r.callSignedUrlGenerator(&notebook)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("generating upload url: %w", err)
 		}
-		log.Info("upload url is: %s", uploadUrl)
-		notebook.Status.UploadUrl = uploadUrl
+		log.Info("upload url is: %s", url)
+		notebook.Status.UploadURL = url
 		if err := r.Status().Update(ctx, &notebook); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
 		}
-		log.Info("status.uploadurl updated to: %s", notebook.Status.UploadUrl)
+		log.Info("status.uploadurl updated to: %s", notebook.Status.UploadURL)
 	}
 	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
 		log.Info("success: %b", result.success)
