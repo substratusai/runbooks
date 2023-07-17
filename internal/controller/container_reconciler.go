@@ -75,11 +75,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 			nb.Status.UploadURL = url
 			nb.Status.LastGeneratedMd5Checksum = nb.Spec.Image.Upload.Md5Checksum
-			// TODO(bjb): shouldn't this happen in the notebook_controller?
-			// The reconciler here doesn't have Status()
-			// if err := r.Status().Update(ctx, &nb); err != nil {
-			// 	return result{}, fmt.Errorf("updating notebook status: %w", err)
-			// }
+			return result{}, nil
 		}
 		if nb.Status.UploadURL != "" {
 			expirationTime, err := r.getExpirationTime(nb.Status.UploadURL)
@@ -90,7 +86,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			if time.Now().After(expirationTime) {
 				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
 				nb.Status.UploadURL = ""
-				// TODO(bjb): another case where we need to update the notebook status. How to do it properly?
+				return result{}, nil
 			}
 		}
 

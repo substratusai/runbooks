@@ -42,8 +42,17 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	prevUploadUrl := notebook.Status.UploadURL
+	prevLastGeneratedMd5Checksum := notebook.Status.LastGeneratedMd5Checksum
+
 	if result, err := r.ReconcileContainerImage(ctx, &notebook); !result.success {
 		return result.Result, err
+	}
+
+	if prevUploadUrl != notebook.Status.UploadURL || prevLastGeneratedMd5Checksum != notebook.Status.LastGeneratedMd5Checksum {
+		if err := r.Status().Update(ctx, &notebook); err != nil {
+			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
+		}
 	}
 
 	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
