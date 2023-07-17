@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,8 +30,8 @@ import (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-
 	*ContainerImageReconciler
+	CloudManagerGrpcConn *grpc.ClientConn
 }
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -55,14 +54,14 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
-	if (notebook.Spec.Upload.Md5Checksum != "" && notebook.Status.UploadURL == "") ||
-		(notebook.Spec.Upload.Md5Checksum != notebook.Status.Md5Checksum) {
-		url, err := r.callSignedUrlGenerator(&notebook)
+	if (notebook.Spec.Image.Upload.Md5Checksum != "" && notebook.Status.UploadURL == "") ||
+		(notebook.Spec.Image.Upload.Md5Checksum != notebook.Status.Md5Checksum) {
+		url, err := r.callSignedUrlGenerator(&notebook, r.CloudManagerGrpcConn)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("generating upload url: %w", err)
 		}
 		notebook.Status.UploadURL = url
-		notebook.Status.Md5Checksum = notebook.Spec.Upload.Md5Checksum
+		notebook.Status.Md5Checksum = notebook.Spec.Image.Upload.Md5Checksum
 
 		if err := r.Status().Update(ctx, &notebook); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
@@ -443,26 +442,14 @@ func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.Persistent
 	return pvc, nil
 }
 
-func (r *NotebookReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook) (string, error) {
-	// TODO(bjb): we should be using TLS here
-	conn, err := grpc.Dial(
-		// TODO(bjb): change before merge
-		"localhost:10080",
-		// "gcp-manager:10080",
-		// "gcp-manager.substratus.svc.cluster.local:10080",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return "", fmt.Errorf("creating an SCI gRPC client: %w", err)
-	}
-	defer conn.Close()
+func (r *NotebookReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook, conn *grpc.ClientConn) (string, error) {
 
 	// create the request object
 	req := &sci.CreateSignedURLRequest{
 		BucketName:        r.CloudContext.GCP.ProjectID + "-substratus-notebooks",
 		ObjectName:        "notebook.zip",
 		ExpirationSeconds: 300,
-		Md5Checksum:       notebook.Spec.Upload.Md5Checksum,
+		Md5Checksum:       notebook.Spec.Image.Upload.Md5Checksum,
 	}
 
 	// Create a client using the connection

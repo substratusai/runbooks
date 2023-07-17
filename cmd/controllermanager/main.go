@@ -6,6 +6,8 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,6 +84,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO(bjb): setup TLS
+	conn, err := grpc.Dial(
+		// TODO(bjb): change address before merge
+		"localhost:10080",
+		// "gcp-manager:10080",
+		// "gcp-manager.substratus.svc.cluster.local:10080",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create an SCI gRPC client")
+		os.Exit(1)
+	}
+	defer conn.Close()
+
 	if err = (&controller.ModelReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
@@ -109,9 +125,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
 	}
+
 	if err = (&controller.NotebookReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:               mgr.GetClient(),
+		Scheme:               mgr.GetScheme(),
+		CloudManagerGrpcConn: conn,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
 			Scheme:       mgr.GetScheme(),
 			Client:       mgr.GetClient(),

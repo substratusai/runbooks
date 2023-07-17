@@ -27,17 +27,6 @@ type NotebookSpec struct {
 
 	// Params will be passed into the notebook container as environment variables.
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
-
-	// Upload is a signal to the notebook controller that a local tar of the directory should be uploaded to be built as a notebook image.
-	Upload *Upload `json:"upload,omitempty"`
-}
-
-type Upload struct {
-	// Md5Checksum is the md5 checksum of the tar'd notebook repo root.
-	// +kubebuilder:validation:MaxLength=32
-	// +kubebuilder:validation:MinLength=32
-	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
 func (n *Notebook) GetImage() *Image {
