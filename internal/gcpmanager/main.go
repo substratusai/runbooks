@@ -33,7 +33,9 @@ type Clients struct {
 
 // CreateSignedURL generates a signed URL for a specified GCS bucket and object path.
 func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRequest) (*sci.CreateSignedURLResponse, error) {
-	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+	bucketName, objectName, checksum := req.GetBucketName(),
+		req.GetObjectName(),
+		req.GetMd5Checksum()
 	bucket := s.Clients.Storage.Bucket(bucketName)
 	obj := bucket.Object(objectName)
 	if _, err := obj.Attrs(ctx); err != nil && err != storage.ErrObjectNotExist {
@@ -50,6 +52,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		},
 		Expires:        time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
 		GoogleAccessID: s.SaEmail,
+		MD5:            checksum,
 		SignBytes: func(b []byte) ([]byte, error) {
 			req := &credentialspb.SignBlobRequest{
 				Payload: b,

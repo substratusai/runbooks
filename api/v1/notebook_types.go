@@ -67,6 +67,7 @@ type NotebookStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	UploadUrl  string             `json:"uploadUrl,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

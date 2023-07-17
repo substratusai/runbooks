@@ -230,6 +230,8 @@ spec:
                 description: Ready indicates that the Notebook is ready to serve.
                   See Conditions for more details.
                 type: boolean
+              uploadUrl:
+                type: string
             required:
             - ready
             type: object

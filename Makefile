@@ -90,14 +90,17 @@ vet: ## Run go vet against code.
 test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
-.PHONY: skaffold-dev-gcpmanager
-skaffold-dev-gcpmanager: protoc skaffold envsubst protogen ## Run skaffold dev against gcpmanager
+.PHONY: render-skaffold-manifests
+render-skaffold-manifests: envsubst ## run envsubs against skaffold manifest tesmplates
 	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
 	envsubst < config/skaffold-dependencies.sh.tpl > config/skaffold-dependencies.sh && \
 	chmod +x config/skaffold-dependencies.sh && \
-	config/skaffold-dependencies.sh && \
 	envsubst < config/gcpmanager/gcpmanager-dependencies.yaml.tpl > config/gcpmanager/gcpmanager-dependencies.yaml && \
-	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml && \
+	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml
+
+.PHONY: skaffold-dev-gcpmanager
+skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## Run skaffold dev against gcpmanager
+	config/skaffold-dependencies.sh && \
 	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml
 
 ##@ Build

@@ -12,6 +12,7 @@ build:
       requests:
         cpu: 300m
         memory: 512Mi
+    namespace: default
     serviceAccount: skaffold-container-builder
   artifacts:
     - image: us-central1-docker.pkg.dev/${PROJECT_ID}/substratus/gcpmanager

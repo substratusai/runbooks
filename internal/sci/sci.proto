@@ -11,6 +11,7 @@ message CreateSignedURLRequest {
   string bucketName = 1;
   string objectName = 2;
   int64 expirationSeconds = 3;
+  string md5checksum = 4;
 }
 
 message CreateSignedURLResponse {
