@@ -224,15 +224,15 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: protoc
 protoc: $(PROTOC) ## download and install protoc.
 $(PROTOC): $(LOCALBIN)
-	@ test -s $(LOCALBIN)/protoc || \
-	( curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip \
-		-o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip && \
-	unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/ && \
-	cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc && \
-	rm -rf /tmp/protoc/ && \
-	rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip && \
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION} && \
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION) )
+	@if ! test -x $(LOCALBIN)/protoc; then \
+		curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip; \
+		unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/; \
+		cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc; \
+		rm -rf /tmp/protoc/; \
+		rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip; \
+		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}; \
+		go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION); \
+	fi
 
 .PHONY: skaffold
 skaffold:
