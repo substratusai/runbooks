@@ -68,6 +68,11 @@ type NotebookStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	UploadURL  string             `json:"uploadURL,omitempty"`
+	// Md5Checksum is the md5 checksum that was used to generate UploadURL.
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=32
+	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
+	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

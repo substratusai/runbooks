@@ -55,18 +55,20 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
-	if notebook.Spec.Upload.Md5Checksum != "" && (notebook.Status.UploadURL == "") {
+	if (notebook.Spec.Upload.Md5Checksum != "" && notebook.Status.UploadURL == "") ||
+		(notebook.Spec.Upload.Md5Checksum != notebook.Status.Md5Checksum) {
 		url, err := r.callSignedUrlGenerator(&notebook)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("generating upload url: %w", err)
 		}
-		log.Info("upload url is: %s", url)
 		notebook.Status.UploadURL = url
+		notebook.Status.Md5Checksum = notebook.Spec.Upload.Md5Checksum
+
 		if err := r.Status().Update(ctx, &notebook); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
 		}
-		log.Info("status.uploadurl updated to: %s", notebook.Status.UploadURL)
 	}
+	// TODO(bjb): should we clear status.uploadURL after expiration?
 
 	return ctrl.Result{}, nil
 }
@@ -444,6 +446,7 @@ func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.Persistent
 func (r *NotebookReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook) (string, error) {
 	// TODO(bjb): we should be using TLS here
 	conn, err := grpc.Dial(
+		// TODO(bjb): change before merge
 		"localhost:10080",
 		// "gcp-manager:10080",
 		// "gcp-manager.substratus.svc.cluster.local:10080",

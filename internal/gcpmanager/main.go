@@ -3,8 +3,9 @@ package gcpmanager
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -44,6 +45,10 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		return nil, err
 	}
 
+	hasher := md5.New()
+	hasher.Write([]byte(checksum))
+	rawHash := hasher.Sum(nil)
+	b64hash := base64.StdEncoding.EncodeToString(rawHash)
 	opts := &storage.SignedURLOptions{
 		Scheme: storage.SigningSchemeV4,
 		Method: http.MethodPut,
@@ -52,7 +57,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		},
 		Expires:        time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
 		GoogleAccessID: s.SaEmail,
-		MD5:            checksum,
+		MD5:            b64hash,
 		SignBytes: func(b []byte) ([]byte, error) {
 			req := &credentialspb.SignBlobRequest{
 				Payload: b,
@@ -89,12 +94,12 @@ func GetServiceAccountEmail(m *metadata.Client) (string, error) {
 			return "", fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
 		}
 
-		keyBytes, err := ioutil.ReadFile(keyFile)
+		key, err := os.ReadFile(keyFile)
 		if err != nil {
 			return "", err
 		}
 
-		cfg, err := google.JWTConfigFromJSON(keyBytes)
+		cfg, err := google.JWTConfigFromJSON(key)
 		if err != nil {
 			return "", err
 		}

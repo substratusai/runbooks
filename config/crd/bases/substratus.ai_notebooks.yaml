@@ -225,6 +225,13 @@ spec:
                   - type
                   type: object
                 type: array
+              md5checksum:
+                description: Md5Checksum is the md5 checksum that was used to generate
+                  UploadURL.
+                maxLength: 32
+                minLength: 32
+                pattern: ^[a-fA-F0-9]{32}$
+                type: string
               ready:
                 default: false
                 description: Ready indicates that the Notebook is ready to serve.
