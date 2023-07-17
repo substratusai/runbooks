@@ -50,6 +50,11 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
+	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
+		log.Info("success: %b", result.success)
+		return result.Result, err
+	}
+
 	if notebook.Spec.Upload.Md5Checksum != "" && (notebook.Status.UploadURL == "") {
 		url, err := r.callSignedUrlGenerator(&notebook)
 		if err != nil {
@@ -62,11 +67,6 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		log.Info("status.uploadurl updated to: %s", notebook.Status.UploadURL)
 	}
-	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
-		log.Info("success: %b", result.success)
-		return result.Result, err
-	}
-	log.Info("reconcile never gets here")
 
 	return ctrl.Result{}, nil
 }
@@ -444,11 +444,8 @@ func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.Persistent
 func (r *NotebookReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook) (string, error) {
 	// TODO(bjb): we should be using TLS here
 	conn, err := grpc.Dial(
-		// TODO(bjb): this doesn't work under `make dev` with port forwarding enabled (telnet returns):
-		// "localhost:10080",
-		// TODO(bjb): transport: Error while dialing dial tcp: lookup gcp-manager: no such host\
-		"gcp-manager:10080",
-		// TODO(bjb): throws: error": "generating upload url: calling the sci service to CreateSignedURL: rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing dial tcp: lookup gcp-manager.substratus.svc.cluster.local: no such host\""
+		"localhost:10080",
+		// "gcp-manager:10080",
 		// "gcp-manager.substratus.svc.cluster.local:10080",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
