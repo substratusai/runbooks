@@ -148,8 +148,10 @@ if .status.url != "" {
 }
 
 url := "{bucket}/{hash}"
-if sci.bucketObjectExists(url) {
+if sci.bucketObjectExists(url + "/completed.json") {
   # Use the bucket as the source of truth if .status.url did not exist.
+  # If "completed.json" exists, it means that a given long-running
+  # training/loading Job completed successfully.
   updateStatus(url)
   return
 }
