@@ -47,7 +47,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
-		log.Info("success: %b", result.success)
+		log.Info("successfully reconciled notebook")
 		return result.Result, err
 	}
 

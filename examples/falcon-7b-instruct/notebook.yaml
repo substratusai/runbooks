@@ -3,13 +3,13 @@ kind: Notebook
 metadata:
   name: falcon-7b-instruct
 spec:
-  upload:
-    # md5checksum: 38d6a014d78f1de1ba0b10ca34d29778
-    md5checksum: 38d6a014d78f1de1ba0b10ca34d29779
   command: ["notebook.sh"]
   suspend: false
   image:
     name: substratusai/model-trainer-huggingface
+    upload:
+      # md5checksum: 38d6a014d78f1de1ba0b10ca34d29778
+      md5checksum: 38d6a014d78f1de1ba0b10ca34d29779
   model:
     name: falcon-7b-instruct
   dataset:
