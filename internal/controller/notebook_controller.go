@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/grpc"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +22,6 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/resources"
-	"github.com/substratusai/substratus/internal/sci"
 )
 
 // NotebookReconciler reconciles a Notebook object.
@@ -31,7 +29,6 @@ type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	*ContainerImageReconciler
-	CloudManagerGrpcConn *grpc.ClientConn
 }
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -53,21 +50,6 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		log.Info("success: %b", result.success)
 		return result.Result, err
 	}
-
-	if (notebook.Spec.Image.Upload.Md5Checksum != "" && notebook.Status.UploadURL == "") ||
-		(notebook.Spec.Image.Upload.Md5Checksum != notebook.Status.Md5Checksum) {
-		url, err := r.callSignedUrlGenerator(&notebook, r.CloudManagerGrpcConn)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("generating upload url: %w", err)
-		}
-		notebook.Status.UploadURL = url
-		notebook.Status.Md5Checksum = notebook.Spec.Image.Upload.Md5Checksum
-
-		if err := r.Status().Update(ctx, &notebook); err != nil {
-			return ctrl.Result{}, fmt.Errorf("updating notebook status: %w", err)
-		}
-	}
-	// TODO(bjb): should we clear status.uploadURL after expiration?
 
 	return ctrl.Result{}, nil
 }
@@ -440,26 +422,4 @@ func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.Persistent
 	}
 
 	return pvc, nil
-}
-
-func (r *NotebookReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook, conn *grpc.ClientConn) (string, error) {
-
-	// create the request object
-	req := &sci.CreateSignedURLRequest{
-		BucketName:        r.CloudContext.GCP.ProjectID + "-substratus-notebooks",
-		ObjectName:        "notebook.zip",
-		ExpirationSeconds: 300,
-		Md5Checksum:       notebook.Spec.Image.Upload.Md5Checksum,
-	}
-
-	// Create a client using the connection
-	c := sci.NewControllerClient(conn)
-
-	// Call the service
-	resp, err := c.CreateSignedURL(context.Background(), req)
-	if err != nil {
-		return "", fmt.Errorf("calling the sci service to CreateSignedURL: %w", err)
-	}
-
-	return resp.Url, nil
 }

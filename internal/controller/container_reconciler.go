@@ -3,11 +3,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
+	"google.golang.org/grpc"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,9 +38,9 @@ type ContainerImageReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
-	CloudContext *cloud.Context
-
-	Kind string
+	CloudContext         *cloud.Context
+	CloudManagerGrpcConn *grpc.ClientConn
+	Kind                 string
 }
 
 func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, obj ContainerizedObject) (result, error) {
@@ -56,6 +61,40 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		},
 	}); !result.success {
 		return result, err
+	}
+
+	if r.Kind == "Notebook" {
+		nb := obj.(*apiv1.Notebook)
+
+		// this is a signed url request for a file with a different md5 checksum
+		if nb.Spec.Image.Upload.Md5Checksum != nb.Status.LastGeneratedMd5Checksum {
+			url, err := r.callSignedUrlGenerator(nb, r.CloudManagerGrpcConn)
+			if err != nil {
+				return result{}, fmt.Errorf("generating upload url: %w", err)
+			}
+
+			nb.Status.UploadURL = url
+			nb.Status.LastGeneratedMd5Checksum = nb.Spec.Image.Upload.Md5Checksum
+			// TODO(bjb): shouldn't this happen in the notebook_controller?
+			// The reconciler here doesn't have Status()
+			// if err := r.Status().Update(ctx, &nb); err != nil {
+			// 	return result{}, fmt.Errorf("updating notebook status: %w", err)
+			// }
+		}
+		if nb.Status.UploadURL != "" {
+			expirationTime, err := r.getExpirationTime(nb.Status.UploadURL)
+			if err != nil {
+				return result{}, fmt.Errorf("getting URL expiration time: %w", err)
+			}
+
+			if time.Now().After(expirationTime) {
+				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
+				nb.Status.UploadURL = ""
+				// TODO(bjb): another case where we need to update the notebook status. How to do it properly?
+			}
+		}
+
+		// TODO(bjb): how should we signal that contents have been successfully uploaded and should be built?
 	}
 
 	// The Job that will build the container image.
@@ -254,4 +293,47 @@ func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 	default:
 		panic("unsupported cloud: " + name)
 	}
+}
+
+func (r *ContainerImageReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook, conn *grpc.ClientConn) (string, error) {
+
+	// create the request object
+	req := &sci.CreateSignedURLRequest{
+		BucketName:        r.CloudContext.GCP.ProjectID + "-substratus-notebooks",
+		ObjectName:        "notebook.zip",
+		ExpirationSeconds: 300,
+		Md5Checksum:       notebook.Spec.Image.Upload.Md5Checksum,
+	}
+
+	// Create a client using the connection
+	c := sci.NewControllerClient(conn)
+
+	// Call the service
+	resp, err := c.CreateSignedURL(context.Background(), req)
+	if err != nil {
+		return "", fmt.Errorf("calling the sci service to CreateSignedURL: %w", err)
+	}
+
+	return resp.Url, nil
+}
+
+func (r *ContainerImageReconciler) getExpirationTime(signedUrl string) (time.Time, error) {
+	u, err := url.Parse(signedUrl)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	queryParams := u.Query()
+	date := queryParams.Get("X-Goog-Date")
+	expires, err := strconv.Atoi(queryParams.Get("X-Goog-Expires"))
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	t, err := time.Parse("20060102T150405Z", date)
+	if err != nil {
+		return time.Time{}, err
+	}
+	expirationTime := t.Add(time.Duration(expires) * time.Second)
+	return expirationTime, nil
 }

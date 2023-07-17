@@ -127,14 +127,14 @@ func main() {
 	}
 
 	if err = (&controller.NotebookReconciler{
-		Client:               mgr.GetClient(),
-		Scheme:               mgr.GetScheme(),
-		CloudManagerGrpcConn: conn,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Notebook",
+			Scheme:               mgr.GetScheme(),
+			Client:               mgr.GetClient(),
+			CloudContext:         cloudContext,
+			CloudManagerGrpcConn: conn,
+			Kind:                 "Notebook",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")

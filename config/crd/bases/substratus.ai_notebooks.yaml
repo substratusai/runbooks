@@ -225,8 +225,8 @@ spec:
                   type: object
                 type: array
               md5checksum:
-                description: Md5Checksum is the md5 checksum that was used to generate
-                  UploadURL.
+                description: LastGeneratedMd5Checksum is the last generated md5 checksum
+                  that resulted in the creation of an UploadURL.
                 maxLength: 32
                 minLength: 32
                 pattern: ^[a-fA-F0-9]{32}$
