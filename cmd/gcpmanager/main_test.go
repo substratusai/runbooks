@@ -15,17 +15,20 @@ package main_test
 // curl -v -X PUT -H "Content-Type: application/octet-stream" --upload-file README.md $url
 
 // the following function was successfully used to exercise gcpmanager.Server.CreateSignedURL()
-// func invokeManually(s *gcpmanager.Server) {
+// func invokeManually(storageClient *storage.Client) {
 // 	payload := sci.CreateSignedURLRequest{
-// 		BucketName:        "substratus-ai-001-substratus-notebooks",
+// 		BucketName:        "substr-models1",
 // 		ObjectName:        "README.md",
 // 		ExpirationSeconds: 600,
 // 	}
+// 	serv := gcpmanager.Server{
+// 		StorageClient: storageClient,
+// 	}
 // 	fmt.Println("calling CreateSignedURL with payload:")
 
-// 	resp, err := s.CreateSignedURL(context.Background(), &payload)
-// 	if err != nil {
-// 		log.Fatalf("failed to create signed URL: %v", err)
-// 	}
-// 	fmt.Printf("signed URL: %v\n", resp.Url)
-// }
+//		resp, err := serv.CreateSignedURL(context.Background(), &payload)
+//		if err != nil {
+//			log.Fatalf("failed to create signed URL: %v", err)
+//		}
+//		fmt.Printf("signed URL: %v\n", resp.Url)
+//	}

@@ -39,6 +39,10 @@ func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
 }
 
+func (d *Dataset) GetStatusURL() string {
+	return d.Status.URL
+}
+
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.

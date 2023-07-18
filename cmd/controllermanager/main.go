@@ -76,21 +76,21 @@ func main() {
 
 	// NOTE: NewCloudContext() will look up environment variables (intended for local development)
 	// and if they are not specified, it will try to use metadata servers on the cloud.
-	cloudContext, err := cloud.NewContext()
+	cloudConfig, err := cloud.NewConfig()
 	if err != nil {
-		setupLog.Error(err, "unable to determine cloud context")
+		setupLog.Error(err, "unable to determine cloud configuration")
 		os.Exit(1)
 	}
 
 	if err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		CloudConfig: cloudConfig,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Model",
+			Scheme:      mgr.GetScheme(),
+			Client:      mgr.GetClient(),
+			CloudConfig: cloudConfig,
+			Kind:        "Model",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
@@ -100,10 +100,10 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Server",
+			Scheme:      mgr.GetScheme(),
+			Client:      mgr.GetClient(),
+			CloudConfig: cloudConfig,
+			Kind:        "Server",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
@@ -113,24 +113,24 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Notebook",
+			Scheme:      mgr.GetScheme(),
+			Client:      mgr.GetClient(),
+			CloudConfig: cloudConfig,
+			Kind:        "Notebook",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)
 	}
 	if err = (&controller.DatasetReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		CloudConfig: cloudConfig,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Dataset",
+			Scheme:      mgr.GetScheme(),
+			Client:      mgr.GetClient(),
+			CloudConfig: cloudConfig,
+			Kind:        "Dataset",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Dataset")

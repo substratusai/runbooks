@@ -44,6 +44,10 @@ func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
 }
 
+func (m *Model) GetStatusURL() string {
+	return m.Status.URL
+}
+
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.

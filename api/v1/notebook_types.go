@@ -44,6 +44,7 @@ func (n *Notebook) StatusReady() bool {
 func (n *Notebook) GetStatusReady() bool {
 	return n.Status.Ready
 }
+
 func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
 }

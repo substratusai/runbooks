@@ -12,8 +12,8 @@ type GPUInfo struct {
 	NodeSelector map[string]string
 }
 
-var cloudGPUs = map[cloud.Name]map[apiv1.GPUType]*GPUInfo{
-	cloud.GCP: {
+var cloudGPUs = map[string]map[apiv1.GPUType]*GPUInfo{
+	cloud.GCPName: {
 		// https://cloud.google.com/compute/docs/gpus#nvidia_t4_gpus
 		apiv1.GPUTypeNvidiaTeslaT4: {
 			Memory:       16 * gigabyte,

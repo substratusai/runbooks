@@ -32,7 +32,7 @@ type ModelReconciler struct {
 
 	*ContainerImageReconciler
 
-	CloudContext *cloud.Context
+	Cloud cloud.Cloud
 }
 
 type ModelReconcilerConfig struct {
@@ -72,7 +72,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the training data and read and write from
 	// the bucket that contains base model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modellerServiceAccountName,
 			Namespace: model.Namespace,
@@ -182,12 +182,12 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, model, modellerJob, apiv1.ConditionModelled); !result.success {
+	if result, err := reconcileJob(ctx, r.Client, modellerJob, apiv1.ConditionModelled); !result.success {
 		return result, err
 	}
 
 	model.Status.Ready = true
-	model.Status.URL = r.modelURL(model)
+	model.Status.URL = r.Cloud.ObjectArtifactURL(model)
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionModelled,
 		Status:             metav1.ConditionTrue,
@@ -269,37 +269,7 @@ func (r *ModelReconciler) findModelsForDataset(obj client.Object) []reconcile.Re
 func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *apiv1.Model, dataset *apiv1.Dataset) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
-	annotations := make(map[string]string)
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-
-	if err := mountModel(annotations, &volumes, &volumeMounts, r.modelURL(model), "", false); err != nil {
-		return nil, fmt.Errorf("appending current model volume: %w", err)
-	}
-
-	if dataset != nil {
-		if err := mountDataset(annotations, &volumes, &volumeMounts, dataset.Status.URL, true); err != nil {
-			return nil, fmt.Errorf("appending dataset volume: %w", err)
-		}
-	}
-
-	if baseModel != nil {
-		if err := mountModel(annotations, &volumes, &volumeMounts, baseModel.Status.URL, "base-", true); err != nil {
-			return nil, fmt.Errorf("appending base model volume: %w", err)
-		}
-	}
-
-	env := paramsToEnv(model.Spec.Params)
-	if dataset != nil {
-		env = append(env,
-			corev1.EnvVar{
-				Name:  "DATA_PATH",
-				Value: "/data/" + dataset.Spec.Filename,
-			})
-	}
-
 	const containerName = "model"
-	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: model.Name + "-modeller",
@@ -310,7 +280,9 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 			BackoffLimit: ptr.Int32(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: annotations,
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/default-container": containerName,
+					},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
@@ -325,16 +297,52 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 							Image: model.Spec.Image.Name,
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
-							Command:      model.Spec.Command,
-							Env:          env,
-							VolumeMounts: volumeMounts,
+							Command: model.Spec.Command,
+							Env:     paramsToEnv(model.Spec.Params),
 						},
 					},
-					Volumes:       volumes,
 					RestartPolicy: "Never",
 				},
 			},
 		},
+	}
+
+	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, model, cloud.MountBucketConfig{
+		Name: "model",
+		Mounts: []cloud.BucketMount{
+			{BucketSubdir: "model", ContentSubdir: "model"},
+			{BucketSubdir: "logs", ContentSubdir: "logs"},
+		},
+		Container: containerName,
+		ReadOnly:  false,
+	}); err != nil {
+		return nil, fmt.Errorf("mounting model: %w", err)
+	}
+
+	if dataset != nil {
+		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
+			Name: "dataset",
+			Mounts: []cloud.BucketMount{
+				{BucketSubdir: "data", ContentSubdir: "data"},
+			},
+			Container: containerName,
+			ReadOnly:  true,
+		}); err != nil {
+			return nil, fmt.Errorf("mounting dataset: %w", err)
+		}
+	}
+
+	if baseModel != nil {
+		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, baseModel, cloud.MountBucketConfig{
+			Name: "basemodel",
+			Mounts: []cloud.BucketMount{
+				{BucketSubdir: "model", ContentSubdir: "saved-model"},
+			},
+			Container: containerName,
+			ReadOnly:  true,
+		}); err != nil {
+			return nil, fmt.Errorf("mounting base model: %w", err)
+		}
 	}
 
 	if err := controllerutil.SetControllerReference(model, job, r.Scheme); err != nil {
@@ -342,14 +350,9 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 	}
 
 	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, containerName,
-		r.CloudContext.Name, model.Spec.Resources); err != nil {
+		r.Cloud.Name(), model.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
 	return job, nil
-}
-
-func (r *ModelReconciler) modelURL(model *apiv1.Model) string {
-	return "gs://" + r.CloudContext.GCP.ProjectID + "-substratus-models" +
-		"/" + string(model.UID) + "/"
 }

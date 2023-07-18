@@ -21,7 +21,12 @@ import (
 )
 
 type ContainerizedObject interface {
-	object
+	client.Object
+
+	GetConditions() *[]metav1.Condition
+
+	SetStatusReady(bool)
+
 	GetImage() *apiv1.Image
 }
 
@@ -33,7 +38,7 @@ type ContainerImageReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
-	CloudContext *cloud.Context
+	Cloud cloud.Cloud
 
 	Kind string
 }
@@ -49,7 +54,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	defer log.Info("Done reconciling container")
 
 	// Service account used for building and pushing the image.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      containerBuilderServiceAccountName,
 			Namespace: obj.GetNamespace(),
@@ -96,7 +101,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	}
 
 	container := obj.GetImage()
-	container.Name = r.imageName(obj)
+	container.Name = r.Cloud.ObjectBuiltImageURL(obj)
 	if err := r.Client.Update(ctx, obj); err != nil {
 		return result{}, fmt.Errorf("updating container image: %w", err)
 	}
@@ -123,7 +128,7 @@ func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj Containeriz
 
 	buildArgs := []string{
 		"--dockerfile=Dockerfile",
-		"--destination=" + r.imageName(obj),
+		"--destination=" + r.Cloud.ObjectBuiltImageURL(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
 		// Disable compressed caching to decrease memory usage.
@@ -244,14 +249,4 @@ ENTRYPOINT ["/tini", "--"]
 	}
 
 	return job, nil
-}
-
-func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
-	switch name := r.CloudContext.Name; name {
-	case cloud.GCP:
-		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, strings.ToLower(r.Kind), obj.GetNamespace(), obj.GetName())
-	default:
-		panic("unsupported cloud: " + name)
-	}
 }
