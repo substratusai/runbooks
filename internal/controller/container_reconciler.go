@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -20,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ptr "k8s.io/utils/pointer"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,7 +40,7 @@ type ContainerImageReconciler struct {
 	Client client.Client
 
 	CloudContext           *cloud.Context
-	CloudManagerGrpcClient *sci.ControllerClient
+	CloudManagerGrpcClient sci.ControllerClient
 	Kind                   string
 }
 
@@ -48,7 +48,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	log := log.FromContext(ctx)
 
 	if obj.GetImage().Name != "" {
-		return result{Result: ctrl.Result{}, success: true}, nil
+		return result{success: true}, nil
 	}
 
 	log.Info("Reconciling container")
@@ -64,7 +64,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		return result, err
 	}
 
-	buildJob := &batchv1.Job{}
+	var buildJob *batchv1.Job
 
 	if specUpload := obj.GetImage().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
 		statusMd5, statusUploadURL := obj.GetStatusUpload().Md5Checksum, obj.GetStatusUpload().UploadURL
@@ -72,7 +72,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
 		if specUpload.Md5Checksum != statusMd5 {
-			url, err := r.callSignedUrlGenerator(obj, *r.CloudManagerGrpcClient)
+			url, err := r.callSignedUrlGenerator(obj, r.CloudManagerGrpcClient)
 			if err != nil {
 				return result{}, fmt.Errorf("generating upload url: %w", err)
 			}
@@ -80,6 +80,13 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			obj.SetStatusUpload(ssv1.UploadStatus{
 				UploadURL:   url,
 				Md5Checksum: specUpload.Md5Checksum,
+			})
+			meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionUploaded,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonUploadIncomplete,
+				ObservedGeneration: obj.GetGeneration(),
+				Message:            fmt.Sprintf("Waiting for object upload to complete: %v", obj.GetName()),
 			})
 			if err := r.Client.Status().Update(ctx, obj); err != nil {
 				return result{}, fmt.Errorf("updating status: %w", err)
@@ -105,7 +112,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		}
 
 		// verify the object has been uploaded to storage
-		storageMd5, err := r.storageObjectMd5(obj, *r.CloudManagerGrpcClient)
+		storageMd5, err := r.storageObjectMd5(obj, r.CloudManagerGrpcClient)
 		if err != nil {
 			return result{}, fmt.Errorf("getting storage object md5: %w", err)
 		}
@@ -116,6 +123,14 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
 			return result{}, nil
 		}
+
+		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+			Type:               apiv1.ConditionUploaded,
+			Status:             metav1.ConditionTrue,
+			Reason:             apiv1.ReasonUploadComplete,
+			ObservedGeneration: obj.GetGeneration(),
+			Message:            fmt.Sprintf("Object upload is complete: %v", obj.GetName()),
+		})
 
 		// create the build job pointing to the storage location
 		buildJob, err = r.storageBuildJob(ctx, obj)
@@ -137,7 +152,9 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	}
 
 	if buildJob.Name == "" {
-		return result{}, fmt.Errorf("no build job was created")
+		err := errors.New("no build job was created")
+		log.Error(err, "no build job was created")
+		return result{}, nil
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {

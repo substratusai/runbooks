@@ -106,7 +106,7 @@ func main() {
 			Scheme:                 mgr.GetScheme(),
 			Client:                 mgr.GetClient(),
 			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: &gc,
+			CloudManagerGrpcClient: gc,
 			Kind:                   "Model",
 		},
 	}).SetupWithManager(mgr); err != nil {
@@ -120,7 +120,7 @@ func main() {
 			Scheme:                 mgr.GetScheme(),
 			Client:                 mgr.GetClient(),
 			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: &gc,
+			CloudManagerGrpcClient: gc,
 			Kind:                   "Server",
 		},
 	}).SetupWithManager(mgr); err != nil {
@@ -135,7 +135,7 @@ func main() {
 			Scheme:                 mgr.GetScheme(),
 			Client:                 mgr.GetClient(),
 			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: &gc,
+			CloudManagerGrpcClient: gc,
 			Kind:                   "Notebook",
 		},
 	}).SetupWithManager(mgr); err != nil {
@@ -150,7 +150,7 @@ func main() {
 			Scheme:                 mgr.GetScheme(),
 			Client:                 mgr.GetClient(),
 			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: &gc,
+			CloudManagerGrpcClient: gc,
 			Kind:                   "Dataset",
 		},
 	}).SetupWithManager(mgr); err != nil {
