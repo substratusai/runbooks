@@ -330,7 +330,7 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	annotations := map[string]string{}
 
 	buildArgs := []string{
-		"--context=gs://" + r.signedUrlBucketName() + "/" + r.signedUrlObjectName(obj),
+		"--context=gs://" + r.bucketName() + "/" + r.signedUrlObjectName(obj),
 		"--dockerfile=Dockerfile",
 		"--destination=" + r.imageName(obj),
 		// Cache will default to the image registry.
@@ -368,6 +368,7 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	annotations["kubectl.kubernetes.io/default-container"] = builderContainerName
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
+			// TODO(any): Ensure this name does not exceed the name character limit.
 			Name: obj.GetName() + "-" + strings.ToLower(r.Kind) + "-container-builder",
 			// NOTE: Cross-Namespace owners not allowed, must be same as obj.
 			Namespace: obj.GetNamespace(),
@@ -411,18 +412,29 @@ func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 	switch name := r.CloudContext.Name; name {
 	case cloud.GCP:
 		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s-%s", r.CloudContext.GCP.Region(), r.CloudContext.GCP.ProjectID, strings.ToLower(r.Kind), obj.GetNamespace(), obj.GetName())
+		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s-%s",
+			r.CloudContext.GCP.Region(),
+			r.CloudContext.GCP.ProjectID,
+			strings.ToLower(r.Kind),
+			obj.GetNamespace(),
+			obj.GetName(),
+		)
 	default:
 		panic("unsupported cloud: " + name)
 	}
 }
 
 func (r *ContainerImageReconciler) signedUrlObjectName(obj ContainerizedObject) string {
-	// TODO(bjb): revisit this. We probably want something closer to what imageName() builds
-	return "uploads/" + obj.GetImage().Upload.Md5Checksum + "/" + r.Kind + ".tar.gz"
+	return fmt.Sprintf("uploads/%s/%s/%s-%s-%s.tar.gz",
+		r.CloudContext.GCP.Region(),
+		r.CloudContext.GCP.ProjectID,
+		strings.ToLower(r.Kind),
+		obj.GetNamespace(),
+		obj.GetName(),
+	)
 }
 
-func (r *ContainerImageReconciler) signedUrlBucketName() string {
+func (r *ContainerImageReconciler) bucketName() string {
 	return r.CloudContext.GCP.ProjectID + "-substratus-" + r.Kind
 }
 
@@ -430,7 +442,7 @@ func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c s
 
 	// create the request object
 	req := &sci.GetObjectMd5Request{
-		BucketName: r.signedUrlBucketName(),
+		BucketName: r.bucketName(),
 		ObjectName: r.signedUrlObjectName(obj),
 	}
 
@@ -447,7 +459,7 @@ func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObjec
 
 	// create the request object
 	req := &sci.CreateSignedURLRequest{
-		BucketName:        r.signedUrlBucketName(),
+		BucketName:        r.bucketName(),
 		ObjectName:        r.signedUrlObjectName(obj),
 		ExpirationSeconds: 300,
 		Md5Checksum:       obj.GetImage().Upload.Md5Checksum,
