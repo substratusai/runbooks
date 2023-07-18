@@ -69,3 +69,15 @@ resource "google_storage_bucket_iam_member" "container_builder_notebooks_storage
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.container_builder.email}"
 }
+
+resource "google_storage_bucket_iam_member" "container_builder_models_storage_objectViewer" {
+  bucket = google_storage_bucket.models.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.container_builder.email}"
+}
+
+resource "google_storage_bucket_iam_member" "container_builder_datasets_storage_objectViewer" {
+  bucket = google_storage_bucket.datasets.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.container_builder.email}"
+}

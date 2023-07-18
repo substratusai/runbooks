@@ -456,14 +456,11 @@ func (r *ContainerImageReconciler) bucketName() string {
 }
 
 func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
-
-	// create the request object
 	req := &sci.GetObjectMd5Request{
 		BucketName: r.bucketName(),
 		ObjectName: r.signedUrlObjectName(obj),
 	}
 
-	// Call the service
 	resp, err := c.GetObjectMd5(context.Background(), req)
 	if err != nil {
 		return "", fmt.Errorf("calling the sci service to GetObjectMd5: %w", err)
@@ -473,8 +470,6 @@ func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c s
 }
 
 func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
-
-	// create the request object
 	req := &sci.CreateSignedURLRequest{
 		BucketName:        r.bucketName(),
 		ObjectName:        r.signedUrlObjectName(obj),
@@ -482,7 +477,6 @@ func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObjec
 		Md5Checksum:       obj.GetImage().Upload.Md5Checksum,
 	}
 
-	// Call the service
 	resp, err := c.CreateSignedURL(context.Background(), req)
 	if err != nil {
 		return "", fmt.Errorf("calling the sci service to CreateSignedURL: %w", err)
