@@ -20,7 +20,7 @@ type UploadSpec struct {
 
 type UploadStatus struct {
 	// the Signed upload URL
-	URL string `json:"uploadURL,omitempty"`
+	UploadURL string `json:"uploadURL,omitempty"`
 	// LastGeneratedMd5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
