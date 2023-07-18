@@ -11,7 +11,7 @@ type Image struct {
 }
 
 type UploadSpec struct {
-	// Md5Checksum is the md5 checksum of the tar'd repo root.
+	// Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
@@ -21,11 +21,11 @@ type UploadSpec struct {
 type UploadStatus struct {
 	// the Signed upload URL
 	UploadURL string `json:"uploadURL,omitempty"`
-	// LastGeneratedMd5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
+	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	LastGeneratedMd5Checksum string `json:"md5checksum,omitempty"`
+	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
 type GitSource struct {

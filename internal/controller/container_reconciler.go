@@ -67,7 +67,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	buildJob := &batchv1.Job{}
 
 	if specUpload := obj.GetImage().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
-		statusMd5, statusUploadURL := obj.GetStatusUpload().LastGeneratedMd5Checksum, obj.GetStatusUpload().UploadURL
+		statusMd5, statusUploadURL := obj.GetStatusUpload().Md5Checksum, obj.GetStatusUpload().UploadURL
 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
@@ -78,8 +78,8 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			}
 
 			obj.SetStatusUpload(ssv1.UploadStatus{
-				UploadURL:                url,
-				LastGeneratedMd5Checksum: specUpload.Md5Checksum,
+				UploadURL:   url,
+				Md5Checksum: specUpload.Md5Checksum,
 			})
 			if err := r.Client.Status().Update(ctx, obj); err != nil {
 				return result{}, fmt.Errorf("updating status: %w", err)
@@ -97,8 +97,8 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			if time.Now().After(expirationTime) {
 				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
 				obj.SetStatusUpload(ssv1.UploadStatus{
-					UploadURL:                "",
-					LastGeneratedMd5Checksum: statusMd5,
+					UploadURL:   "",
+					Md5Checksum: statusMd5,
 				})
 				return result{}, nil
 			}

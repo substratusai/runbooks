@@ -10,235 +10,252 @@ spec:
   group: substratus.ai
   names:
     categories:
-    - ai
+      - ai
     kind: Dataset
     listKind: DatasetList
     plural: datasets
     singular: dataset
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.ready
-      name: Ready
-      type: boolean
-    name: v1
-    schema:
-      openAPIV3Schema:
-        description: "The Dataset API is used to describe data that can be referenced
-          for training Models. \n - Datasets pull in remote data sources using containerized
-          data loaders. \n - Users can specify their own ETL logic by referencing
-          a repository from a Dataset. \n - Users can leverage pre-built data loader
-          integrations with various sources. \n - Training typically requires a large
-          dataset. The Dataset API pulls a dataset once and stores it in a bucket,
-          which is mounted directly into training Jobs. \n - The Dataset API allows
-          users to query ready-to-use datasets (`kubectl get datasets`). \n - The
-          Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling
-          access to data."
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: Spec is the desired state of the Dataset.
-            properties:
-              command:
-                description: Command to run in the container.
-                items:
+    - additionalPrinterColumns:
+        - jsonPath: .status.ready
+          name: Ready
+          type: boolean
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description:
+            "The Dataset API is used to describe data that can be referenced
+            for training Models. \n - Datasets pull in remote data sources using containerized
+            data loaders. \n - Users can specify their own ETL logic by referencing
+            a repository from a Dataset. \n - Users can leverage pre-built data loader
+            integrations with various sources. \n - Training typically requires a large
+            dataset. The Dataset API pulls a dataset once and stores it in a bucket,
+            which is mounted directly into training Jobs. \n - The Dataset API allows
+            users to query ready-to-use datasets (`kubectl get datasets`). \n - The
+            Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling
+            access to data."
+          properties:
+            apiVersion:
+              description:
+                "APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the latest
+                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+              type: string
+            kind:
+              description:
+                "Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the client
+                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: Spec is the desired state of the Dataset.
+              properties:
+                command:
+                  description: Command to run in the container.
+                  items:
+                    type: string
+                  type: array
+                filename:
+                  description: Filename is the name of the file when it is downloaded.
                   type: string
-                type: array
-              filename:
-                description: Filename is the name of the file when it is downloaded.
-                type: string
-              image:
-                description: Image that contains dataset loading code and dependencies.
-                properties:
-                  git:
-                    description: Git is a reference to a git repository that will
-                      be built within the cluster. Built image will be set in the
-                      Image field.
+                image:
+                  description: Image that contains dataset loading code and dependencies.
+                  properties:
+                    git:
+                      description:
+                        Git is a reference to a git repository that will
+                        be built within the cluster. Built image will be set in the
+                        Image field.
+                      properties:
+                        branch:
+                          description: Branch is the git branch to use.
+                          type: string
+                        path:
+                          description:
+                            Path within the git repository referenced by
+                            url.
+                          type: string
+                        url:
+                          description: "URL to the git repository. Example: https://github.com/my-username/my-repo"
+                          type: string
+                      required:
+                        - url
+                      type: object
+                    name:
+                      description: 'Name of container image (example: "docker.io/your-username/your-image").'
+                      type: string
+                    upload:
+                      description:
+                        Upload is a signal that a local tar of the directory
+                        should be uploaded to be built as an image.
+                      properties:
+                        md5checksum:
+                          description:
+                            Md5Checksum is the md5 checksum of the tar'd
+                            repo root.
+                          maxLength: 32
+                          minLength: 32
+                          pattern: ^[a-fA-F0-9]{32}$
+                          type: string
+                      type: object
+                  type: object
+                params:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    x-kubernetes-int-or-string: true
+                  description:
+                    Params will be passed into the loading process as environment
+                    variables.
+                  type: object
+                resources:
+                  description: Resources are the compute resources required by the container.
+                  properties:
+                    cpu:
+                      default: 2
+                      description: CPU resources.
+                      format: int64
+                      type: integer
+                    disk:
+                      default: 10
+                      description: Disk size in Gigabytes.
+                      format: int64
+                      type: integer
+                    gpu:
+                      description: GPU resources.
+                      properties:
+                        count:
+                          description: Count is the number of GPUs.
+                          format: int64
+                          type: integer
+                        type:
+                          description: Type of GPU.
+                          type: string
+                      type: object
+                    memory:
+                      default: 10
+                      description: Memory is the amount of RAM in Gigabytes.
+                      format: int64
+                      type: integer
+                  type: object
+              required:
+                - filename
+                - image
+              type: object
+            status:
+              description: Status is the observed state of the Dataset.
+              properties:
+                conditions:
+                  description:
+                    Conditions is the list of conditions that describe the
+                    current state of the Dataset.
+                  items:
+                    description:
+                      "Condition contains details for one aspect of the current
+                      state of this API Resource. --- This struct is intended for direct
+                      use as an array at the field path .status.conditions.  For example,
+                      \n type FooStatus struct{ // Represents the observations of a
+                      foo's current state. // Known .status.conditions.type are: \"Available\",
+                      \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                      // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                      `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                      protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                     properties:
-                      branch:
-                        description: Branch is the git branch to use.
+                      lastTransitionTime:
+                        description:
+                          lastTransitionTime is the last time the condition
+                          transitioned from one status to another. This should be when
+                          the underlying condition changed.  If that is not known, then
+                          using the time when the API field changed is acceptable.
+                        format: date-time
                         type: string
-                      path:
-                        description: Path within the git repository referenced by
-                          url.
+                      message:
+                        description:
+                          message is a human readable message indicating
+                          details about the transition. This may be an empty string.
+                        maxLength: 32768
                         type: string
-                      url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                      observedGeneration:
+                        description:
+                          observedGeneration represents the .metadata.generation
+                          that the condition was set based upon. For instance, if .metadata.generation
+                          is currently 12, but the .status.conditions[x].observedGeneration
+                          is 9, the condition is out of date with respect to the current
+                          state of the instance.
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        description:
+                          reason contains a programmatic identifier indicating
+                          the reason for the condition's last transition. Producers
+                          of specific condition types may define expected values and
+                          meanings for this field, and whether the values are considered
+                          a guaranteed API. The value should be a CamelCase string.
+                          This field may not be empty.
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                        type: string
+                      type:
+                        description:
+                          type of condition in CamelCase or in foo.example.com/CamelCase.
+                          --- Many .condition.type values are consistent across resources
+                          like Available, but because arbitrary conditions can be useful
+                          (see .node.status.conditions), the ability to deconflict is
+                          important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
                     required:
-                    - url
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
-                  upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
-                    properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
-                          repo root.
-                        maxLength: 32
-                        minLength: 32
-                        pattern: ^[a-fA-F0-9]{32}$
-                        type: string
-                    type: object
-                type: object
-              params:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  x-kubernetes-int-or-string: true
-                description: Params will be passed into the loading process as environment
-                  variables.
-                type: object
-              resources:
-                description: Resources are the compute resources required by the container.
-                properties:
-                  cpu:
-                    default: 2
-                    description: CPU resources.
-                    format: int64
-                    type: integer
-                  disk:
-                    default: 10
-                    description: Disk size in Gigabytes.
-                    format: int64
-                    type: integer
-                  gpu:
-                    description: GPU resources.
-                    properties:
-                      count:
-                        description: Count is the number of GPUs.
-                        format: int64
-                        type: integer
-                      type:
-                        description: Type of GPU.
-                        type: string
-                    type: object
-                  memory:
-                    default: 10
-                    description: Memory is the amount of RAM in Gigabytes.
-                    format: int64
-                    type: integer
-                type: object
-            required:
-            - filename
-            - image
-            type: object
-          status:
-            description: Status is the observed state of the Dataset.
-            properties:
-              conditions:
-                description: Conditions is the list of conditions that describe the
-                  current state of the Dataset.
-                items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource. --- This struct is intended for direct
-                    use as an array at the field path .status.conditions.  For example,
-                    \n type FooStatus struct{ // Represents the observations of a
-                    foo's current state. // Known .status.conditions.type are: \"Available\",
-                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
-                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
-                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  type: array
+                ready:
+                  default: false
+                  description:
+                    Ready indicates that the Dataset is ready to use. See
+                    Conditions for more details.
+                  type: boolean
+                upload:
+                  description:
+                    Upload contains details the controller returns from a
+                    requested signed upload URL.
                   properties:
-                    lastTransitionTime:
-                      description: lastTransitionTime is the last time the condition
-                        transitioned from one status to another. This should be when
-                        the underlying condition changed.  If that is not known, then
-                        using the time when the API field changed is acceptable.
-                      format: date-time
+                    md5checksum:
+                      description: Md5Checksum is the last md5 checksum
+                        that resulted in the successful creation of an UploadURL.
+                      maxLength: 32
+                      minLength: 32
+                      pattern: ^[a-fA-F0-9]{32}$
                       type: string
-                    message:
-                      description: message is a human readable message indicating
-                        details about the transition. This may be an empty string.
-                      maxLength: 32768
+                    uploadURL:
+                      description: the Signed upload URL
                       type: string
-                    observedGeneration:
-                      description: observedGeneration represents the .metadata.generation
-                        that the condition was set based upon. For instance, if .metadata.generation
-                        is currently 12, but the .status.conditions[x].observedGeneration
-                        is 9, the condition is out of date with respect to the current
-                        state of the instance.
-                      format: int64
-                      minimum: 0
-                      type: integer
-                    reason:
-                      description: reason contains a programmatic identifier indicating
-                        the reason for the condition's last transition. Producers
-                        of specific condition types may define expected values and
-                        meanings for this field, and whether the values are considered
-                        a guaranteed API. The value should be a CamelCase string.
-                        This field may not be empty.
-                      maxLength: 1024
-                      minLength: 1
-                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
-                      type: string
-                    status:
-                      description: status of the condition, one of True, False, Unknown.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
-                        --- Many .condition.type values are consistent across resources
-                        like Available, but because arbitrary conditions can be useful
-                        (see .node.status.conditions), the ability to deconflict is
-                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
-                      maxLength: 316
-                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - message
-                  - reason
-                  - status
-                  - type
                   type: object
-                type: array
-              ready:
-                default: false
-                description: Ready indicates that the Dataset is ready to use. See
-                  Conditions for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
-                properties:
-                  md5checksum:
-                    description: LastGeneratedMd5Checksum is the last md5 checksum
-                      that resulted in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
-              url:
-                description: URL of the loaded data.
-                type: string
-            required:
-            - ready
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+                url:
+                  description: URL of the loaded data.
+                  type: string
+              required:
+                - ready
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
