@@ -103,6 +103,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 			if time.Now().After(expirationTime) {
 				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
+				// TODO(bjb): why doesn't this work?
 				obj.SetStatusUpload(ssv1.UploadStatus{
 					UploadURL:   "",
 					Md5Checksum: statusMd5,
@@ -119,7 +120,6 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 		// verify the object's md5 matches the spec md5
 		if storageMd5 != specUpload.Md5Checksum {
-			// TODO(bjb): is this true? Test object state during upload.
 			log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
 			return result{}, nil
 		}
@@ -348,7 +348,8 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 
 	buildArgs := []string{
 		"--context=gs://" + r.bucketName() + "/" + r.signedUrlObjectName(obj),
-		"--dockerfile=Dockerfile",
+		// NOTE: the dockerfile must be at the root of the tarball for this to work
+		"--dockerfile=/Dockerfile",
 		"--destination=" + r.imageName(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
@@ -452,7 +453,7 @@ func (r *ContainerImageReconciler) signedUrlObjectName(obj ContainerizedObject) 
 }
 
 func (r *ContainerImageReconciler) bucketName() string {
-	return r.CloudContext.GCP.ProjectID + "-substratus-" + r.Kind
+	return r.CloudContext.GCP.ProjectID + "-substratus-" + strings.ToLower(r.Kind) + "s"
 }
 
 func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c sci.ControllerClient) (string, error) {

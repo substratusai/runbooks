@@ -3,7 +3,6 @@ package gcpmanager
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -46,10 +45,12 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		return nil, err
 	}
 
-	hasher := md5.New()
-	hasher.Write([]byte(checksum))
-	rawHash := hasher.Sum(nil)
-	b64hash := base64.StdEncoding.EncodeToString(rawHash)
+	data, err := hex.DecodeString(checksum)
+	if err != nil {
+		panic(err)
+	}
+	base64md5 := base64.StdEncoding.EncodeToString(data)
+
 	opts := &storage.SignedURLOptions{
 		Scheme: storage.SigningSchemeV4,
 		Method: http.MethodPut,
@@ -58,7 +59,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		},
 		Expires:        time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
 		GoogleAccessID: s.SaEmail,
-		MD5:            b64hash,
+		MD5:            base64md5,
 		SignBytes: func(b []byte) ([]byte, error) {
 			req := &credentialspb.SignBlobRequest{
 				Payload: b,
