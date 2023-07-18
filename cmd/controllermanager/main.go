@@ -87,10 +87,7 @@ func main() {
 
 	// TODO(any): setup TLS
 	conn, err := grpc.Dial(
-		// TODO(bjb): change address before merge
-		"localhost:10080",
-		// "gcp-manager:10080",
-		// "gcp-manager.substratus.svc.cluster.local:10080",
+		"gcp-manager.substratus.svc.cluster.local:10080",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
