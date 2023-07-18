@@ -53,10 +53,6 @@ func (n *Notebook) GetStatusUpload() UploadStatus {
 	return n.Status.Upload
 }
 
-func (n *Notebook) GetSpecUploadChecksum() string {
-	return n.Spec.Image.Upload.Md5Checksum
-}
-
 // NotebookStatus defines the observed state of Notebook
 type NotebookStatus struct {
 	// Ready indicates that the Notebook is ready to serve. See Conditions for more details.

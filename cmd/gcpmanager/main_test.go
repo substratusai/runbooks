@@ -1,6 +1,6 @@
 package main_test
 
-// TODO(bjb): This test requires some infrastructure that we should build and
+// TODO(any): This test requires some infrastructure that we should build and
 // tear down via dedicated terraform templates run through a test harness.
 // e.g., service account, a key, a bucket, permissions, etc.
 // [terratest](https://terratest.gruntwork.io/examples/) could help orchestrate

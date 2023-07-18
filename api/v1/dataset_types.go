@@ -47,10 +47,6 @@ func (d *Dataset) GetStatusUpload() UploadStatus {
 	return d.Status.Upload
 }
 
-func (d *Dataset) GetSpecUploadChecksum() string {
-	return d.Spec.Image.Upload.Md5Checksum
-}
-
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.

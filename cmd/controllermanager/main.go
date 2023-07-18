@@ -85,7 +85,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO(bjb): setup TLS
+	// TODO(any): setup TLS
 	conn, err := grpc.Dial(
 		// TODO(bjb): change address before merge
 		"localhost:10080",

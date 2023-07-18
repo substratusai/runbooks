@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ptr "k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -47,7 +48,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	log := log.FromContext(ctx)
 
 	if obj.GetImage().Name != "" {
-		return result{success: true}, nil
+		return result{Result: ctrl.Result{}, success: true}, nil
 	}
 
 	log.Info("Reconciling container")
@@ -63,62 +64,81 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		return result, err
 	}
 
-	specMd5 := obj.GetSpecUploadChecksum()
-	status := obj.GetStatusUpload()
-	statusMd5, statusUploadURL := status.LastGeneratedMd5Checksum, status.URL
+	buildJob := &batchv1.Job{}
+	specMd5 := obj.GetImage().Upload.Md5Checksum
 
-	// an upload object md5 has been declared and doesn't match the current spec
-	// generate a signed URL
-	if specMd5 != "" && specMd5 != statusMd5 {
-		url, err := r.callSignedUrlGenerator(obj, *r.CloudManagerGrpcClient)
-		if err != nil {
-			return result{}, fmt.Errorf("generating upload url: %w", err)
-		}
+	if specMd5 != "" {
+		statusMd5, statusUploadURL := obj.GetStatusUpload().LastGeneratedMd5Checksum, obj.GetStatusUpload().URL
 
-		obj.SetStatusUpload(ssv1.UploadStatus{
-			URL:                      url,
-			LastGeneratedMd5Checksum: specMd5,
-		})
-		if err := r.Client.Status().Update(ctx, obj); err != nil {
-			return result{}, fmt.Errorf("updating status: %w", err)
-		}
-		return result{}, nil
-	}
+		// an upload object md5 has been declared and doesn't match the current spec
+		// generate a signed URL
+		if specMd5 != statusMd5 {
+			url, err := r.callSignedUrlGenerator(obj, *r.CloudManagerGrpcClient)
+			if err != nil {
+				return result{}, fmt.Errorf("generating upload url: %w", err)
+			}
 
-	// if the upload URL has expired, clear it from the status leaving the md5 checksum
-	if statusUploadURL != "" {
-		expirationTime, err := r.getExpirationTime(statusUploadURL)
-		if err != nil {
-			return result{}, fmt.Errorf("getting URL expiration time: %w", err)
-		}
-
-		if time.Now().After(expirationTime) {
-			log.Info("The signed URL has expired. Clearing .Status.UploadURL")
 			obj.SetStatusUpload(ssv1.UploadStatus{
-				URL:                      "",
-				LastGeneratedMd5Checksum: statusMd5,
+				URL:                      url,
+				LastGeneratedMd5Checksum: specMd5,
 			})
+			if err := r.Client.Status().Update(ctx, obj); err != nil {
+				return result{}, fmt.Errorf("updating status: %w", err)
+			}
+			return result{}, nil
+		}
+
+		// if the upload URL has expired, clear it from the status leaving the md5 checksum
+		if statusUploadURL != "" {
+			expirationTime, err := r.getExpirationTime(statusUploadURL)
+			if err != nil {
+				return result{}, fmt.Errorf("getting URL expiration time: %w", err)
+			}
+
+			if time.Now().After(expirationTime) {
+				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
+				obj.SetStatusUpload(ssv1.UploadStatus{
+					URL:                      "",
+					LastGeneratedMd5Checksum: statusMd5,
+				})
+				return result{}, nil
+			}
+		}
+
+		// verify the object has been uploaded to storage
+		storageMd5, err := r.storageObjectMd5(obj, *r.CloudManagerGrpcClient)
+		if err != nil {
+			return result{}, fmt.Errorf("getting storage object md5: %w", err)
+		}
+
+		// verify the object's md5 matches the spec md5
+		if storageMd5 != specMd5 {
+			// TODO(bjb): is this true? Test object state during upload.
+			log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
+			return result{}, nil
+		}
+
+		// create the build job pointing to the storage location
+		buildJob, err = r.storageBuildJob(ctx, obj)
+		if err != nil {
+			log.Error(err, "unable to construct storage image-builder Job")
+			// No use in retrying...
 			return result{}, nil
 		}
 	}
 
-	// TODO(bjb): verify the object has been uploaded to storage
-	storageMd5, err := r.storageObjectMd5(obj, *r.CloudManagerGrpcClient)
-	if err != nil {
-		return result{}, fmt.Errorf("getting storage md5: %w", err)
+	if obj.GetImage().Git != nil {
+		var err error
+		buildJob, err = r.gitBuildJob(ctx, obj)
+		if err != nil {
+			log.Error(err, "unable to construct git image-builder Job")
+			// No use in retrying...
+			return result{}, nil
+		}
 	}
 
-	if storageMd5 != specMd5 {
-		log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
-		return result{}, nil
-	}
-
-	// The Job that will build the container image.
-	buildJob, err := r.buildJob(ctx, obj)
-	if err != nil {
-		log.Error(err, "unable to construct image-builder Job")
-		// No use in retrying...
-		return result{}, nil
+	if buildJob.Name == "" {
+		return result{}, fmt.Errorf("no build job was created")
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
@@ -170,8 +190,32 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	return result{success: true}, nil
 }
 
-// TODO(bjb): create a separate version of this that uses storage directly
-func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
+func tiniInitContainer() corev1.Container {
+	const dockerfileWithTini = `
+# Add Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
+`
+	return corev1.Container{
+		Name:  "dockerfile-tini-appender",
+		Image: "busybox",
+		Args: []string{
+			"sh",
+			"-c",
+			"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "workspace",
+				MountPath: "/workspace",
+			},
+		},
+	}
+}
+
+func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
 	git := obj.GetImage().Git
 
@@ -192,13 +236,6 @@ func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj Containeriz
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
 
-	const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
 	cloneArgs := []string{
 		"clone",
 		git.URL,
@@ -226,21 +263,7 @@ ENTRYPOINT ["/tini", "--"]
 				},
 			},
 		},
-		corev1.Container{
-			Name:  "dockerfile-tini-appender",
-			Image: "busybox",
-			Args: []string{
-				"sh",
-				"-c",
-				"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "workspace",
-					MountPath: "/workspace",
-				},
-			},
-		},
+		tiniInitContainer(),
 	)
 
 	volumeMounts = []corev1.VolumeMount{
@@ -302,6 +325,89 @@ ENTRYPOINT ["/tini", "--"]
 	return job, nil
 }
 
+func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
+	var job *batchv1.Job
+
+	annotations := map[string]string{}
+
+	buildArgs := []string{
+		"--context=gs://" + r.signedUrlBucketName() + "/" + r.signedUrlObjectName(obj),
+		"--dockerfile=Dockerfile",
+		"--destination=" + r.imageName(obj),
+		// Cache will default to the image registry.
+		"--cache=true",
+		// Disable compressed caching to decrease memory usage.
+		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
+		"--compressed-caching=false",
+		"--log-format=text",
+	}
+
+	var initContainers []corev1.Container
+	var volumeMounts []corev1.VolumeMount
+	var volumes []corev1.Volume
+
+	// Add an init container that will clone the Git repo and
+	// another that will append tini to the Dockerfile.
+	initContainers = append(initContainers, tiniInitContainer())
+
+	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "workspace",
+			MountPath: "/workspace",
+		},
+	}
+	volumes = []corev1.Volume{
+		{
+			Name: "workspace",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+
+	const builderContainerName = "builder"
+	annotations["kubectl.kubernetes.io/default-container"] = builderContainerName
+	job = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: obj.GetName() + "-" + strings.ToLower(r.Kind) + "-container-builder",
+			// NOTE: Cross-Namespace owners not allowed, must be same as obj.
+			Namespace: obj.GetNamespace(),
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: ptr.Int32(1),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: annotations,
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: initContainers,
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsUser:  ptr.Int64(0),
+						RunAsGroup: ptr.Int64(0),
+						FSGroup:    ptr.Int64(3003),
+					},
+					ServiceAccountName: containerBuilderServiceAccountName,
+					Containers: []corev1.Container{{
+						Name:         builderContainerName,
+						Image:        "gcr.io/kaniko-project/executor:latest",
+						Args:         buildArgs,
+						VolumeMounts: volumeMounts,
+						Resources:    resources.ContainerBuilderResources(),
+					}},
+					RestartPolicy: "Never",
+					Volumes:       volumes,
+				},
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(obj, job, r.Scheme); err != nil {
+		return nil, fmt.Errorf("setting owner reference: %w", err)
+	}
+
+	return job, nil
+}
+
 func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 	switch name := r.CloudContext.Name; name {
 	case cloud.GCP:
@@ -313,7 +419,8 @@ func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 }
 
 func (r *ContainerImageReconciler) signedUrlObjectName(obj ContainerizedObject) string {
-	return "uploads/" + obj.GetSpecUploadChecksum() + "/" + r.Kind + ".tar.gz"
+	// TODO(bjb): revisit this. We probably want something closer to what imageName() builds
+	return "uploads/" + obj.GetImage().Upload.Md5Checksum + "/" + r.Kind + ".tar.gz"
 }
 
 func (r *ContainerImageReconciler) signedUrlBucketName() string {
@@ -344,7 +451,7 @@ func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObjec
 		BucketName:        r.signedUrlBucketName(),
 		ObjectName:        r.signedUrlObjectName(obj),
 		ExpirationSeconds: 300,
-		Md5Checksum:       obj.GetSpecUploadChecksum(),
+		Md5Checksum:       obj.GetImage().Upload.Md5Checksum,
 	}
 
 	// Call the service

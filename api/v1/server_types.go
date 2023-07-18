@@ -73,10 +73,6 @@ func (s *Server) GetStatusUpload() UploadStatus {
 	return s.Status.Upload
 }
 
-func (s *Server) GetSpecUploadChecksum() string {
-	return s.Spec.Image.Upload.Md5Checksum
-}
-
 //+kubebuilder:object:root=true
 
 // ServerList contains a list of Server

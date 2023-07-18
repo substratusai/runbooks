@@ -24,7 +24,6 @@ type object interface {
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
-	GetSpecUploadChecksum() string
 	GetStatusUpload() ssv1.UploadStatus
 	SetStatusUpload(ssv1.UploadStatus)
 }

@@ -52,10 +52,6 @@ func (m *Model) GetStatusUpload() UploadStatus {
 	return m.Status.Upload
 }
 
-func (m *Model) GetSpecUploadChecksum() string {
-	return m.Spec.Image.Upload.Md5Checksum
-}
-
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.

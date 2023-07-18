@@ -81,7 +81,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	return &sci.CreateSignedURLResponse{Url: url}, nil
 }
 
-func (s *Server) GetObjectMd5GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
+func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
 	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
 	bucket := s.Clients.Storage.Bucket(bucketName)
 	obj := bucket.Object(objectName)
