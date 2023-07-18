@@ -28,7 +28,6 @@ func TestModelLoaderFromGit(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://test.internal/test/model-loader.git",
 				},
-				Upload: &apiv1.UploadSpec{},
 			},
 		},
 	}
@@ -69,8 +68,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 		},
 		Spec: apiv1.ModelSpec{
 			Image: apiv1.Image{
-				Name:   "some-test-image",
-				Upload: &apiv1.UploadSpec{},
+				Name: "some-test-image",
 			},
 		},
 	}
@@ -88,8 +86,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
-				Name:   "some-image",
-				Upload: &apiv1.UploadSpec{},
+				Name: "some-image",
 			},
 		},
 	}
@@ -110,7 +107,6 @@ func TestModelTrainerFromGit(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://test.com/test/test",
 				},
-				Upload: &apiv1.UploadSpec{},
 			},
 			BaseModel: &apiv1.ObjectRef{
 				Name: baseModel.Name,

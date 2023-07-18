@@ -30,7 +30,6 @@ func TestDataset(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
-				Upload: &apiv1.UploadSpec{},
 			},
 		},
 	}

@@ -65,9 +65,8 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	}
 
 	buildJob := &batchv1.Job{}
-	specUpload := obj.GetImage().Upload
 
-	if specUpload.Md5Checksum != "" {
+	if specUpload := obj.GetImage().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
 		statusMd5, statusUploadURL := obj.GetStatusUpload().LastGeneratedMd5Checksum, obj.GetStatusUpload().URL
 
 		// an upload object md5 has been declared and doesn't match the current spec

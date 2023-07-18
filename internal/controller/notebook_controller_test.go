@@ -24,8 +24,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 		},
 		Spec: apiv1.ModelSpec{
 			Image: apiv1.Image{
-				Name:   "some-image",
-				Upload: &apiv1.UploadSpec{},
+				Name: "some-image",
 			},
 		},
 	}
@@ -45,7 +44,6 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/notebook-test-test",
 				},
-				Upload: &apiv1.UploadSpec{},
 			},
 			Model: &apiv1.ObjectRef{
 				Name: model.Name,
