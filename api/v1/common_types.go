@@ -7,15 +7,25 @@ type Image struct {
 	// Name of container image (example: "docker.io/your-username/your-image").
 	Name string `json:"name,omitempty"`
 	// Upload is a signal that a local tar of the directory should be uploaded to be built as an image.
-	Upload *Upload `json:"upload,omitempty"`
+	Upload *UploadSpec `json:"upload,omitempty"`
 }
 
-type Upload struct {
+type UploadSpec struct {
 	// Md5Checksum is the md5 checksum of the tar'd repo root.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
 	Md5Checksum string `json:"md5checksum,omitempty"`
+}
+
+type UploadStatus struct {
+	// the Signed upload URL
+	URL string `json:"uploadURL,omitempty"`
+	// LastGeneratedMd5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=32
+	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
+	LastGeneratedMd5Checksum string `json:"md5checksum,omitempty"`
 }
 
 type GitSource struct {

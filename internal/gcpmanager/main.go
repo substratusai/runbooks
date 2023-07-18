@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -80,6 +81,20 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	return &sci.CreateSignedURLResponse{Url: url}, nil
 }
 
+func (s *Server) GetObjectMd5GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
+	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+	bucket := s.Clients.Storage.Bucket(bucketName)
+	obj := bucket.Object(objectName)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	md5str := hex.EncodeToString(attrs.MD5)
+	return &sci.GetObjectMd5Response{Md5Checksum: md5str}, nil
+}
+
+// GetServiceAccountEmail returns the email address of the service account
+// it relies on either a local metadata service or a key file.
 func GetServiceAccountEmail(m *metadata.Client) (string, error) {
 	if metadata.OnGCE() {
 		email, err := m.Email("default")

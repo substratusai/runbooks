@@ -44,6 +44,18 @@ func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
 }
 
+func (m *Model) SetStatusUpload(us UploadStatus) {
+	m.Status.Upload = us
+}
+
+func (m *Model) GetStatusUpload() UploadStatus {
+	return m.Status.Upload
+}
+
+func (m *Model) GetSpecUploadChecksum() string {
+	return m.Spec.Image.Upload.Md5Checksum
+}
+
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.
@@ -55,6 +67,9 @@ type ModelStatus struct {
 
 	// URL of model artifacts.
 	URL string `json:"url,omitempty"`
+
+	// Upload contains details the controller returns from a requested signed upload URL.
+	Upload UploadStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

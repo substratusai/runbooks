@@ -216,6 +216,21 @@ spec:
                 description: Ready indicates that the Dataset is ready to use. See
                   Conditions for more details.
                 type: boolean
+              upload:
+                description: Upload contains details the controller returns from a
+                  requested signed upload URL.
+                properties:
+                  md5checksum:
+                    description: LastGeneratedMd5Checksum is the last md5 checksum
+                      that resulted in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               url:
                 description: URL of the loaded data.
                 type: string

@@ -37,15 +37,24 @@ func (n *Notebook) GetConditions() *[]metav1.Condition {
 	return &n.Status.Conditions
 }
 
-func (n *Notebook) StatusReady() bool {
-	return n.Status.Ready
-}
-
 func (n *Notebook) GetStatusReady() bool {
 	return n.Status.Ready
 }
+
 func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
+}
+
+func (n *Notebook) SetStatusUpload(us UploadStatus) {
+	n.Status.Upload = us
+}
+
+func (n *Notebook) GetStatusUpload() UploadStatus {
+	return n.Status.Upload
+}
+
+func (n *Notebook) GetSpecUploadChecksum() string {
+	return n.Spec.Image.Upload.Md5Checksum
 }
 
 // NotebookStatus defines the observed state of Notebook
@@ -56,12 +65,9 @@ type NotebookStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	UploadURL  string             `json:"uploadURL,omitempty"`
-	// LastGeneratedMd5Checksum is the last generated md5 checksum that resulted in the creation of an UploadURL.
-	// +kubebuilder:validation:MaxLength=32
-	// +kubebuilder:validation:MinLength=32
-	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	LastGeneratedMd5Checksum string `json:"md5checksum,omitempty"`
+
+	// Upload contains details the controller returns from a requested signed upload URL.
+	Upload UploadStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

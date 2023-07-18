@@ -6,7 +6,8 @@ spec:
   command: ["notebook.sh"]
   suspend: false
   image:
-    name: substratusai/model-trainer-huggingface
+    # TODO(bjb): validate that name and upload aren't specified together
+    # name: substratusai/model-trainer-huggingface
     upload:
       # md5checksum: 38d6a014d78f1de1ba0b10ca34d29778
       md5checksum: 38d6a014d78f1de1ba0b10ca34d29779
@@ -16,6 +17,6 @@ spec:
     name: k8s-instructions
   resources:
     disk: 50
-    gpu:
-      type: nvidia-l4
-      count: 4
+    # gpu:
+    #   type: nvidia-l4
+    #   count: 4

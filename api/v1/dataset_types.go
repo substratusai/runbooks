@@ -39,6 +39,18 @@ func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
 }
 
+func (d *Dataset) SetStatusUpload(us UploadStatus) {
+	d.Status.Upload = us
+}
+
+func (d *Dataset) GetStatusUpload() UploadStatus {
+	return d.Status.Upload
+}
+
+func (d *Dataset) GetSpecUploadChecksum() string {
+	return d.Spec.Image.Upload.Md5Checksum
+}
+
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
@@ -50,6 +62,9 @@ type DatasetStatus struct {
 
 	// URL of the loaded data.
 	URL string `json:"url,omitempty"`
+
+	// Upload contains details the controller returns from a requested signed upload URL.
+	Upload UploadStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

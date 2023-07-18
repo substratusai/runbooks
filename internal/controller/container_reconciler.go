@@ -9,10 +9,10 @@ import (
 	"time"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	ssv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
 	"github.com/substratusai/substratus/internal/sci"
-	"google.golang.org/grpc"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,9 +38,9 @@ type ContainerImageReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
-	CloudContext         *cloud.Context
-	CloudManagerGrpcConn *grpc.ClientConn
-	Kind                 string
+	CloudContext           *cloud.Context
+	CloudManagerGrpcClient *sci.ControllerClient
+	Kind                   string
 }
 
 func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, obj ContainerizedObject) (result, error) {
@@ -63,34 +63,54 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		return result, err
 	}
 
-	if r.Kind == "Notebook" {
-		nb := obj.(*apiv1.Notebook)
+	specMd5 := obj.GetSpecUploadChecksum()
+	status := obj.GetStatusUpload()
+	statusMd5, statusUploadURL := status.LastGeneratedMd5Checksum, status.URL
 
-		// this is a signed url request for a file with a different md5 checksum
-		if nb.Spec.Image.Upload.Md5Checksum != nb.Status.LastGeneratedMd5Checksum {
-			url, err := r.callSignedUrlGenerator(nb, r.CloudManagerGrpcConn)
-			if err != nil {
-				return result{}, fmt.Errorf("generating upload url: %w", err)
-			}
+	// an upload object md5 has been declared and doesn't match the current spec
+	// generate a signed URL
+	if specMd5 != "" && specMd5 != statusMd5 {
+		url, err := r.callSignedUrlGenerator(obj, *r.CloudManagerGrpcClient)
+		if err != nil {
+			return result{}, fmt.Errorf("generating upload url: %w", err)
+		}
 
-			nb.Status.UploadURL = url
-			nb.Status.LastGeneratedMd5Checksum = nb.Spec.Image.Upload.Md5Checksum
+		obj.SetStatusUpload(ssv1.UploadStatus{
+			URL:                      url,
+			LastGeneratedMd5Checksum: specMd5,
+		})
+		if err := r.Client.Status().Update(ctx, obj); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
+		}
+		return result{}, nil
+	}
+
+	// if the upload URL has expired, clear it from the status leaving the md5 checksum
+	if statusUploadURL != "" {
+		expirationTime, err := r.getExpirationTime(statusUploadURL)
+		if err != nil {
+			return result{}, fmt.Errorf("getting URL expiration time: %w", err)
+		}
+
+		if time.Now().After(expirationTime) {
+			log.Info("The signed URL has expired. Clearing .Status.UploadURL")
+			obj.SetStatusUpload(ssv1.UploadStatus{
+				URL:                      "",
+				LastGeneratedMd5Checksum: statusMd5,
+			})
 			return result{}, nil
 		}
-		if nb.Status.UploadURL != "" {
-			expirationTime, err := r.getExpirationTime(nb.Status.UploadURL)
-			if err != nil {
-				return result{}, fmt.Errorf("getting URL expiration time: %w", err)
-			}
+	}
 
-			if time.Now().After(expirationTime) {
-				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
-				nb.Status.UploadURL = ""
-				return result{}, nil
-			}
-		}
+	// TODO(bjb): verify the object has been uploaded to storage
+	storageMd5, err := r.storageObjectMd5(obj, *r.CloudManagerGrpcClient)
+	if err != nil {
+		return result{}, fmt.Errorf("getting storage md5: %w", err)
+	}
 
-		// TODO(bjb): how should we signal that contents have been successfully uploaded and should be built?
+	if storageMd5 != specMd5 {
+		log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
+		return result{}, nil
 	}
 
 	// The Job that will build the container image.
@@ -150,6 +170,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	return result{success: true}, nil
 }
 
+// TODO(bjb): create a separate version of this that uses storage directly
 func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
 	git := obj.GetImage().Git
@@ -291,18 +312,40 @@ func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
 	}
 }
 
-func (r *ContainerImageReconciler) callSignedUrlGenerator(notebook *apiv1.Notebook, conn *grpc.ClientConn) (string, error) {
+func (r *ContainerImageReconciler) signedUrlObjectName(obj ContainerizedObject) string {
+	return "uploads/" + obj.GetSpecUploadChecksum() + "/" + r.Kind + ".tar.gz"
+}
+
+func (r *ContainerImageReconciler) signedUrlBucketName() string {
+	return r.CloudContext.GCP.ProjectID + "-substratus-" + r.Kind
+}
+
+func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
+
+	// create the request object
+	req := &sci.GetObjectMd5Request{
+		BucketName: r.signedUrlBucketName(),
+		ObjectName: r.signedUrlObjectName(obj),
+	}
+
+	// Call the service
+	resp, err := c.GetObjectMd5(context.Background(), req)
+	if err != nil {
+		return "", fmt.Errorf("calling the sci service to GetObjectMd5: %w", err)
+	}
+
+	return resp.Md5Checksum, nil
+}
+
+func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
 
 	// create the request object
 	req := &sci.CreateSignedURLRequest{
-		BucketName:        r.CloudContext.GCP.ProjectID + "-substratus-notebooks",
-		ObjectName:        "notebook.zip",
+		BucketName:        r.signedUrlBucketName(),
+		ObjectName:        r.signedUrlObjectName(obj),
 		ExpirationSeconds: 300,
-		Md5Checksum:       notebook.Spec.Image.Upload.Md5Checksum,
+		Md5Checksum:       obj.GetSpecUploadChecksum(),
 	}
-
-	// Create a client using the connection
-	c := sci.NewControllerClient(conn)
 
 	// Call the service
 	resp, err := c.CreateSignedURL(context.Background(), req)
