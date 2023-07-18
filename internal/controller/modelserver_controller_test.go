@@ -23,7 +23,8 @@ func TestServerFromGit(t *testing.T) {
 		},
 		Spec: apiv1.ModelSpec{
 			Image: apiv1.Image{
-				Name: "some-image",
+				Name:   "some-image",
+				Upload: &apiv1.UploadSpec{},
 			},
 		},
 	}
@@ -43,6 +44,7 @@ func TestServerFromGit(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/some-server",
 				},
+				Upload: &apiv1.UploadSpec{},
 			},
 			Model: apiv1.ObjectRef{
 				Name: model.Name,

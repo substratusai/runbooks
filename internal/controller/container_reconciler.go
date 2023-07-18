@@ -65,14 +65,14 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	}
 
 	buildJob := &batchv1.Job{}
-	specMd5 := obj.GetImage().Upload.Md5Checksum
+	specUpload := obj.GetImage().Upload
 
-	if specMd5 != "" {
+	if specUpload.Md5Checksum != "" {
 		statusMd5, statusUploadURL := obj.GetStatusUpload().LastGeneratedMd5Checksum, obj.GetStatusUpload().URL
 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
-		if specMd5 != statusMd5 {
+		if specUpload.Md5Checksum != statusMd5 {
 			url, err := r.callSignedUrlGenerator(obj, *r.CloudManagerGrpcClient)
 			if err != nil {
 				return result{}, fmt.Errorf("generating upload url: %w", err)
@@ -80,7 +80,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 			obj.SetStatusUpload(ssv1.UploadStatus{
 				URL:                      url,
-				LastGeneratedMd5Checksum: specMd5,
+				LastGeneratedMd5Checksum: specUpload.Md5Checksum,
 			})
 			if err := r.Client.Status().Update(ctx, obj); err != nil {
 				return result{}, fmt.Errorf("updating status: %w", err)
@@ -112,7 +112,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		}
 
 		// verify the object's md5 matches the spec md5
-		if storageMd5 != specMd5 {
+		if storageMd5 != specUpload.Md5Checksum {
 			// TODO(bjb): is this true? Test object state during upload.
 			log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
 			return result{}, nil

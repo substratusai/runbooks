@@ -30,6 +30,7 @@ func TestDataset(t *testing.T) {
 				Git: &apiv1.GitSource{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
+				Upload: &apiv1.UploadSpec{},
 			},
 		},
 	}
@@ -68,5 +69,4 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		assert.True(t, dataset.Status.Ready)
 	}, timeout, interval, "waiting for the dataset to be ready")
 	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-datasets/%v/data/%v", dataset.UID, dataset.Spec.Filename), dataset.Status.URL)
-
 }
