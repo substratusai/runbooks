@@ -12,7 +12,7 @@ import (
 
 type Common struct {
 	ClusterName       string     `env:"CLUSTER_NAME" validate:"required"`
-	ArtifactBucketURL *BucketURL `env:"ARTIFACT_BUCKET_URL" validate:"required"`
+	ArtifactBucketURL *BucketURL `env:"ARTIFACT_BUCKET_URL,noinit" validate:"required"`
 	RegistryURL       string     `env:"REGISTRY_URL" validate:"required"`
 }
 

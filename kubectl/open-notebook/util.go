@@ -48,7 +48,10 @@ func hasCondition(u *unstructured.Unstructured, typ, status string) bool {
 }
 
 func isReady(u *unstructured.Unstructured) bool {
-	status := u.Object["status"].(map[string]interface{})
+	status, ok := u.Object["status"].(map[string]interface{})
+	if !ok {
+		return false
+	}
 	ready, _ := status["ready"].(bool)
 	return ready
 }

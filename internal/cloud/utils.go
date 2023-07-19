@@ -12,10 +12,14 @@ type BucketURL struct {
 	Path   string
 }
 
-func (v *BucketURL) EnvDecode(val string) error {
-	parsed, err := ParseBucketURL(val)
+func (v *BucketURL) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return nil
+	}
+
+	parsed, err := ParseBucketURL(string(text))
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing bucket URL: %s: %w", string(text), err)
 	}
 
 	v.Scheme = parsed.Scheme
@@ -31,14 +35,14 @@ func (b BucketURL) String() string {
 func ParseBucketURL(bktURL string) (*BucketURL, error) {
 	u, err := url.Parse(bktURL)
 	if err != nil {
-		return nil, fmt.Errorf("parsing bucket url: %w", err)
+		return nil, fmt.Errorf("parsing url: %w", err)
 	}
 
 	bucket := u.Host
 	subpath := strings.TrimPrefix(u.Path, "/")
 
 	if bucket == "" {
-		return nil, fmt.Errorf("invalid artifact url: empty bucket: %s", bktURL)
+		return nil, fmt.Errorf("empty bucket: %s", bktURL)
 	}
 
 	return &BucketURL{

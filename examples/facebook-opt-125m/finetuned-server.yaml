@@ -1,6 +1,6 @@
 apiVersion: substratus.ai/v1
 kind: Server
 metadata:
-  name: fb-opt-125m-k8s-instructions
+  name: fb-opt-125m-squad
 spec:
-  modelName: fb-opt-125m-k8s-instructions
+  modelName: fb-opt-125m-squad
