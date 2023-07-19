@@ -4,24 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	apiv1 "github.com/substratusai/substratus/api/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_artifactHashInput(t *testing.T) {
-	obj := &testArtifactObject{}
-	obj.SetKind("Model")
-	obj.SetName("my-model")
-	obj.SetNamespace("my-ns")
+	model := &apiv1.Model{TypeMeta: metav1.TypeMeta{Kind: "Model"}, ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"}}
 
 	require.Equal(t, "clusters/my-cluster/namespaces/my-ns/models/my-model",
-		artifactHashInput("my-cluster", obj),
+		artifactHashInput("my-cluster", model),
 	)
-}
-
-type testArtifactObject struct {
-	unstructured.Unstructured
-}
-
-func (o *testArtifactObject) GetStatusURL() string {
-	return ""
 }

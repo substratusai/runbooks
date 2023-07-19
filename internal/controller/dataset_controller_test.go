@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -66,6 +65,6 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		assert.True(t, meta.IsStatusConditionTrue(dataset.Status.Conditions, apiv1.ConditionLoaded))
 		assert.True(t, dataset.Status.Ready)
 	}, timeout, interval, "waiting for the dataset to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-datasets/%v", dataset.UID), dataset.Status.Artifacts.URL)
+	require.Contains(t, dataset.Status.Artifacts.URL, "gs://test-artifact-bucket")
 
 }

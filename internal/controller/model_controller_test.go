@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -55,7 +54,7 @@ func testModelLoad(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v", model.UID), model.Status.Artifacts.URL)
+	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
 }
 
 func TestModelTrainerFromGit(t *testing.T) {
@@ -150,5 +149,5 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v", model.UID), model.Status.Artifacts.URL)
+	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
 }
