@@ -3,14 +3,14 @@ package v1
 type Image struct {
 	// Git is a reference to a git repository that will be built within the cluster.
 	// Built image will be set in the Image field.
-	Git *GitSource `json:"git,omitempty"`
+	Git *ImageGit `json:"git,omitempty"`
 	// Name of container image (example: "docker.io/your-username/your-image").
 	Name string `json:"name,omitempty"`
 	// Upload is a signal that a local tar of the directory should be uploaded to be built as an image.
-	Upload *UploadSpec `json:"upload,omitempty"`
+	Upload *ImageUpload `json:"upload,omitempty"`
 }
 
-type UploadSpec struct {
+type ImageUpload struct {
 	// Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
@@ -18,7 +18,7 @@ type UploadSpec struct {
 	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
-type UploadStatus struct {
+type ImageStatus struct {
 	// the Signed upload URL
 	UploadURL string `json:"uploadURL,omitempty"`
 	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
@@ -28,7 +28,7 @@ type UploadStatus struct {
 	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
-type GitSource struct {
+type ImageGit struct {
 	// URL to the git repository.
 	// Example: https://github.com/my-username/my-repo
 	URL string `json:"url"`

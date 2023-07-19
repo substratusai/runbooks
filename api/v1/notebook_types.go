@@ -45,12 +45,12 @@ func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
 }
 
-func (n *Notebook) SetStatusUpload(us UploadStatus) {
-	n.Status.Upload = us
+func (n *Notebook) SetStatusImage(us ImageStatus) {
+	n.Status.Image = us
 }
 
-func (n *Notebook) GetStatusUpload() UploadStatus {
-	return n.Status.Upload
+func (n *Notebook) GetStatusImage() ImageStatus {
+	return n.Status.Image
 }
 
 // NotebookStatus defines the observed state of Notebook
@@ -63,7 +63,7 @@ type NotebookStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Upload contains details the controller returns from a requested signed upload URL.
-	Upload UploadStatus `json:"upload,omitempty"`
+	Image ImageStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

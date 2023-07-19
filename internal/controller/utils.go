@@ -24,8 +24,8 @@ type object interface {
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
-	GetStatusUpload() ssv1.UploadStatus
-	SetStatusUpload(ssv1.UploadStatus)
+	GetStatusImage() ssv1.ImageStatus
+	SetStatusImage(ssv1.ImageStatus)
 }
 
 // result allows for propogating controller reconcile information up the call stack.

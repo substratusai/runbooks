@@ -29,7 +29,7 @@ type ServerStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Upload contains details the controller returns from a requested signed upload URL.
-	Upload UploadStatus `json:"upload,omitempty"`
+	Image ImageStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai
@@ -65,12 +65,12 @@ func (s *Server) SetStatusReady(r bool) {
 	s.Status.Ready = r
 }
 
-func (s *Server) SetStatusUpload(us UploadStatus) {
-	s.Status.Upload = us
+func (s *Server) SetStatusImage(us ImageStatus) {
+	s.Status.Image = us
 }
 
-func (s *Server) GetStatusUpload() UploadStatus {
-	return s.Status.Upload
+func (s *Server) GetStatusImage() ImageStatus {
+	return s.Status.Image
 }
 
 //+kubebuilder:object:root=true

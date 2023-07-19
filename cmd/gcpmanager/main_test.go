@@ -7,7 +7,7 @@ package main_test
 // the infra set up and tear down.
 
 // The curl command used to test the signed URL was:
-// URL=$(kubectl get Notebook falcon-7b-instruct -o json | jq '.status.upload.uploadURL' -r)
+// URL=$(kubectl get Notebook falcon-7b-instruct -o json | jq '.Status.ImageStatus.uploadURL' -r)
 // curl -v -X PUT \
 //		-H "Content-Type: application/octet-stream" \
 //		-H "Content-MD5: $(openssl dgst -md5 -binary the-file.tar.gz | openssl base64)" \

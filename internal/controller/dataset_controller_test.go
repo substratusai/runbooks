@@ -27,7 +27,7 @@ func TestDataset(t *testing.T) {
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
 			},

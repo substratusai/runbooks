@@ -44,12 +44,12 @@ func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
 }
 
-func (m *Model) SetStatusUpload(us UploadStatus) {
-	m.Status.Upload = us
+func (m *Model) SetStatusImage(us ImageStatus) {
+	m.Status.Image = us
 }
 
-func (m *Model) GetStatusUpload() UploadStatus {
-	return m.Status.Upload
+func (m *Model) GetStatusImage() ImageStatus {
+	return m.Status.Image
 }
 
 // ModelStatus defines the observed state of Model
@@ -65,7 +65,7 @@ type ModelStatus struct {
 	URL string `json:"url,omitempty"`
 
 	// Upload contains details the controller returns from a requested signed upload URL.
-	Upload UploadStatus `json:"upload,omitempty"`
+	Image ImageStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

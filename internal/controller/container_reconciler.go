@@ -67,7 +67,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	var buildJob *batchv1.Job
 
 	if specUpload := obj.GetImage().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
-		statusMd5, statusUploadURL := obj.GetStatusUpload().Md5Checksum, obj.GetStatusUpload().UploadURL
+		statusMd5, statusUploadURL := obj.GetStatusImage().Md5Checksum, obj.GetStatusImage().UploadURL
 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
@@ -77,7 +77,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 				return result{}, fmt.Errorf("generating upload url: %w", err)
 			}
 
-			obj.SetStatusUpload(ssv1.UploadStatus{
+			obj.SetStatusImage(ssv1.ImageStatus{
 				UploadURL:   url,
 				Md5Checksum: specUpload.Md5Checksum,
 			})
@@ -102,9 +102,9 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			}
 
 			if time.Now().After(expirationTime) {
-				log.Info("The signed URL has expired. Clearing .Status.UploadURL")
+				log.Info("The signed URL has expired. Clearing .Status.ImageURL")
 				// TODO(bjb): why doesn't this work?
-				obj.SetStatusUpload(ssv1.UploadStatus{
+				obj.SetStatusImage(ssv1.ImageStatus{
 					UploadURL:   "",
 					Md5Checksum: statusMd5,
 				})
