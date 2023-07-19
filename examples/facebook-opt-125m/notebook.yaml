@@ -7,8 +7,8 @@ spec:
   suspend: true
   image:
     git:
-      url: https://github.com/substratusai/model-loader-huggingface
-      branch: nick-refactor
+      url: https://github.com/substratusai/images
+      path: base
   model:
     name: facebook-opt-125m
   dataset:
