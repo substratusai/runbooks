@@ -12,6 +12,6 @@ func Test_artifactHashInput(t *testing.T) {
 	model := &apiv1.Model{TypeMeta: metav1.TypeMeta{Kind: "Model"}, ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"}}
 
 	require.Equal(t, "clusters/my-cluster/namespaces/my-ns/models/my-model",
-		artifactHashInput("my-cluster", model),
+		objectHashInput("my-cluster", model),
 	)
 }

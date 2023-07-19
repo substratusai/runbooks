@@ -25,7 +25,7 @@ func TestDataset(t *testing.T) {
 		},
 		Spec: apiv1.DatasetSpec{
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
 			},

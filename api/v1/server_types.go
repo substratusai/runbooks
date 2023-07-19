@@ -27,6 +27,9 @@ type ServerStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Server.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Upload contains details the controller returns from a requested signed upload URL.
+	Image ImageStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai
@@ -60,6 +63,14 @@ func (s *Server) GetStatusReady() bool {
 
 func (s *Server) SetStatusReady(r bool) {
 	s.Status.Ready = r
+}
+
+func (s *Server) SetStatusImage(us ImageStatus) {
+	s.Status.Image = us
+}
+
+func (s *Server) GetStatusImage() ImageStatus {
+	return s.Status.Image
 }
 
 //+kubebuilder:object:root=true

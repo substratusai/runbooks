@@ -25,10 +25,10 @@ func TestCommon(t *testing.T) {
 
 	require.EqualValues(t, cloud.Common{
 		ClusterName:       "my-cluster",
-		ArtifactBucketURL: "gs://my-artifact-bucket",
+		ArtifactBucketURL: &cloud.BucketURL{Scheme: "gs", Bucket: "my-artifact-bucket"},
 		RegistryURL:       "gcr.io/my-project",
 	}, common)
 
 	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model", common.ObjectBuiltImageURL(&apiv1.Model{TypeMeta: metav1.TypeMeta{Kind: "Model"}, ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"}}))
-	require.Equal(t, "gs://my-artifact-bucket/93ea94b18012ca14d84e1468d65e8709", common.ObjectArtifactURL(&apiv1.Model{TypeMeta: metav1.TypeMeta{Kind: "Model"}, ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"}}))
+	require.Equal(t, "gs://my-artifact-bucket/93ea94b18012ca14d84e1468d65e8709", common.ObjectArtifactURL(&apiv1.Model{TypeMeta: metav1.TypeMeta{Kind: "Model"}, ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"}}).String())
 }

@@ -29,7 +29,6 @@ import (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-
 	*ContainerImageReconciler
 }
 
@@ -358,7 +357,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "artifacts", ContentSubdir: "data"},
+				{BucketSubdir: "data", ContentSubdir: "data"},
 				{BucketSubdir: "logs", ContentSubdir: "data-logs"},
 			},
 			Container: containerName,
@@ -372,7 +371,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
 			Name: "basemodel",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "artifacts", ContentSubdir: "saved-model"},
+				{BucketSubdir: "model", ContentSubdir: "saved-model"},
 				{BucketSubdir: "logs", ContentSubdir: "saved-model-logs"},
 			},
 			Container: containerName,
@@ -392,7 +391,6 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	}
 
 	return pod, nil
-
 }
 
 func notebookPVCName(nb *apiv1.Notebook) string {

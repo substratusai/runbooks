@@ -48,6 +48,14 @@ func (m *Model) GetArtifactsStatus() ArtifactsStatus {
 	return m.Status.Artifacts
 }
 
+func (m *Model) SetStatusImage(us ImageStatus) {
+	m.Status.Image = us
+}
+
+func (m *Model) GetStatusImage() ImageStatus {
+	return m.Status.Image
+}
+
 // ModelStatus defines the observed state of Model
 type ModelStatus struct {
 	// Ready indicates that the Model is ready to use. See Conditions for more details.
@@ -57,8 +65,11 @@ type ModelStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Status of Model artifacts.
+	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
+
+	// Image contains details the controller returns from a requested signed upload URL.
+	Image ImageStatus `json:"image,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

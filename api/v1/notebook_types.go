@@ -37,16 +37,20 @@ func (n *Notebook) GetConditions() *[]metav1.Condition {
 	return &n.Status.Conditions
 }
 
-func (n *Notebook) StatusReady() bool {
-	return n.Status.Ready
-}
-
 func (n *Notebook) GetStatusReady() bool {
 	return n.Status.Ready
 }
 
 func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
+}
+
+func (n *Notebook) SetStatusImage(us ImageStatus) {
+	n.Status.Image = us
+}
+
+func (n *Notebook) GetStatusImage() ImageStatus {
+	return n.Status.Image
 }
 
 // NotebookStatus defines the observed state of Notebook
@@ -57,6 +61,9 @@ type NotebookStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Upload contains details the controller returns from a requested signed upload URL.
+	Image ImageStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

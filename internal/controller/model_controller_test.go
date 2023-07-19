@@ -24,7 +24,7 @@ func TestModelLoaderFromGit(t *testing.T) {
 		},
 		Spec: apiv1.ModelSpec{
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://test.internal/test/model-loader.git",
 				},
 			},
@@ -102,7 +102,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 		Spec: apiv1.ModelSpec{
 			Command: []string{"model.sh"},
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://test.com/test/test",
 				},
 			},

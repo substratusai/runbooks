@@ -40,6 +40,14 @@ func (d *Dataset) GetArtifactsStatus() ArtifactsStatus {
 	return d.Status.Artifacts
 }
 
+func (d *Dataset) SetStatusImage(us ImageStatus) {
+	d.Status.Image = us
+}
+
+func (d *Dataset) GetStatusImage() ImageStatus {
+	return d.Status.Image
+}
+
 // DatasetStatus defines the observed state of Dataset.
 type DatasetStatus struct {
 	// Ready indicates that the Dataset is ready to use. See Conditions for more details.
@@ -51,6 +59,9 @@ type DatasetStatus struct {
 
 	// Status of Model artifacts.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
+
+	// Image contains details the controller returns from a requested signed upload URL.
+	Image ImageStatus `json:"image,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

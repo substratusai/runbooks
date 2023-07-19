@@ -9,6 +9,8 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/yaml.v2"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -22,6 +24,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/controller"
+	"github.com/substratusai/substratus/internal/sci"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -97,6 +100,20 @@ func main() {
 		}
 	}
 
+	// TODO(any): setup TLS
+	conn, err := grpc.Dial(
+		// "localhost:10080",
+		"gcp-manager.substratus.svc.cluster.local:10080",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create an SCI gRPC client")
+		os.Exit(1)
+	}
+	defer conn.Close()
+	// Create a client using the connection
+	gc := sci.NewControllerClient(conn)
+
 	if err = (&controller.ModelReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -105,6 +122,7 @@ func main() {
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 			Cloud:  cld,
+			SCI:    gc,
 			Kind:   "Model",
 		},
 	}).SetupWithManager(mgr); err != nil {
@@ -118,12 +136,14 @@ func main() {
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 			Cloud:  cld,
+			SCI:    gc,
 			Kind:   "Server",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
 	}
+
 	if err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -131,6 +151,7 @@ func main() {
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 			Cloud:  cld,
+			SCI:    gc,
 			Kind:   "Notebook",
 		},
 	}).SetupWithManager(mgr); err != nil {
@@ -145,6 +166,7 @@ func main() {
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 			Cloud:  cld,
+			SCI:    gc,
 			Kind:   "Dataset",
 		},
 	}).SetupWithManager(mgr); err != nil {

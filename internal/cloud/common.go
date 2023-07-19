@@ -4,15 +4,16 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Common struct {
-	ClusterName       string `env:"CLUSTER_NAME" validate:"required"`
-	ArtifactBucketURL string `env:"ARTIFACT_BUCKET_URL" validate:"required"`
-	RegistryURL       string `env:"REGISTRY_URL" validate:"required"`
+	ClusterName       string     `env:"CLUSTER_NAME" validate:"required"`
+	ArtifactBucketURL *BucketURL `env:"ARTIFACT_BUCKET_URL" validate:"required"`
+	RegistryURL       string     `env:"REGISTRY_URL" validate:"required"`
 }
 
 func (c *Common) ObjectBuiltImageURL(obj client.Object) string {
@@ -26,21 +27,19 @@ func (c *Common) ObjectBuiltImageURL(obj client.Object) string {
 		c.ClusterName, strings.ToLower(kind), obj.GetNamespace(), obj.GetName())
 }
 
-func (c *Common) ObjectArtifactURL(obj ArtifactObject) string {
-	if u := obj.GetArtifactsStatus().URL; u != "" {
-		return u
-	}
-	hash := artifactHash(c.ClusterName, obj)
-	return fmt.Sprintf("%s/%s", c.ArtifactBucketURL, hash)
+func (c *Common) ObjectArtifactURL(obj Object) *BucketURL {
+	u := *c.ArtifactBucketURL
+	u.Path = filepath.Join(u.Path, objectHash(c.ClusterName, obj))
+	return &u
 }
 
-func artifactHash(cluster string, obj ArtifactObject) string {
+func objectHash(cluster string, obj Object) string {
 	h := md5.New()
-	io.WriteString(h, artifactHashInput(cluster, obj))
+	io.WriteString(h, objectHashInput(cluster, obj))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func artifactHashInput(cluster string, obj ArtifactObject) string {
+func objectHashInput(cluster string, obj Object) string {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if kind == "" {
 		// This can be empty if the Go object was not instantiated with the kind field set.

@@ -110,7 +110,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	}
 
 	dataset.Status.Ready = true
-	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset)
+	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionLoaded,
 		Status:             metav1.ConditionTrue,
@@ -160,7 +160,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
 		Name: "dataset",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "artifacts", ContentSubdir: "data"},
+			{BucketSubdir: "data", ContentSubdir: "data"},
 			{BucketSubdir: "logs", ContentSubdir: "logs"},
 		},
 		Container: containerName,

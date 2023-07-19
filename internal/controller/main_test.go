@@ -84,7 +84,7 @@ func TestMain(m *testing.M) {
 	testCloud.ProjectID = "test-project-id"
 	testCloud.ClusterName = "test-cluster-name"
 	testCloud.ClusterLocation = "us-central1"
-	testCloud.ArtifactBucketURL = "gs://test-artifact-bucket"
+	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket"}
 	testCloud.RegistryURL = "registry.test"
 
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)

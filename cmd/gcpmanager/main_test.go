@@ -1,25 +1,25 @@
 package main_test
 
-// TODO(bjb): This test requires some infrastructure that we should build and
+// TODO(any): This test requires some infrastructure that we should build and
 // tear down via dedicated terraform templates run through a test harness.
 // e.g., service account, a key, a bucket, permissions, etc.
 // [terratest](https://terratest.gruntwork.io/examples/) could help orchestrate
 // the infra set up and tear down.
-// We'll also need to adapt CreateSignedURL to work with a static credential.
-// instead of blob signing via IAM.
-
-// Potentially a bug: the generated URL is escaped in a way that means it doesn't
-// work with curl. backslashes needed to be deleted throughout.
 
 // The curl command used to test the signed URL was:
-// curl -v -X PUT -H "Content-Type: application/octet-stream" --upload-file README.md $url
+// URL=$(kubectl get Notebook falcon-7b-instruct -o json | jq '.Status.ImageStatus.uploadURL' -r)
+// curl -v -X PUT \
+//		-H "Content-Type: application/octet-stream" \
+//		-H "Content-MD5: $(openssl dgst -md5 -binary the-file.tar.gz | openssl base64)" \
+//		--upload-file the-file.tar.gz \
+//		$URL
 
 // the following function was successfully used to exercise gcpmanager.Server.CreateSignedURL()
 // func invokeManually(storageClient *storage.Client) {
 // 	payload := sci.CreateSignedURLRequest{
-// 		BucketName:        "substr-models1",
-// 		ObjectName:        "README.md",
-// 		ExpirationSeconds: 600,
+// 		BucketName:        "substratus-ai-001-substratus-notebooks",
+// 		ObjectName:        "notebook.tar.gz",
+// 		ExpirationSeconds: 300,
 // 	}
 // 	serv := gcpmanager.Server{
 // 		StorageClient: storageClient,

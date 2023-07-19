@@ -158,7 +158,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 	if err := r.Cloud.MountBucket(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, model, cloud.MountBucketConfig{
 		Name: "model",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "artifacts", ContentSubdir: "saved-model"},
+			{BucketSubdir: "model", ContentSubdir: "saved-model"},
 		},
 		Container: containerName,
 		ReadOnly:  true,

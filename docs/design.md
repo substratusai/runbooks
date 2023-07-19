@@ -15,7 +15,7 @@ spec:
     # Optional git source.
     git:
       url: https://github.com/substratusai/hf-model-loader
-    
+
     # Optional upload source.
     upload: {}
 
@@ -61,6 +61,7 @@ spec:
 
 Optionally you can override the default command of a container by providing
 `command` in the Substratus resource:
+
 ```yaml
 spec:
   command: ["train.sh"]
@@ -111,11 +112,11 @@ The following scheme can be used for storing artifacts for Models, Datasets, and
 
 ```sh
 # Models
-gs://{bucket}/{hash}/artifacts # Model artifacts (*.pt, etc)
+gs://{bucket}/{hash}/model     # Model artifacts (*.pt, etc)
 gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Datasets
-gs://{bucket}/{hash}/artifacts # Data artifacts (*.jsonl, etc)
+gs://{bucket}/{hash}/data      # Data artifacts (*.jsonl, etc)
 gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Notebooks
@@ -125,7 +126,7 @@ gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
 The example Model's backing storage would end up being:
 
 ```sh
-gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/artifacts/
+gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/model/
 gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/logs/
 ```
 
@@ -283,7 +284,7 @@ The controller will orchestrate the following flow in this case:
 
 #### Use case: Finetuning a Base Model
 
-Models can be trained by specifying the `.spec.baseModel` section. 
+Models can be trained by specifying the `.spec.baseModel` section.
 
 ```yaml
 apiVersion: substratus.ai/v1
@@ -296,7 +297,7 @@ spec:
       url: https://github.com/substratusai/model-trainer-huggingface
   baseModel:
     name: falcon-7b
-    #namespace: base-models 
+    #namespace: base-models
   trainingDataset:
     name: k8s-instructions
   params:
@@ -370,10 +371,10 @@ spec:
     upload:
       checksum: 11ddbaf3386aea1f2974eee984542152 # This is how the plugin signals it wants to upload a directory for building.
   model: # Mounts the model. Plugin auto-populated this by finding the corresponding `model.yaml` file.
-    name: falcon-7b  
-  resources: {...} 
+    name: falcon-7b
+  resources: {...}
 status:
-  uploadUrl: https://some-signed-url... # Controller populated this.
+  uploadURL: https://some-signed-url... # Controller populated this.
   # FUTURE:
   # token: aklsdjfkasdljfs # Jupyter notebook token reported by the controller.
 ```
@@ -382,7 +383,7 @@ status:
 
 1. As `kubectl open notebook ...` is terminated by the user, files will be synced from the Notebook back to the local directory. We can hope but not guarantee this is a git repo.
 2. Optional: During `kubectl open notebook ...` termination, a signal will be sent to the controller to build a container image which can serve as the trainer.
-3. Potentially the user is prompted for this auto-generation: A `model-${epoch}.yaml` manifest having the values of that trainer will be generated into the repo root having either spec.container.image populated with the build from step 2 OR the repo/branch info taken from the local dir. 
+3. Potentially the user is prompted for this auto-generation: A `model-${epoch}.yaml` manifest having the values of that trainer will be generated into the repo root having either spec.container.image populated with the build from step 2 OR the repo/branch info taken from the local dir.
 
 ```yaml
 kind: Model
@@ -410,7 +411,7 @@ kind: Server
 spec:
   image:
     image: substratusai/basaran
-  # model artifacts get mounted to /model/saved
+  # model artifacts get mounted to /content/saved-model
   model:
     name: falcon-7b-k8s
   # FUTURE:

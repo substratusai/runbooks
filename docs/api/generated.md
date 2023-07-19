@@ -20,12 +20,12 @@ Package v1 contains API Schema definitions for Substratus.
 
 
 
-The Dataset API is used to describe data that can be referenced for training Models. 
- - Datasets pull in remote data sources using containerized data loaders. 
- - Users can specify their own ETL logic by referencing a repository from a Dataset. 
- - Users can leverage pre-built data loader integrations with various sources. 
- - Training typically requires a large dataset. The Dataset API pulls a dataset once and stores it in a bucket, which is mounted directly into training Jobs. 
- - The Dataset API allows users to query ready-to-use datasets (`kubectl get datasets`). 
+The Dataset API is used to describe data that can be referenced for training Models.
+ - Datasets pull in remote data sources using containerized data loaders.
+ - Users can specify their own ETL logic by referencing a repository from a Dataset.
+ - Users can leverage pre-built data loader integrations with various sources.
+ - Training typically requires a large dataset. The Dataset API pulls a dataset once and stores it in a bucket, which is mounted directly into training Jobs.
+ - The Dataset API allows users to query ready-to-use datasets (`kubectl get datasets`).
  - The Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling access to data.
 
 
@@ -99,7 +99,7 @@ _Appears in:_
 
 
 
-### GitSource
+### ImageGit
 
 
 
@@ -129,7 +129,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `git` _[GitSource](#gitsource)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
+| `git` _[ImageGit](#ImageGit)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
 | `name` _string_ | Name of container image (example: "docker.io/your-username/your-image"). |
 
 
@@ -137,9 +137,9 @@ _Appears in:_
 
 
 
-The Model API is used to build and train machine learning models. 
- - Base models can be built from a Git repository. 
- - Models can be trained by combining a base Model with a Dataset. 
+The Model API is used to build and train machine learning models.
+ - Base models can be built from a Git repository.
+ - Models can be trained by combining a base Model with a Dataset.
  - Model artifacts are persisted in cloud buckets.
 
 
@@ -192,8 +192,8 @@ _Appears in:_
 
 
 
-The Notebook API can be used to quickly spin up a development environment backed by high performance compute. 
- - Notebooks integrate with the Model and Dataset APIs allow for quick iteration. 
+The Notebook API can be used to quickly spin up a development environment backed by high performance compute.
+ - Notebooks integrate with the Model and Dataset APIs allow for quick iteration.
  - Notebooks can be synced to local directories to streamline developer experiences using Substratus kubectl plugins.
 
 

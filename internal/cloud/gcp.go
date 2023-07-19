@@ -53,8 +53,11 @@ func (gcp *GCP) AutoConfigure(ctx context.Context) error {
 		gcp.RegistryURL = fmt.Sprintf("%s-docker.pkg.dev/%s/substratus", gcp.region(), gcp.ProjectID)
 	}
 
-	if gcp.ArtifactBucketURL == "" {
-		gcp.ArtifactBucketURL = fmt.Sprintf("gs://%s-substratus-artifacts", gcp.ProjectID)
+	if gcp.ArtifactBucketURL == nil {
+		gcp.ArtifactBucketURL = &BucketURL{
+			Scheme: "gs",
+			Bucket: fmt.Sprintf("%s-substratus-artifacts", gcp.ProjectID),
+		}
 	}
 
 	return nil
@@ -66,9 +69,15 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	}
 	podMetadata.Annotations["gke-gcsfuse/volumes"] = "true"
 
-	bucket, subpath, err := parseArtifactBucketURL(gcp.ObjectArtifactURL(obj))
-	if err != nil {
-		return fmt.Errorf("parsing dataset url: %w", err)
+	var bktURL *BucketURL
+	if statusURL := obj.GetArtifactsStatus().URL; statusURL != "" {
+		var err error
+		bktURL, err = ParseBucketURL(statusURL)
+		if err != nil {
+			return fmt.Errorf("parsing status bucket url: %w", err)
+		}
+	} else {
+		bktURL = gcp.ObjectArtifactURL(obj)
 	}
 
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
@@ -78,7 +87,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 				Driver:   "gcsfuse.csi.storage.gke.io",
 				ReadOnly: ptr.Bool(req.ReadOnly),
 				VolumeAttributes: map[string]string{
-					"bucketName":   bucket,
+					"bucketName":   bktURL.Bucket,
 					"mountOptions": "implicit-dirs,uid=0,gid=3003",
 				},
 			},
@@ -92,7 +101,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 					corev1.VolumeMount{
 						Name:      req.Name,
 						MountPath: "/content/" + mount.ContentSubdir,
-						SubPath:   subpath + "/" + mount.BucketSubdir,
+						SubPath:   bktURL.Path + "/" + mount.BucketSubdir,
 						ReadOnly:  req.ReadOnly,
 					},
 				)

@@ -23,11 +23,11 @@ type Cloud interface {
 	// AutoConfigure attempts to determine cloud configuration from metadata servers, etc.
 	AutoConfigure(context.Context) error
 
-	// BuildImageURL returns the URL of the container image that should be used
+	// ObjectBuildImageURL returns the URL of the container image that should be used
 	// when Substratus builds a given Object.
 	ObjectBuiltImageURL(Object) string
-	// ArtifactURL returns the URL of the artifact that was stored for a given Object.
-	ObjectArtifactURL(ArtifactObject) string
+	// ObjectBucketURL returns the URL of the artifact that was stored for a given Object.
+	ObjectArtifactURL(Object) *BucketURL
 
 	// AssociateServiceAccount associates the given service account with a cloud
 	// identity.

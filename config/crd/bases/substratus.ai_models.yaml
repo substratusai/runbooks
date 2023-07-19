@@ -83,6 +83,18 @@ spec:
                   name:
                     description: 'Name of container image (example: "docker.io/your-username/your-image").'
                     type: string
+                  upload:
+                    description: Upload is a signal that a local tar of the directory
+                      should be uploaded to be built as an image.
+                    properties:
+                      md5checksum:
+                        description: Md5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                    type: object
                 type: object
               params:
                 additionalProperties:
@@ -140,7 +152,7 @@ spec:
             description: Status is the observed state of the Model.
             properties:
               artifacts:
-                description: Status of Model artifacts.
+                description: Artifacts status.
                 properties:
                   url:
                     type: string
@@ -215,6 +227,21 @@ spec:
                   - type
                   type: object
                 type: array
+              image:
+                description: Image contains details the controller returns from a
+                  requested signed upload URL.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               ready:
                 default: false
                 description: Ready indicates that the Model is ready to use. See Conditions
