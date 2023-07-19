@@ -56,4 +56,3 @@ spec:
     - protocol: TCP
       port: 10080
       targetPort: 10080
-  type: LoadBalancer

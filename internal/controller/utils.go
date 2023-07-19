@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ssv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,8 @@ type object interface {
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
+	GetStatusImage() ssv1.ImageStatus
+	SetStatusImage(ssv1.ImageStatus)
 }
 
 // result allows for propogating controller reconcile information up the call stack.

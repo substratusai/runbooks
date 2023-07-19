@@ -26,3 +26,12 @@ const (
 
 	ReasonSuspended = "Suspended"
 )
+
+const (
+	ConditionUploaded = "Uploaded"
+)
+
+const (
+	ReasonUploadComplete   = "UploadComplete"
+	ReasonUploadIncomplete = "UploadIncomplete"
+)

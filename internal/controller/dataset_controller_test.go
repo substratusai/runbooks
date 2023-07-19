@@ -27,7 +27,7 @@ func TestDataset(t *testing.T) {
 		Spec: apiv1.DatasetSpec{
 			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
 			},
@@ -68,5 +68,4 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		assert.True(t, dataset.Status.Ready)
 	}, timeout, interval, "waiting for the dataset to be ready")
 	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-datasets/%v/data/%v", dataset.UID, dataset.Spec.Filename), dataset.Status.URL)
-
 }

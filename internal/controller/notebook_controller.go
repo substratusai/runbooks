@@ -28,7 +28,6 @@ import (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-
 	*ContainerImageReconciler
 }
 
@@ -389,7 +388,6 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	}
 
 	return pod, nil
-
 }
 
 func notebookPVCName(nb *apiv1.Notebook) string {

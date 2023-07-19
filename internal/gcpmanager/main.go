@@ -3,8 +3,9 @@ package gcpmanager
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -33,7 +34,9 @@ type Clients struct {
 
 // CreateSignedURL generates a signed URL for a specified GCS bucket and object path.
 func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRequest) (*sci.CreateSignedURLResponse, error) {
-	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+	bucketName, objectName, checksum := req.GetBucketName(),
+		req.GetObjectName(),
+		req.GetMd5Checksum()
 	bucket := s.Clients.Storage.Bucket(bucketName)
 	obj := bucket.Object(objectName)
 	if _, err := obj.Attrs(ctx); err != nil && err != storage.ErrObjectNotExist {
@@ -41,6 +44,12 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		// This is an unexpected error and we should return it.
 		return nil, err
 	}
+
+	data, err := hex.DecodeString(checksum)
+	if err != nil {
+		panic(err)
+	}
+	base64md5 := base64.StdEncoding.EncodeToString(data)
 
 	opts := &storage.SignedURLOptions{
 		Scheme: storage.SigningSchemeV4,
@@ -50,6 +59,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		},
 		Expires:        time.Now().Add(time.Duration(req.GetExpirationSeconds()) * time.Second),
 		GoogleAccessID: s.SaEmail,
+		MD5:            base64md5,
 		SignBytes: func(b []byte) ([]byte, error) {
 			req := &credentialspb.SignBlobRequest{
 				Payload: b,
@@ -72,6 +82,20 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	return &sci.CreateSignedURLResponse{Url: url}, nil
 }
 
+func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
+	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+	bucket := s.Clients.Storage.Bucket(bucketName)
+	obj := bucket.Object(objectName)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	md5str := hex.EncodeToString(attrs.MD5)
+	return &sci.GetObjectMd5Response{Md5Checksum: md5str}, nil
+}
+
+// GetServiceAccountEmail returns the email address of the service account
+// it relies on either a local metadata service or a key file.
 func GetServiceAccountEmail(m *metadata.Client) (string, error) {
 	if metadata.OnGCE() {
 		email, err := m.Email("default")
@@ -86,12 +110,12 @@ func GetServiceAccountEmail(m *metadata.Client) (string, error) {
 			return "", fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
 		}
 
-		keyBytes, err := ioutil.ReadFile(keyFile)
+		key, err := os.ReadFile(keyFile)
 		if err != nil {
 			return "", err
 		}
 
-		cfg, err := google.JWTConfigFromJSON(keyBytes)
+		cfg, err := google.JWTConfigFromJSON(key)
 		if err != nil {
 			return "", err
 		}

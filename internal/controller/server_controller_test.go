@@ -40,7 +40,7 @@ func TestServerFromGit(t *testing.T) {
 		Spec: apiv1.ServerSpec{
 			Command: []string{"serve.sh"},
 			Image: apiv1.Image{
-				Git: &apiv1.GitSource{
+				Git: &apiv1.ImageGit{
 					URL: "https://github.com/substratusai/some-server",
 				},
 			},

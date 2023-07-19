@@ -65,5 +65,11 @@ secrets/*
 
 # personal hack dev scripts
 hack/dev/
+
+# goreleaser build directory
 dist/
+
+# envsubst rendered templates
 gcpmanager-skaffold.yaml
+gcpmanager-dependencies.yaml
+skaffold-dependencies.sh
