@@ -55,7 +55,7 @@ func testModelLoad(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
+	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v", model.UID), model.Status.Artifacts.URL)
 }
 
 func TestModelTrainerFromGit(t *testing.T) {
@@ -84,7 +84,6 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.DatasetSpec{
-			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
 				Name: "some-image",
 			},
@@ -151,5 +150,5 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
+	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v", model.UID), model.Status.Artifacts.URL)
 }

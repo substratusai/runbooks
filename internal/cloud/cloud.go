@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"github.com/go-playground/validator/v10"
 	"github.com/sethvargo/go-envconfig"
+	apiv1 "github.com/substratusai/substratus/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +38,7 @@ type Cloud interface {
 	MountBucket(*metav1.ObjectMeta, *corev1.PodSpec, ArtifactObject, MountBucketConfig) error
 }
 
-func NewCloud(ctx context.Context) (Cloud, error) {
+func New(ctx context.Context) (Cloud, error) {
 	var c Cloud
 	// If CLOUD is set, then pull configuration from environment variables.
 	cloudName := os.Getenv(CloudEnvVar)
@@ -90,5 +91,5 @@ type Object = client.Object
 
 type ArtifactObject interface {
 	client.Object
-	GetStatusURL() string
+	GetArtifactsStatus() apiv1.ArtifactsStatus
 }

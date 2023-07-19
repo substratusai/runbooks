@@ -80,27 +80,25 @@ func TestMain(m *testing.M) {
 	requireNoError(err)
 	requireNoError(controller.SetupIndexes(mgr))
 
-	cloudContext := &cloud.Context{
-		Name: cloud.GCP,
-		GCP: &cloud.GCPContext{
-			ProjectID:       "test-project-id",
-			ClusterName:     "test-cluster-name",
-			ClusterLocation: "us-central1",
-		},
-	}
+	testCloud := &cloud.GCP{}
+	testCloud.ProjectID = "test-project-id"
+	testCloud.ClusterName = "test-cluster-name"
+	testCloud.ClusterLocation = "us-central1"
+	testCloud.ArtifactBucketURL = "gs://test-artifact-bucket"
+	testCloud.RegistryURL = "registry.test"
 
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
 	//requireNoError(err)
 
 	err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  testCloud,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Model",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Model",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -108,10 +106,10 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Server",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Server",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -119,22 +117,22 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Notebook",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Notebook",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  testCloud,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Dataset",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Dataset",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)

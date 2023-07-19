@@ -69,7 +69,7 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
 	log := log.FromContext(ctx)
 
-	if dataset.Status.URL != "" {
+	if dataset.Status.Artifacts.URL != "" {
 		return result{success: true}, nil
 	}
 
@@ -110,7 +110,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	}
 
 	dataset.Status.Ready = true
-	dataset.Status.URL = r.Cloud.ObjectArtifactURL(dataset)
+	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset)
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionLoaded,
 		Status:             metav1.ConditionTrue,
@@ -141,9 +141,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  ptr.Int64(1001),
-						RunAsGroup: ptr.Int64(2002),
-						FSGroup:    ptr.Int64(3003),
+						FSGroup: ptr.Int64(3003),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
@@ -162,7 +160,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
 		Name: "dataset",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "data", ContentSubdir: "data"},
+			{BucketSubdir: "artifacts", ContentSubdir: "data"},
 			{BucketSubdir: "logs", ContentSubdir: "logs"},
 		},
 		Container: containerName,

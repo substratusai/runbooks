@@ -358,7 +358,8 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "data", ContentSubdir: "data"},
+				{BucketSubdir: "artifacts", ContentSubdir: "data"},
+				{BucketSubdir: "logs", ContentSubdir: "data-logs"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
@@ -371,7 +372,8 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
 			Name: "basemodel",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "model", ContentSubdir: "saved-model"},
+				{BucketSubdir: "artifacts", ContentSubdir: "saved-model"},
+				{BucketSubdir: "logs", ContentSubdir: "saved-model-logs"},
 			},
 			Container: containerName,
 			ReadOnly:  true,

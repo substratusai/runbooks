@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -127,7 +128,7 @@ func (r *ContainerImageReconciler) buildJob(ctx context.Context, obj Containeriz
 	annotations := map[string]string{}
 
 	buildArgs := []string{
-		"--dockerfile=Dockerfile",
+		"--context=dir:///workspace",
 		"--destination=" + r.Cloud.ObjectBuiltImageURL(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
@@ -181,7 +182,7 @@ ENTRYPOINT ["/tini", "--"]
 			Args: []string{
 				"sh",
 				"-c",
-				"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
+				"echo '" + dockerfileWithTini + "' >> " + filepath.Join("/workspace/", git.Path, "Dockerfile"),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{

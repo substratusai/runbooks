@@ -27,7 +27,7 @@ spec:
 If a container is built, the resulting image will use the following naming scheme:
 
 ```sh
-image_name = {registry}/{cluster}-{namespace}-{name}-{lower(kind)}
+image_name = {registry}/{cluster}-{lower(kind)}-{namespace}-{name}
 ```
 
 For example:
@@ -41,7 +41,7 @@ spec:
   image:
     git:
       # ...
-    name: us-central1-docker.pkg.dev/my-project/my-repo/cluster1-default-falcon-7b-model
+    name: us-central1-docker.pkg.dev/my-project/my-repo/cluster1-model-default-falcon-7b
 ```
 
 ### Resources
@@ -111,12 +111,12 @@ The following scheme can be used for storing artifacts for Models, Datasets, and
 
 ```sh
 # Models
-gs://{bucket}/{hash}/model # Model artifacts (*.pt, etc)
-gs://{bucket}/{hash}/logs  # Logs and converted notebooks
+gs://{bucket}/{hash}/artifacts # Model artifacts (*.pt, etc)
+gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Datasets
-gs://{bucket}/{hash}/data # Model artifacts (*.pt, etc)
-gs://{bucket}/{hash}/logs # Logs and converted notebooks
+gs://{bucket}/{hash}/artifacts # Data artifacts (*.jsonl, etc)
+gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Notebooks
 gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
@@ -125,7 +125,7 @@ gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
 The example Model's backing storage would end up being:
 
 ```sh
-gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/model/
+gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/artifacts/
 gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/logs/
 ```
 

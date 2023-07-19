@@ -97,12 +97,12 @@ build: manifests generate protogen fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: releases
-dev: manifests kustomize install
+dev: manifests kustomize
 	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
-run: manifests generate protogen fmt vet ## Run a controller from your host.
-	go run ./cmd/controllermanager/main.go
+run:
+	go run ./cmd/controllermanager/main.go --config-dump-path=/tmp/substratus-config.yaml
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.

@@ -6,6 +6,6 @@ spec:
   command: ["load.sh"]
   image:
     git:
-      url: https://github.com/substratusai/dataset-squad
-      branch: nick-refactor
-  filename: all.jsonl
+      url: https://github.com/substratusai/images
+      path: dataset-squad
+      branch: main

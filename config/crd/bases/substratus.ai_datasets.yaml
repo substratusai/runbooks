@@ -55,9 +55,6 @@ spec:
                 items:
                   type: string
                 type: array
-              filename:
-                description: Filename is the name of the file when it is downloaded.
-                type: string
               image:
                 description: Image that contains dataset loading code and dependencies.
                 properties:
@@ -123,12 +120,17 @@ spec:
                     type: integer
                 type: object
             required:
-            - filename
             - image
             type: object
           status:
             description: Status is the observed state of the Dataset.
             properties:
+              artifacts:
+                description: Status of Model artifacts.
+                properties:
+                  url:
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Dataset.
@@ -204,9 +206,6 @@ spec:
                 description: Ready indicates that the Dataset is ready to use. See
                   Conditions for more details.
                 type: boolean
-              url:
-                description: URL of the loaded data.
-                type: string
             required:
             - ready
             type: object

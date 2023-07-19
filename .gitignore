@@ -67,3 +67,6 @@ secrets/*
 hack/dev/
 dist/
 gcpmanager-skaffold.yaml
+
+/controllermanager
+/gcpmanager

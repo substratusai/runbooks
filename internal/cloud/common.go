@@ -22,11 +22,12 @@ func (c *Common) ObjectBuiltImageURL(obj client.Object) string {
 		// Better to panic than hash the wrong thing silently.
 		panic("kind is empty")
 	}
-	return fmt.Sprintf("%s/%s-%s-%s", c.RegistryURL, strings.ToLower(kind), obj.GetNamespace(), obj.GetName())
+	return fmt.Sprintf("%s/%s-%s-%s-%s", c.RegistryURL,
+		c.ClusterName, strings.ToLower(kind), obj.GetNamespace(), obj.GetName())
 }
 
 func (c *Common) ObjectArtifactURL(obj ArtifactObject) string {
-	if u := obj.GetStatusURL(); u != "" {
+	if u := obj.GetArtifactsStatus().URL; u != "" {
 		return u
 	}
 	hash := artifactHash(c.ClusterName, obj)

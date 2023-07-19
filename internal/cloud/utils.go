@@ -3,18 +3,24 @@ package cloud
 import (
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"strings"
 )
 
-func parseBucketURL(bucketURL string) (string, string, error) {
+func parseArtifactBucketURL(bucketURL string) (string, string, error) {
 	u, err := url.Parse(bucketURL)
 	if err != nil {
 		return "", "", fmt.Errorf("parsing bucket url: %w", err)
 	}
 
 	bucket := u.Host
-	subpath := strings.TrimPrefix(filepath.Dir(u.Path), "/")
+	subpath := strings.TrimPrefix(u.Path, "/")
+
+	if bucket == "" {
+		return "", "", fmt.Errorf("invalid artifact url: empty bucket: %s", bucketURL)
+	}
+	if subpath == "" {
+		return "", "", fmt.Errorf("invalid artifact url: empty subpath: %s", bucketURL)
+	}
 
 	return bucket, subpath, nil
 }

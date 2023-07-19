@@ -44,8 +44,8 @@ func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
 }
 
-func (m *Model) GetStatusURL() string {
-	return m.Status.URL
+func (m *Model) GetArtifactsStatus() ArtifactsStatus {
+	return m.Status.Artifacts
 }
 
 // ModelStatus defines the observed state of Model
@@ -57,8 +57,8 @@ type ModelStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// URL of model artifacts.
-	URL string `json:"url,omitempty"`
+	// Status of Model artifacts.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

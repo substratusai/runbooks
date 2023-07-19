@@ -7,4 +7,3 @@ spec:
   image:
     git:
       url: https://github.com/substratusai/dataset-k8s-instructions
-  filename: k8s-instructions.jsonl

@@ -10,9 +10,6 @@ type DatasetSpec struct {
 	// Command to run in the container.
 	Command []string `json:"command,omitempty"`
 
-	// Filename is the name of the file when it is downloaded.
-	Filename string `json:"filename"`
-
 	// Image that contains dataset loading code and dependencies.
 	Image Image `json:"image"`
 
@@ -39,8 +36,8 @@ func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
 }
 
-func (d *Dataset) GetStatusURL() string {
-	return d.Status.URL
+func (d *Dataset) GetArtifactsStatus() ArtifactsStatus {
+	return d.Status.Artifacts
 }
 
 // DatasetStatus defines the observed state of Dataset.
@@ -52,8 +49,8 @@ type DatasetStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// URL of the loaded data.
-	URL string `json:"url,omitempty"`
+	// Status of Model artifacts.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

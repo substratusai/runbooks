@@ -25,25 +25,27 @@ func (gcp *GCP) Name() string { return GCPName }
 func (gcp *GCP) AutoConfigure(ctx context.Context) error {
 	md := metadata.NewClient(&http.Client{})
 
-	var err error
-	if gcp.ProjectID == "" {
-		gcp.ProjectID, err = md.ProjectID()
-		if err != nil {
-			return fmt.Errorf("failed to get project ID from metadata server: %w", err)
+	if metadata.OnGCE() {
+		var err error
+		if gcp.ProjectID == "" {
+			gcp.ProjectID, err = md.ProjectID()
+			if err != nil {
+				return fmt.Errorf("failed to get project ID from metadata server: %w", err)
+			}
 		}
-	}
 
-	if gcp.ClusterName == "" {
-		gcp.ClusterName, err = md.InstanceAttributeValue("cluster-name")
-		if err != nil {
-			return fmt.Errorf("failed to get cluster name from metadata server: %w", err)
+		if gcp.ClusterName == "" {
+			gcp.ClusterName, err = md.InstanceAttributeValue("cluster-name")
+			if err != nil {
+				return fmt.Errorf("failed to get cluster name from metadata server: %w", err)
+			}
 		}
-	}
 
-	if gcp.ClusterLocation == "" {
-		gcp.ClusterLocation, err = md.InstanceAttributeValue("cluster-location")
-		if err != nil {
-			return fmt.Errorf("failed to get cluster location from metadata server: %w", err)
+		if gcp.ClusterLocation == "" {
+			gcp.ClusterLocation, err = md.InstanceAttributeValue("cluster-location")
+			if err != nil {
+				return fmt.Errorf("failed to get cluster location from metadata server: %w", err)
+			}
 		}
 	}
 
@@ -64,7 +66,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	}
 	podMetadata.Annotations["gke-gcsfuse/volumes"] = "true"
 
-	bucket, subpath, err := parseBucketURL(gcp.ObjectArtifactURL(obj))
+	bucket, subpath, err := parseArtifactBucketURL(gcp.ObjectArtifactURL(obj))
 	if err != nil {
 		return fmt.Errorf("parsing dataset url: %w", err)
 	}

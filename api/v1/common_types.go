@@ -56,3 +56,7 @@ type GPUResources struct {
 	// Count is the number of GPUs.
 	Count int64 `json:"count,omitempty"`
 }
+
+type ArtifactsStatus struct {
+	URL string `json:"url,omitempty"`
+}

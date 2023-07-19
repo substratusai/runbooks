@@ -139,6 +139,12 @@ spec:
           status:
             description: Status is the observed state of the Model.
             properties:
+              artifacts:
+                description: Status of Model artifacts.
+                properties:
+                  url:
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Model.
@@ -214,9 +220,6 @@ spec:
                 description: Ready indicates that the Model is ready to use. See Conditions
                   for more details.
                 type: boolean
-              url:
-                description: URL of model artifacts.
-                type: string
             required:
             - ready
             type: object

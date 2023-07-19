@@ -64,7 +64,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
 
-	if model.Status.URL != "" {
+	if model.Status.Artifacts.URL != "" {
 		return result{success: true}, nil
 	}
 
@@ -187,7 +187,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	}
 
 	model.Status.Ready = true
-	model.Status.URL = r.Cloud.ObjectArtifactURL(model)
+	model.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(model)
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionModelled,
 		Status:             metav1.ConditionTrue,
@@ -286,9 +286,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  ptr.Int64(0),
-						RunAsGroup: ptr.Int64(0),
-						FSGroup:    ptr.Int64(3003),
+						FSGroup: ptr.Int64(3003),
 					},
 					ServiceAccountName: modellerServiceAccountName,
 					Containers: []corev1.Container{
@@ -310,7 +308,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, model, cloud.MountBucketConfig{
 		Name: "model",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "model", ContentSubdir: "model"},
+			{BucketSubdir: "artifacts", ContentSubdir: "model"},
 			{BucketSubdir: "logs", ContentSubdir: "logs"},
 		},
 		Container: containerName,
@@ -323,7 +321,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "data", ContentSubdir: "data"},
+				{BucketSubdir: "artifacts", ContentSubdir: "data"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
@@ -336,7 +334,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, baseModel, cloud.MountBucketConfig{
 			Name: "basemodel",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "model", ContentSubdir: "saved-model"},
+				{BucketSubdir: "artifacts", ContentSubdir: "saved-model"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
