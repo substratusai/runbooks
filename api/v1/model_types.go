@@ -68,7 +68,7 @@ type ModelStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Image contains details the controller returns from a requested signed upload URL.
+	// Image contains the status of the image. Upload URL is reported here.
 	Image ImageStatus `json:"image,omitempty"`
 }
 

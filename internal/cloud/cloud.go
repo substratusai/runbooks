@@ -26,11 +26,12 @@ type Cloud interface {
 	// ObjectBuildImageURL returns the URL of the container image that should be used
 	// when Substratus builds a given Object.
 	ObjectBuiltImageURL(Object) string
-	// ObjectBucketURL returns the URL of the artifact that was stored for a given Object.
+
+	// ObjectArtifactURL returns the URL of the artifact that was stored for a given Object.
 	ObjectArtifactURL(Object) *BucketURL
 
 	// AssociateServiceAccount associates the given service account with a cloud
-	// identity.
+	// identity (i.e. updates annotations).
 	AssociateServiceAccount(*corev1.ServiceAccount)
 
 	// MountBucket mutates the given Pod metadata and Pod spec in order to append

@@ -137,7 +137,7 @@ spec:
             description: Status is the observed state of the Dataset.
             properties:
               artifacts:
-                description: Status of Model artifacts.
+                description: Artifacts status.
                 properties:
                   url:
                     type: string
@@ -213,8 +213,8 @@ spec:
                   type: object
                 type: array
               image:
-                description: Image contains details the controller returns from a
-                  requested signed upload URL.
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -470,8 +470,8 @@ spec:
                   type: object
                 type: array
               image:
-                description: Image contains details the controller returns from a
-                  requested signed upload URL.
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -729,8 +729,8 @@ spec:
                   See Conditions for more details.
                 type: boolean
               upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -958,8 +958,8 @@ spec:
                   traffic. See Conditions for more details.
                 type: boolean
               upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -1409,7 +1409,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.4.1-alpha
+        image: docker.io/substratusai/controller-manager:v0.5.0-alpha
         livenessProbe:
           httpGet:
             path: /healthz

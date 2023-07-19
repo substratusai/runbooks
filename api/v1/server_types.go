@@ -28,7 +28,7 @@ type ServerStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Server.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Upload contains details the controller returns from a requested signed upload URL.
+	// Image contains the status of the image. Upload URL is reported here.
 	Image ImageStatus `json:"upload,omitempty"`
 }
 
