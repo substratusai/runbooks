@@ -4,6 +4,8 @@ metadata:
   name: falcon-7b-instruct
 spec:
   image:
-    name: substratusai/model-loader-huggingface
+    git:
+      url: https://github.com/substratusai/images
+      path: model-loader-huggingface
   params:
     name: tiiuae/falcon-7b-instruct
