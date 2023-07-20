@@ -44,7 +44,7 @@ func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
 }
 
-func (m *Model) GetArtifactsStatus() ArtifactsStatus {
+func (m *Model) GetStatusArtifacts() ArtifactsStatus {
 	return m.Status.Artifacts
 }
 

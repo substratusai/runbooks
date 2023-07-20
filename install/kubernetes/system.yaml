@@ -723,12 +723,7 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates that the Notebook is ready to serve.
-                  See Conditions for more details.
-                type: boolean
-              upload:
+              image:
                 description: Image contains the status of the image. Upload URL is
                   reported here.
                 properties:
@@ -743,6 +738,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
+              ready:
+                default: false
+                description: Ready indicates that the Notebook is ready to serve.
+                  See Conditions for more details.
+                type: boolean
             required:
             - ready
             type: object
@@ -952,12 +952,7 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates whether the Server is ready to serve
-                  traffic. See Conditions for more details.
-                type: boolean
-              upload:
+              image:
                 description: Image contains the status of the image. Upload URL is
                   reported here.
                 properties:
@@ -972,6 +967,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
+              ready:
+                default: false
+                description: Ready indicates whether the Server is ready to serve
+                  traffic. See Conditions for more details.
+                type: boolean
             required:
             - ready
             type: object

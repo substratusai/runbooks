@@ -36,7 +36,7 @@ func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
 }
 
-func (d *Dataset) GetArtifactsStatus() ArtifactsStatus {
+func (d *Dataset) GetStatusArtifacts() ArtifactsStatus {
 	return d.Status.Artifacts
 }
 

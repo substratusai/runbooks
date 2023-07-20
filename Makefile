@@ -109,7 +109,7 @@ skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## R
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
-.PHONY: releases
+.PHONY: dev
 dev: manifests kustomize install-crds
 	go run ./cmd/controllermanager/main.go
 

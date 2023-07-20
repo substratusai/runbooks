@@ -92,5 +92,5 @@ type Object = client.Object
 
 type ArtifactObject interface {
 	client.Object
-	GetArtifactsStatus() apiv1.ArtifactsStatus
+	GetStatusArtifacts() apiv1.ArtifactsStatus
 }

@@ -63,7 +63,7 @@ type NotebookStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"upload,omitempty"`
+	Image ImageStatus `json:"image,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

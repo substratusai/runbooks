@@ -70,7 +70,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	podMetadata.Annotations["gke-gcsfuse/volumes"] = "true"
 
 	var bktURL *BucketURL
-	if statusURL := obj.GetArtifactsStatus().URL; statusURL != "" {
+	if statusURL := obj.GetStatusArtifacts().URL; statusURL != "" {
 		var err error
 		bktURL, err = ParseBucketURL(statusURL)
 		if err != nil {
