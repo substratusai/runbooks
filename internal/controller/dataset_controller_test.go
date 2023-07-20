@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,6 +30,10 @@ func TestDataset(t *testing.T) {
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
 			},
+			Params: map[string]intstr.IntOrString{
+				"s": intstr.FromString("something-dataset"),
+				"x": intstr.FromInt(123),
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset")
@@ -36,6 +41,7 @@ func TestDataset(t *testing.T) {
 	t.Cleanup(debugObject(t, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader"}}))
 
 	testContainerBuild(t, dataset, "Dataset")
+	testParamsConfigMap(t, dataset, "Dataset", `{ "s": "something-dataset", "x": 123 }`)
 
 	testDatasetLoad(t, dataset)
 }

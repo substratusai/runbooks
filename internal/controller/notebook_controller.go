@@ -29,7 +29,9 @@ import (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
 	*ContainerImageReconciler
+	*ParamsReconciler
 }
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -47,6 +49,10 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
+	if result, err := r.ReconcileParamsConfigMap(ctx, &notebook); !result.success {
+		return result.Result, err
+	}
+
 	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
 		return result.Result, err
 	}
@@ -59,6 +65,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -351,6 +358,10 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			//	},
 			//},
 		},
+	}
+
+	if err := mountParamsConfigMap(&pod.Spec, notebook, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
 	}
 
 	if dataset != nil {

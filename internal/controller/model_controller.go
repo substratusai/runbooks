@@ -31,6 +31,7 @@ type ModelReconciler struct {
 	Scheme *runtime.Scheme
 
 	*ContainerImageReconciler
+	*ParamsReconciler
 
 	Cloud cloud.Cloud
 }
@@ -51,6 +52,10 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if result, err := r.ReconcileContainerImage(ctx, &model); !result.success {
+		return result.Result, err
+	}
+
+	if result, err := r.ReconcileParamsConfigMap(ctx, &model); !result.success {
 		return result.Result, err
 	}
 
@@ -206,6 +211,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 //+kubebuilder:rbac:groups=substratus.ai,resources=models/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -303,6 +309,10 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 				},
 			},
 		},
+	}
+
+	if err := mountParamsConfigMap(&job.Spec.Template.Spec, model, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
 	}
 
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, model, cloud.MountBucketConfig{

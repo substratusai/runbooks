@@ -26,15 +26,10 @@ type DatasetReconciler struct {
 	Scheme *runtime.Scheme
 
 	*ContainerImageReconciler
+	*ParamsReconciler
 
 	Cloud cloud.Cloud
 }
-
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -51,12 +46,23 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result.Result, err
 	}
 
+	if result, err := r.ReconcileParamsConfigMap(ctx, &dataset); !result.success {
+		return result.Result, err
+	}
+
 	if result, err := r.reconcileData(ctx, &dataset); !result.success {
 		return result.Result, err
 	}
 
 	return ctrl.Result{}, nil
 }
+
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -155,6 +161,10 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 			},
 		},
+	}
+
+	if err := mountParamsConfigMap(&job.Spec.Template.Spec, dataset, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
 	}
 
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{

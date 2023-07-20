@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestModelLoaderFromGit(t *testing.T) {
@@ -28,11 +29,16 @@ func TestModelLoaderFromGit(t *testing.T) {
 					URL: "https://test.internal/test/model-loader.git",
 				},
 			},
+			Params: map[string]intstr.IntOrString{
+				"s": intstr.FromString("something-model"),
+				"x": intstr.FromInt(456),
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
 
 	testContainerBuild(t, model, "Model")
+	testParamsConfigMap(t, model, "Model", `{ "s": "something-model", "x": 456 }`)
 
 	testModelLoad(t, model)
 }
@@ -119,6 +125,8 @@ func TestModelTrainerFromGit(t *testing.T) {
 	t.Cleanup(debugObject(t, trainedModel))
 
 	testContainerBuild(t, trainedModel, "Model")
+	// Check that nil params marshalls to an empty object.
+	testParamsConfigMap(t, trainedModel, "Model", `{}`)
 
 	testModelTrain(t, trainedModel)
 }

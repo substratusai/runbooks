@@ -20,6 +20,10 @@ type DatasetSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
+func (d *Dataset) GetParams() map[string]intstr.IntOrString {
+	return d.Spec.Params
+}
+
 func (d *Dataset) GetImage() *Image {
 	return &d.Spec.Image
 }

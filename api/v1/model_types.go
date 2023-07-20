@@ -28,6 +28,10 @@ type ModelSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
+func (m *Model) GetParams() map[string]intstr.IntOrString {
+	return m.Spec.Params
+}
+
 func (m *Model) GetImage() *Image {
 	return &m.Spec.Image
 }

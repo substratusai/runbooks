@@ -125,6 +125,10 @@ func main() {
 			SCI:    gc,
 			Kind:   "Model",
 		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
 		os.Exit(1)
@@ -154,6 +158,10 @@ func main() {
 			SCI:    gc,
 			Kind:   "Notebook",
 		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)
@@ -168,6 +176,10 @@ func main() {
 			Cloud:  cld,
 			SCI:    gc,
 			Kind:   "Dataset",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Dataset")

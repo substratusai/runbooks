@@ -29,6 +29,10 @@ type NotebookSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
+func (n *Notebook) GetParams() map[string]intstr.IntOrString {
+	return n.Spec.Params
+}
+
 func (n *Notebook) GetImage() *Image {
 	return &n.Spec.Image
 }

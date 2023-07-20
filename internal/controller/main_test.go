@@ -100,6 +100,10 @@ func TestMain(m *testing.M) {
 			Cloud:  testCloud,
 			Kind:   "Model",
 		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.ServerReconciler{
@@ -122,6 +126,10 @@ func TestMain(m *testing.M) {
 			Cloud:  testCloud,
 			Kind:   "Notebook",
 		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
@@ -133,6 +141,10 @@ func TestMain(m *testing.M) {
 			Client: mgr.GetClient(),
 			Cloud:  testCloud,
 			Kind:   "Dataset",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -205,6 +217,16 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 		assert.NoError(t, err, "getting object")
 		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionBuilt))
 	}, timeout, interval, "waiting for the container to be ready")
+}
+
+func testParamsConfigMap(t *testing.T, obj testObject, kind string, content string) {
+	var cm corev1.ConfigMap
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-params"}, &cm)
+		assert.NoError(t, err, "getting the params configmap")
+	}, timeout, interval, "waiting for the params configmap to be created")
+	require.Len(t, cm.Data, 1)
+	require.JSONEq(t, content, cm.Data["params.json"])
 }
 
 func fakeJobComplete(t *testing.T, job *batchv1.Job) {

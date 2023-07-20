@@ -13,3 +13,6 @@ spec:
     name: facebook-opt-125m
   dataset:
     name: squad
+  params:
+    foo: bar
+    x: 123

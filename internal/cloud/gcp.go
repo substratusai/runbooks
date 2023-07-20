@@ -106,11 +106,11 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 					},
 				)
 			}
-			break
+			return nil
 		}
 	}
 
-	return nil
+	return fmt.Errorf("container not found: %s", req.Container)
 }
 
 func (gcp *GCP) AssociateServiceAccount(sa *corev1.ServiceAccount) {
