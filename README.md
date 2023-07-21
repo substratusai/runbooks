@@ -25,8 +25,9 @@ Read the [Quickstart Docs](https://www.substratus.ai/docs/quickstart)
 To learn more about how Substratus works, check out the [Architecture](https://www.substratus.ai/docs/architecture) page.
 
 ## Developer docs
-See docs directory
 
+See the [development](docs/development.md) doc to get started. Our [docs directory](docs/) has more details.
 
 ## Disclaimer
-Substratus is still under active development and might introduce backward incompatible changes.
+
+Substratus is under active development and might introduce backward incompatible changes.
