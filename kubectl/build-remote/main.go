@@ -277,12 +277,21 @@ func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 		}
 
 	case "build":
-		ready, ok := status["ready"].(bool)
-		if ok && ready {
-			fmt.Printf("Build job is complete.\n")
-		} else {
-			return ErrBuildIncomplete
+		conditions, ok := status["conditions"].([]interface{})
+		if !ok {
+			return fmt.Errorf("conditions not found")
 		}
+
+		for _, c := range conditions {
+			condition := c.(map[string]interface{})
+			conditionType := condition["type"].(string)
+			conditionStatus := condition["status"].(string)
+
+			if conditionType == "Built" && conditionStatus == "True" {
+				return nil
+			}
+		}
+		return ErrBuildIncomplete
 	}
 	return nil
 }
