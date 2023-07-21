@@ -102,7 +102,7 @@ func main() {
 
 	// TODO(any): setup TLS
 	conn, err := grpc.Dial(
-		// "localhost:10080",
+		// "localhost:10080", // use when running components locally. revert before merging
 		"gcp-manager.substratus.svc.cluster.local:10080",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)

@@ -9,6 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/go-playground/validator/v10 v10.14.1
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+	github.com/spf13/cobra v1.6.0
 	github.com/sethvargo/go-envconfig v0.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
@@ -20,6 +21,8 @@ require (
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
 	sigs.k8s.io/controller-runtime v0.14.4
 )
+
+require github.com/inconshreveable/mousetrap v1.0.1 // indirect
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect

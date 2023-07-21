@@ -281,6 +281,7 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 
 	// Add an init container that will clone the Git repo and
 	// another that will append tini to the Dockerfile.
+	// TODO(any): we lost the tini init container here. On purpose?
 	initContainers = append(initContainers,
 		corev1.Container{
 			Name:  "git-clone",
@@ -358,11 +359,11 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	var job *batchv1.Job
 
 	annotations := map[string]string{}
-
 	buildArgs := []string{
-		"--context=" + filepath.Join(r.Cloud.ObjectArtifactURL(obj).String(), latestUploadPath),
-		// NOTE: the dockerfile must be at the root of the tarball for this to work
-		"--dockerfile=/Dockerfile",
+		"--context=" + r.Cloud.ObjectArtifactURL(obj).String() + "/" + latestUploadPath,
+		// NOTE: the dockerfile must be at /workspace/Dockerfile of the tarball for this to work
+		// kubectl build-remote will ensure this is the case.
+		"--dockerfile=/workspace/Dockerfile",
 		"--destination=" + r.Cloud.ObjectBuiltImageURL(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
@@ -376,9 +377,9 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
 
-	// Add an init container that will clone the Git repo and
-	// another that will append tini to the Dockerfile.
-	initContainers = append(initContainers, tiniInitContainer())
+	// TODO(bjb): appending tini seemed to break the build. Investigate
+	// XXX: error building image: parsing dockerfile: no build stage in current context
+	// initContainers = append(initContainers, tiniInitContainer())
 
 	volumeMounts = []corev1.VolumeMount{
 		{

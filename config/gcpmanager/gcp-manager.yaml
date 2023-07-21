@@ -23,8 +23,9 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: gcp-manager
-          image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
-          # image: substratusai/gcp-manager:v0.4.1-alpha
+          # use this when running via skaffold
+          # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
+          image: substratusai/gcp-manager:v0.5.0-alpha
           imagePullPolicy: Always
           ports:
             - containerPort: 10080
