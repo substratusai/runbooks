@@ -173,7 +173,11 @@ func run(cfg Config, client KubernetesClient) error {
 			// When upload is successful, stop the watcher
 			watcher.Stop()
 		case watch.Error:
-			return errors.New("encountered a watch error")
+			// Cast the event.Object to metav1.Status and print its message
+			if status, ok := event.Object.(*metav1.Status); ok {
+				return fmt.Errorf("watch error occurred: %s", status.Message)
+			}
+			return errors.New("unknown watch error occurred")
 		case watch.Deleted:
 			return errors.New("the custom resource was deleted")
 		default:
@@ -185,15 +189,30 @@ func run(cfg Config, client KubernetesClient) error {
 		fmt.Printf("Upload was successful. Waiting for the build job to complete.\n")
 	}
 
+	watcher, err = client.WatchResource(gvr, cfg.Resource.Namespace, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("metadata.name=%s", customResource.GetName()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to watch resource %q: %w", customResource.GetName(), err)
+	}
+
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Added, watch.Modified:
 			err = handleWatchEvent(event, cfg, "build")
-			if err != nil {
+			if errors.Is(err, ErrBuildIncomplete) {
+				// When build is complete, stop the watcher
+				continue
+			} else if err != nil && !errors.Is(err, ErrStatusNotFound) {
 				return fmt.Errorf("failed watching the resource: %w", err)
 			}
+			watcher.Stop()
 		case watch.Error:
-			return errors.New("encountered a watch error")
+			// Cast the event.Object to metav1.Status and print its message
+			if status, ok := event.Object.(*metav1.Status); ok {
+				return fmt.Errorf("watch error occurred: %s", status.Message)
+			}
+			return errors.New("unknown watch error occurred")
 		case watch.Deleted:
 			return errors.New("the custom resource was deleted")
 		default:
@@ -203,6 +222,7 @@ func run(cfg Config, client KubernetesClient) error {
 	if cfg.Verbose {
 		fmt.Printf("Build job is complete and successful.\n")
 	}
+
 	return nil
 }
 
@@ -224,6 +244,7 @@ func createCustomResource(cfg Config) *unstructured.Unstructured {
 }
 
 var lastUploadURL string
+var ErrBuildIncomplete = errors.New("build not completed")
 
 func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 	updatedResource := event.Object.(*unstructured.Unstructured)
@@ -257,14 +278,11 @@ func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 
 	case "build":
 		ready, ok := status["ready"].(bool)
-		if ok {
-			if ready {
-				fmt.Printf("Build job is complete.\n")
-				return nil
-			} else {
-				fmt.Printf("Build job is not yet complete.\n")
-			}
+		if ok && ready {
+			fmt.Printf("Build job is complete.\n")
+		} else {
+			return ErrBuildIncomplete
 		}
-
+	}
 	return nil
 }
