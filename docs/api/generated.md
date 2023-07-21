@@ -16,16 +16,31 @@ Package v1 contains API Schema definitions for Substratus.
 
 ## Types
 
+### ArtifactsStatus
+
+
+
+
+
+_Appears in:_
+- [DatasetStatus](#datasetstatus)
+- [ModelStatus](#modelstatus)
+
+| Field | Description |
+| --- | --- |
+| `url` _string_ |  |
+
+
 ### Dataset
 
 
 
-The Dataset API is used to describe data that can be referenced for training Models.
- - Datasets pull in remote data sources using containerized data loaders.
- - Users can specify their own ETL logic by referencing a repository from a Dataset.
- - Users can leverage pre-built data loader integrations with various sources.
- - Training typically requires a large dataset. The Dataset API pulls a dataset once and stores it in a bucket, which is mounted directly into training Jobs.
- - The Dataset API allows users to query ready-to-use datasets (`kubectl get datasets`).
+The Dataset API is used to describe data that can be referenced for training Models. 
+ - Datasets pull in remote data sources using containerized data loaders. 
+ - Users can specify their own ETL logic by referencing a repository from a Dataset. 
+ - Users can leverage pre-built data loader integrations with various sources. 
+ - Training typically requires a large dataset. The Dataset API pulls a dataset once and stores it in a bucket, which is mounted directly into training Jobs. 
+ - The Dataset API allows users to query ready-to-use datasets (`kubectl get datasets`). 
  - The Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling access to data.
 
 
@@ -51,7 +66,6 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
-| `filename` _string_ | Filename is the name of the file when it is downloaded. |
 | `image` _[Image](#image)_ | Image that contains dataset loading code and dependencies. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `params` _object (keys:string, values:IntOrString)_ | Params will be passed into the loading process as environment variables. |
@@ -70,7 +84,8 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates that the Dataset is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Dataset. |
-| `url` _string_ | URL of the loaded data. |
+| `artifacts` _[ArtifactsStatus](#artifactsstatus)_ | Artifacts status. |
+| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
 
 
 ### GPUResources
@@ -99,6 +114,25 @@ _Appears in:_
 
 
 
+### Image
+
+
+
+
+
+_Appears in:_
+- [DatasetSpec](#datasetspec)
+- [ModelSpec](#modelspec)
+- [NotebookSpec](#notebookspec)
+- [ServerSpec](#serverspec)
+
+| Field | Description |
+| --- | --- |
+| `git` _[ImageGit](#imagegit)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
+| `name` _string_ | Name of container image (example: "docker.io/your-username/your-image"). |
+| `upload` _[ImageUpload](#imageupload)_ | Upload is a signal that a local tar of the directory should be uploaded to be built as an image. |
+
+
 ### ImageGit
 
 
@@ -115,31 +149,45 @@ _Appears in:_
 | `branch` _string_ | Branch is the git branch to use. |
 
 
-### Image
+### ImageStatus
 
 
 
 
 
 _Appears in:_
-- [DatasetSpec](#datasetspec)
-- [ModelSpec](#modelspec)
-- [NotebookSpec](#notebookspec)
-- [ServerSpec](#serverspec)
+- [DatasetStatus](#datasetstatus)
+- [ModelStatus](#modelstatus)
+- [NotebookStatus](#notebookstatus)
+- [ServerStatus](#serverstatus)
 
 | Field | Description |
 | --- | --- |
-| `git` _[ImageGit](#ImageGit)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
-| `name` _string_ | Name of container image (example: "docker.io/your-username/your-image"). |
+| `uploadURL` _string_ | the Signed upload URL |
+| `md5checksum` _string_ | Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL. |
+
+
+### ImageUpload
+
+
+
+
+
+_Appears in:_
+- [Image](#image)
+
+| Field | Description |
+| --- | --- |
+| `md5checksum` _string_ | Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built. |
 
 
 ### Model
 
 
 
-The Model API is used to build and train machine learning models.
- - Base models can be built from a Git repository.
- - Models can be trained by combining a base Model with a Dataset.
+The Model API is used to build and train machine learning models. 
+ - Base models can be built from a Git repository. 
+ - Models can be trained by combining a base Model with a Dataset. 
  - Model artifacts are persisted in cloud buckets.
 
 
@@ -185,15 +233,16 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates that the Model is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Model. |
-| `url` _string_ | URL of model artifacts. |
+| `artifacts` _[ArtifactsStatus](#artifactsstatus)_ | Artifacts status. |
+| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
 
 
 ### Notebook
 
 
 
-The Notebook API can be used to quickly spin up a development environment backed by high performance compute.
- - Notebooks integrate with the Model and Dataset APIs allow for quick iteration.
+The Notebook API can be used to quickly spin up a development environment backed by high performance compute. 
+ - Notebooks integrate with the Model and Dataset APIs allow for quick iteration. 
  - Notebooks can be synced to local directories to streamline developer experiences using Substratus kubectl plugins.
 
 
@@ -240,6 +289,7 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates that the Notebook is ready to serve. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Notebook. |
+| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
 
 
 ### ObjectRef
@@ -325,5 +375,6 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates whether the Server is ready to serve traffic. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Server. |
+| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
 
 

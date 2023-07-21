@@ -1,12 +1,19 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
-  name: falcon-40b-k8s-instruct
+  name: falcon-40b-k8s
 spec:
-  source:
-    modelName: falcon-40b
-  training:
-    datasetName: k8s-instructions
-  size:
-    parameterBits: 16
-    parameterCount: 40000000000
+  image:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
+  baseModel:
+    name: falcon-40b
+  trainingDataset:
+    name: k8s-instructions
+  params:
+    epochs: 1
+  resources:
+    gpu:
+      count: 8
+      type: nvidia-l4

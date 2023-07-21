@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -26,8 +27,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const latestUploadPath = "uploads/latest.tar.gz"
+
 type ContainerizedObject interface {
-	object
+	client.Object
+
+	GetConditions() *[]metav1.Condition
+
+	SetStatusReady(bool)
+
+	GetStatusImage() apiv1.ImageStatus
+	SetStatusImage(apiv1.ImageStatus)
+
 	GetImage() *apiv1.Image
 }
 
@@ -39,9 +50,10 @@ type ContainerImageReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
-	CloudContext           *cloud.Context
-	CloudManagerGrpcClient sci.ControllerClient
-	Kind                   string
+	Kind string
+
+	Cloud cloud.Cloud
+	SCI   sci.ControllerClient
 }
 
 func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, obj ContainerizedObject) (result, error) {
@@ -55,7 +67,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	defer log.Info("Done reconciling container")
 
 	// Service account used for building and pushing the image.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      containerBuilderServiceAccountName,
 			Namespace: obj.GetNamespace(),
@@ -72,7 +84,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
 		if specUpload.Md5Checksum != statusMd5 {
-			url, err := r.callSignedUrlGenerator(obj, r.CloudManagerGrpcClient)
+			url, err := r.generateSignedURL(obj)
 			if err != nil {
 				return result{}, fmt.Errorf("generating upload url: %w", err)
 			}
@@ -96,24 +108,26 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 		// if the upload URL has expired, clear it from the status leaving the md5 checksum
 		if statusUploadURL != "" {
-			expirationTime, err := r.getExpirationTime(statusUploadURL)
+			expirationTime, err := r.getSignedURLExpiration(statusUploadURL)
 			if err != nil {
 				return result{}, fmt.Errorf("getting URL expiration time: %w", err)
 			}
 
 			if time.Now().After(expirationTime) {
-				log.Info("The signed URL has expired. Clearing .Status.ImageURL")
-				// TODO(bjb): why doesn't this work?
+				log.Info("The signed URL has expired. Clearing status.")
 				obj.SetStatusImage(ssv1.ImageStatus{
 					UploadURL:   "",
 					Md5Checksum: statusMd5,
 				})
+				if err := r.Client.Status().Update(ctx, obj); err != nil {
+					return result{}, fmt.Errorf("updating status: %w", err)
+				}
 				return result{}, nil
 			}
 		}
 
 		// verify the object has been uploaded to storage
-		storageMd5, err := r.storageObjectMd5(obj, r.CloudManagerGrpcClient)
+		storageMd5, err := r.storageObjectMd5(obj, r.SCI)
 		if err != nil {
 			return result{}, fmt.Errorf("getting storage object md5: %w", err)
 		}
@@ -187,7 +201,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	}
 
 	container := obj.GetImage()
-	container.Name = r.imageName(obj)
+	container.Name = r.Cloud.ObjectBuiltImageURL(obj)
 	if err := r.Client.Update(ctx, obj); err != nil {
 		return result{}, fmt.Errorf("updating container image: %w", err)
 	}
@@ -238,8 +252,8 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 	annotations := map[string]string{}
 
 	buildArgs := []string{
-		"--dockerfile=Dockerfile",
-		"--destination=" + r.imageName(obj),
+		"--context=dir:///workspace",
+		"--destination=" + r.Cloud.ObjectBuiltImageURL(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
 		// Disable compressed caching to decrease memory usage.
@@ -279,7 +293,6 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 				},
 			},
 		},
-		tiniInitContainer(),
 	)
 
 	volumeMounts = []corev1.VolumeMount{
@@ -347,10 +360,10 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	annotations := map[string]string{}
 
 	buildArgs := []string{
-		"--context=gs://" + r.bucketName() + "/" + r.signedUrlObjectName(obj),
+		"--context=" + filepath.Join(r.Cloud.ObjectArtifactURL(obj).String(), latestUploadPath),
 		// NOTE: the dockerfile must be at the root of the tarball for this to work
 		"--dockerfile=/Dockerfile",
-		"--destination=" + r.imageName(obj),
+		"--destination=" + r.Cloud.ObjectBuiltImageURL(obj),
 		// Cache will default to the image registry.
 		"--cache=true",
 		// Disable compressed caching to decrease memory usage.
@@ -426,40 +439,12 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	return job, nil
 }
 
-func (r *ContainerImageReconciler) imageName(obj ContainerizedObject) string {
-	switch name := r.CloudContext.Name; name {
-	case cloud.GCP:
-		// Assuming this is Google Artifact Registry named "substratus".
-		return fmt.Sprintf("%s-docker.pkg.dev/%s/substratus/%s-%s-%s",
-			r.CloudContext.GCP.Region(),
-			r.CloudContext.GCP.ProjectID,
-			strings.ToLower(r.Kind),
-			obj.GetNamespace(),
-			obj.GetName(),
-		)
-	default:
-		panic("unsupported cloud: " + name)
-	}
-}
-
-func (r *ContainerImageReconciler) signedUrlObjectName(obj ContainerizedObject) string {
-	return fmt.Sprintf("uploads/%s/%s/%s-%s-%s.tar.gz",
-		r.CloudContext.GCP.Region(),
-		r.CloudContext.GCP.ProjectID,
-		strings.ToLower(r.Kind),
-		obj.GetNamespace(),
-		obj.GetName(),
-	)
-}
-
-func (r *ContainerImageReconciler) bucketName() string {
-	return r.CloudContext.GCP.ProjectID + "-substratus-" + strings.ToLower(r.Kind) + "s"
-}
-
 func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
+	u := r.Cloud.ObjectArtifactURL(obj)
+
 	req := &sci.GetObjectMd5Request{
-		BucketName: r.bucketName(),
-		ObjectName: r.signedUrlObjectName(obj),
+		BucketName: u.Bucket,
+		ObjectName: filepath.Join(u.Path, latestUploadPath),
 	}
 
 	resp, err := c.GetObjectMd5(context.Background(), req)
@@ -470,15 +455,17 @@ func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c s
 	return resp.Md5Checksum, nil
 }
 
-func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
+func (r *ContainerImageReconciler) generateSignedURL(obj ContainerizedObject) (string, error) {
+	u := r.Cloud.ObjectArtifactURL(obj)
+
 	req := &sci.CreateSignedURLRequest{
-		BucketName:        r.bucketName(),
-		ObjectName:        r.signedUrlObjectName(obj),
+		BucketName:        u.Bucket,
+		ObjectName:        filepath.Join(u.Path, latestUploadPath),
 		ExpirationSeconds: 300,
 		Md5Checksum:       obj.GetImage().Upload.Md5Checksum,
 	}
 
-	resp, err := c.CreateSignedURL(context.Background(), req)
+	resp, err := r.SCI.CreateSignedURL(context.Background(), req)
 	if err != nil {
 		return "", fmt.Errorf("calling the sci service to CreateSignedURL: %w", err)
 	}
@@ -486,23 +473,27 @@ func (r *ContainerImageReconciler) callSignedUrlGenerator(obj ContainerizedObjec
 	return resp.Url, nil
 }
 
-func (r *ContainerImageReconciler) getExpirationTime(signedUrl string) (time.Time, error) {
+func (r *ContainerImageReconciler) getSignedURLExpiration(signedUrl string) (time.Time, error) {
 	u, err := url.Parse(signedUrl)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("parsing signed url: %w", err)
 	}
+
+	const (
+		expiresParam = "X-Goog-Expires"
+		dateParam    = "X-Goog-Date"
+	)
 
 	queryParams := u.Query()
-	date := queryParams.Get("X-Goog-Date")
-	expires, err := strconv.Atoi(queryParams.Get("X-Goog-Expires"))
+	expires, err := strconv.Atoi(queryParams.Get(expiresParam))
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("parsing signed url param: %s: %w", expiresParam, err)
 	}
 
-	t, err := time.Parse("20060102T150405Z", date)
+	t, err := time.Parse("20060102T150405Z", queryParams.Get(dateParam))
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("parsing signed url param: %s: %w", dateParam, err)
 	}
-	expirationTime := t.Add(time.Duration(expires) * time.Second)
-	return expirationTime, nil
+
+	return t.Add(time.Duration(expires) * time.Second), nil
 }

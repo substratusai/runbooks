@@ -54,9 +54,6 @@ spec:
                 items:
                   type: string
                 type: array
-              filename:
-                description: Filename is the name of the file when it is downloaded.
-                type: string
               image:
                 description: Image that contains dataset loading code and dependencies.
                 properties:
@@ -134,12 +131,17 @@ spec:
                     type: integer
                 type: object
             required:
-            - filename
             - image
             type: object
           status:
             description: Status is the observed state of the Dataset.
             properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Dataset.
@@ -210,14 +212,9 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates that the Dataset is ready to use. See
-                  Conditions for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+              image:
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -230,9 +227,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
-              url:
-                description: URL of the loaded data.
-                type: string
+              ready:
+                default: false
+                description: Ready indicates that the Dataset is ready to use. See
+                  Conditions for more details.
+                type: boolean
             required:
             - ready
             type: object
@@ -394,6 +393,12 @@ spec:
           status:
             description: Status is the observed state of the Model.
             properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Model.
@@ -464,14 +469,9 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates that the Model is ready to use. See Conditions
-                  for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+              image:
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -484,9 +484,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
-              url:
-                description: URL of model artifacts.
-                type: string
+              ready:
+                default: false
+                description: Ready indicates that the Model is ready to use. See Conditions
+                  for more details.
+                type: boolean
             required:
             - ready
             type: object
@@ -721,14 +723,9 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates that the Notebook is ready to serve.
-                  See Conditions for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+              image:
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -741,6 +738,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
+              ready:
+                default: false
+                description: Ready indicates that the Notebook is ready to serve.
+                  See Conditions for more details.
+                type: boolean
             required:
             - ready
             type: object
@@ -950,14 +952,9 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates whether the Server is ready to serve
-                  traffic. See Conditions for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+              image:
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -970,6 +967,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
+              ready:
+                default: false
+                description: Ready indicates whether the Server is ready to serve
+                  traffic. See Conditions for more details.
+                type: boolean
             required:
             - ready
             type: object
@@ -1043,6 +1045,18 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -1407,7 +1421,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.4.2-alpha
+        image: docker.io/substratusai/controller-manager:v0.5.0-alpha
         livenessProbe:
           httpGet:
             path: /healthz

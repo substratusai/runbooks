@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
 )
 
@@ -28,7 +29,9 @@ import (
 type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
 	*ContainerImageReconciler
+	*ParamsReconciler
 }
 
 func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -46,6 +49,10 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result.Result, err
 	}
 
+	if result, err := r.ReconcileParamsConfigMap(ctx, &notebook); !result.success {
+		return result.Result, err
+	}
+
 	if result, err := r.reconcileNotebook(ctx, &notebook); !result.success {
 		return result.Result, err
 	}
@@ -58,6 +65,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 //+kubebuilder:rbac:groups=substratus.ai,resources=notebooks/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -147,7 +155,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	// ServiceAccount for the model Job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS buckets containing the training data and model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      notebookServiceAccountName,
 			Namespace: notebook.Namespace,
@@ -289,40 +297,18 @@ func nbPodName(nb *apiv1.Notebook) string {
 }
 
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-
-	env := []corev1.EnvVar{}
-	annotations := map[string]string{}
-
-	if model != nil {
-		if err := mountModel(annotations, &volumes, &volumeMounts, model.Status.URL, "", true); err != nil {
-			return nil, fmt.Errorf("appending model volume: %w", err)
-		}
-	}
-	if dataset != nil {
-		if err := mountDataset(annotations, &volumes, &volumeMounts, dataset.Status.URL, true); err != nil {
-			return nil, fmt.Errorf("appending dataset volume: %w", err)
-		}
-		env = append(env,
-			corev1.EnvVar{
-				Name:  "DATA_PATH",
-				Value: "/data/" + dataset.Spec.Filename,
-			})
-
-	}
-
 	const containerName = "notebook"
-	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        nbPodName(notebook),
-			Namespace:   notebook.Namespace,
-			Annotations: annotations,
+			Name:      nbPodName(notebook),
+			Namespace: notebook.Namespace,
+			Annotations: map[string]string{
+				"kubectl.kubernetes.io/default-container": containerName,
+			},
 		},
 		Spec: corev1.PodSpec{
 			//SecurityContext: &corev1.PodSecurityContext{
@@ -338,7 +324,6 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Command: notebook.Spec.Command,
-					Env:     env,
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
@@ -354,8 +339,6 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 							},
 						},
 					},
-
-					VolumeMounts: volumeMounts,
 					//VolumeMounts: []corev1.VolumeMount{
 					//	{
 					//		Name:      "notebook",
@@ -364,7 +347,6 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 					//},
 				},
 			},
-			Volumes: volumes,
 			//Volumes: []corev1.Volume{
 			//	{
 			//		Name: "notebook",
@@ -378,12 +360,44 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		},
 	}
 
+	if err := mountParamsConfigMap(&pod.Spec, notebook, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
+	}
+
+	if dataset != nil {
+		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, dataset, cloud.MountBucketConfig{
+			Name: "dataset",
+			Mounts: []cloud.BucketMount{
+				{BucketSubdir: "data", ContentSubdir: "data"},
+				{BucketSubdir: "logs", ContentSubdir: "data-logs"},
+			},
+			Container: containerName,
+			ReadOnly:  true,
+		}); err != nil {
+			return nil, fmt.Errorf("mounting dataset: %w", err)
+		}
+	}
+
+	if model != nil {
+		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
+			Name: "basemodel",
+			Mounts: []cloud.BucketMount{
+				{BucketSubdir: "model", ContentSubdir: "saved-model"},
+				{BucketSubdir: "logs", ContentSubdir: "saved-model-logs"},
+			},
+			Container: containerName,
+			ReadOnly:  true,
+		}); err != nil {
+			return nil, fmt.Errorf("mounting model: %w", err)
+		}
+	}
+
 	if err := ctrl.SetControllerReference(notebook, pod, r.Scheme); err != nil {
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 
 	if err := resources.Apply(&pod.ObjectMeta, &pod.Spec, containerName,
-		r.CloudContext.Name, notebook.Spec.Resources); err != nil {
+		r.Cloud.Name(), notebook.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 

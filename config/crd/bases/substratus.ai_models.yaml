@@ -151,6 +151,12 @@ spec:
           status:
             description: Status is the observed state of the Model.
             properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Model.
@@ -221,14 +227,9 @@ spec:
                   - type
                   type: object
                 type: array
-              ready:
-                default: false
-                description: Ready indicates that the Model is ready to use. See Conditions
-                  for more details.
-                type: boolean
-              upload:
-                description: Upload contains details the controller returns from a
-                  requested signed upload URL.
+              image:
+                description: Image contains the status of the image. Upload URL is
+                  reported here.
                 properties:
                   md5checksum:
                     description: Md5Checksum is the last md5 checksum that resulted
@@ -241,9 +242,11 @@ spec:
                     description: the Signed upload URL
                     type: string
                 type: object
-              url:
-                description: URL of model artifacts.
-                type: string
+              ready:
+                default: false
+                description: Ready indicates that the Model is ready to use. See Conditions
+                  for more details.
+                type: boolean
             required:
             - ready
             type: object

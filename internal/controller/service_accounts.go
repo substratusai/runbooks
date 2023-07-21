@@ -18,17 +18,9 @@ const (
 	dataLoaderServiceAccountName       = "data-loader"
 )
 
-func reconcileCloudServiceAccount(ctx context.Context, cloudCtx *cloud.Context, c client.Client, sa *corev1.ServiceAccount) (result, error) {
+func reconcileCloudServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, c client.Client, sa *corev1.ServiceAccount) (result, error) {
 	configureSA := func() error {
-		if sa.Annotations == nil {
-			sa.Annotations = make(map[string]string)
-		}
-		switch name := cloudCtx.Name; name {
-		case cloud.GCP:
-			sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.Name, cloudCtx.GCP.ProjectID)
-		default:
-			return fmt.Errorf("unsupported cloud type: %q", name)
-		}
+		cloudConfig.AssociateServiceAccount(sa)
 		return nil
 	}
 

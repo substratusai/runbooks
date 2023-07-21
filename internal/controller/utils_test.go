@@ -1,6 +1,8 @@
 package controller
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_nextPowOf2(t *testing.T) {
 	testCases := []struct {

@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cloud"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerName string, cloudName cloud.Name, res *apiv1.Resources) error {
+func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerName string, cloudName string, res *apiv1.Resources) error {
 	// TODO: Auto-determine resources if nil.
 	if res == nil {
 		res = &apiv1.Resources{

@@ -71,5 +71,8 @@ dist/
 
 # envsubst rendered templates
 gcpmanager-skaffold.yaml
+
+/controllermanager
+/gcpmanager
 gcpmanager-dependencies.yaml
 skaffold-dependencies.sh

@@ -3,4 +3,13 @@ kind: Server
 metadata:
   name: falcon-40b
 spec:
-  modelName: falcon-40b
+  image:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-server-basaran
+  model:
+    name: falcon-40b
+  resources:
+    gpu:
+      type: nvidia-l4
+      count: 4

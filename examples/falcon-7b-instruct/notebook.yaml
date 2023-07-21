@@ -6,15 +6,15 @@ spec:
   command: ["notebook.sh"]
   suspend: false
   image:
-    name: substratusai/model-trainer-huggingface
-    # upload:
-    #   md5checksum: 5c5685b86eb341fa93106ec3a8d23a62
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
   model:
     name: falcon-7b-instruct
   dataset:
     name: k8s-instructions
   resources:
     disk: 50
-    # gpu:
-    #   type: nvidia-l4
-    #   count: 4
+    gpu:
+      type: nvidia-l4
+      count: 4

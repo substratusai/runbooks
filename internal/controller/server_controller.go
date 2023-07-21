@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
 )
 
@@ -106,18 +107,7 @@ func (r *ServerReconciler) findServersForModel(obj client.Object) []reconcile.Re
 func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-	annotations := map[string]string{}
-
-	if model != nil {
-		if err := mountModel(annotations, &volumes, &volumeMounts, model.Status.URL, "", true); err != nil {
-			return nil, fmt.Errorf("appending model volume: %w", err)
-		}
-	}
-
 	const containerName = "serve"
-	annotations["kubectl.kubernetes.io/default-container"] = containerName
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -137,8 +127,10 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      withServerSelector(server, map[string]string{}),
-					Annotations: annotations,
+					Labels: withServerSelector(server, map[string]string{}),
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/default-container": containerName,
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: modelServerServiceAccountName,
@@ -156,13 +148,22 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 									ContainerPort: 8080,
 								},
 							},
-							VolumeMounts: volumeMounts,
 						},
 					},
-					Volumes: volumes,
 				},
 			},
 		},
+	}
+
+	if err := r.Cloud.MountBucket(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, model, cloud.MountBucketConfig{
+		Name: "model",
+		Mounts: []cloud.BucketMount{
+			{BucketSubdir: "model", ContentSubdir: "saved-model"},
+		},
+		Container: containerName,
+		ReadOnly:  true,
+	}); err != nil {
+		return nil, fmt.Errorf("mounting model: %w", err)
 	}
 
 	if err := ctrl.SetControllerReference(server, deploy, r.Scheme); err != nil {
@@ -170,7 +171,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 	}
 
 	if err := resources.Apply(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, containerName,
-		r.CloudContext.Name, server.Spec.Resources); err != nil {
+		r.Cloud.Name(), server.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
@@ -221,7 +222,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	// ServiceAccount for loading the Model.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the model.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modelServerServiceAccountName,
 			Namespace: model.Namespace,

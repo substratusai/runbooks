@@ -80,27 +80,29 @@ func TestMain(m *testing.M) {
 	requireNoError(err)
 	requireNoError(controller.SetupIndexes(mgr))
 
-	cloudContext := &cloud.Context{
-		Name: cloud.GCP,
-		GCP: &cloud.GCPContext{
-			ProjectID:       "test-project-id",
-			ClusterName:     "test-cluster-name",
-			ClusterLocation: "us-central1",
-		},
-	}
+	testCloud := &cloud.GCP{}
+	testCloud.ProjectID = "test-project-id"
+	testCloud.ClusterName = "test-cluster-name"
+	testCloud.ClusterLocation = "us-central1"
+	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket"}
+	testCloud.RegistryURL = "registry.test"
 
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
 	//requireNoError(err)
 
 	err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  testCloud,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Model",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Model",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -108,10 +110,10 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Server",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Server",
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -119,22 +121,30 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Notebook",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Notebook",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  testCloud,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:       mgr.GetScheme(),
-			Client:       mgr.GetClient(),
-			CloudContext: cloudContext,
-			Kind:         "Dataset",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  testCloud,
+			Kind:   "Dataset",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
@@ -207,6 +217,16 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 		assert.NoError(t, err, "getting object")
 		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionBuilt))
 	}, timeout, interval, "waiting for the container to be ready")
+}
+
+func testParamsConfigMap(t *testing.T, obj testObject, kind string, content string) {
+	var cm corev1.ConfigMap
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-params"}, &cm)
+		assert.NoError(t, err, "getting the params configmap")
+	}, timeout, interval, "waiting for the params configmap to be created")
+	require.Len(t, cm.Data, 1)
+	require.JSONEq(t, content, cm.Data["params.json"])
 }
 
 func fakeJobComplete(t *testing.T, job *batchv1.Job) {

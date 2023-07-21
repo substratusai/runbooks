@@ -26,15 +26,10 @@ type DatasetReconciler struct {
 	Scheme *runtime.Scheme
 
 	*ContainerImageReconciler
+	*ParamsReconciler
 
-	CloudContext *cloud.Context
+	Cloud cloud.Cloud
 }
-
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
-//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -51,12 +46,23 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result.Result, err
 	}
 
+	if result, err := r.ReconcileParamsConfigMap(ctx, &dataset); !result.success {
+		return result.Result, err
+	}
+
 	if result, err := r.reconcileData(ctx, &dataset); !result.success {
 		return result.Result, err
 	}
 
 	return ctrl.Result{}, nil
 }
+
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=substratus.ai,resources=datasets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -69,14 +75,14 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
 	log := log.FromContext(ctx)
 
-	if dataset.Status.URL != "" {
+	if dataset.Status.Artifacts.URL != "" {
 		return result{success: true}, nil
 	}
 
 	// ServiceAccount for the loader job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to write the GCS bucket containing training data.
-	if result, err := reconcileCloudServiceAccount(ctx, r.CloudContext, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dataLoaderServiceAccountName,
 			Namespace: dataset.Namespace,
@@ -105,12 +111,12 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, dataset, loadJob, apiv1.ConditionLoaded); !result.success {
+	if result, err := reconcileJob(ctx, r.Client, loadJob, apiv1.ConditionLoaded); !result.success {
 		return result, err
 	}
 
 	dataset.Status.Ready = true
-	dataset.Status.URL = r.datasetStatusURL(dataset)
+	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionLoaded,
 		Status:             metav1.ConditionTrue,
@@ -125,13 +131,6 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 }
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
-	env := append(paramsToEnv(dataset.Spec.Params),
-		corev1.EnvVar{
-			Name:  "DATA_PATH",
-			Value: "/data/" + dataset.Spec.Filename,
-		},
-	)
-
 	const containerName = "load"
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -148,9 +147,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  ptr.Int64(1001),
-						RunAsGroup: ptr.Int64(2002),
-						FSGroup:    ptr.Int64(3003),
+						FSGroup: ptr.Int64(3003),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
@@ -158,44 +155,28 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 							Name:    containerName,
 							Image:   dataset.Spec.Image.Name,
 							Command: dataset.Spec.Command,
-							Env:     env,
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "data",
-									MountPath: "/data",
-									SubPath:   string(dataset.UID) + "/data",
-								},
-								{
-									Name:      "data",
-									MountPath: "/dataset/logs",
-									SubPath:   string(dataset.UID) + "/logs",
-								},
-							},
 						},
 					},
-					Volumes:       []corev1.Volume{},
 					RestartPolicy: "Never",
 				},
 			},
 		},
 	}
 
-	switch r.CloudContext.Name {
-	case cloud.GCP:
-		// GKE will injects GCS Fuse sidecar based on this annotation.
-		job.Spec.Template.Annotations["gke-gcsfuse/volumes"] = "true"
-		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "data",
-			VolumeSource: corev1.VolumeSource{
-				CSI: &corev1.CSIVolumeSource{
-					Driver: "gcsfuse.csi.storage.gke.io",
-					VolumeAttributes: map[string]string{
-						"bucketName":   r.CloudContext.GCP.ProjectID + "-substratus-datasets",
-						"mountOptions": "implicit-dirs,uid=1001,gid=3003",
-					},
-				},
-			},
-		})
+	if err := mountParamsConfigMap(&job.Spec.Template.Spec, dataset, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
+	}
+
+	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
+		Name: "dataset",
+		Mounts: []cloud.BucketMount{
+			{BucketSubdir: "data", ContentSubdir: "data"},
+			{BucketSubdir: "logs", ContentSubdir: "logs"},
+		},
+		Container: containerName,
+		ReadOnly:  false,
+	}); err != nil {
+		return nil, fmt.Errorf("mounting bucket: %w", err)
 	}
 
 	if err := controllerutil.SetControllerReference(dataset, job, r.Scheme); err != nil {
@@ -203,14 +184,9 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	}
 
 	if err := resources.Apply(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, containerName,
-		r.CloudContext.Name, dataset.Spec.Resources); err != nil {
+		r.Cloud.Name(), dataset.Spec.Resources); err != nil {
 		return nil, fmt.Errorf("applying resources: %w", err)
 	}
 
 	return job, nil
-}
-
-func (r *DatasetReconciler) datasetStatusURL(dataset *apiv1.Dataset) string {
-	return "gs://" + r.CloudContext.GCP.ProjectID + "-substratus-datasets" +
-		"/" + string(dataset.UID) + "/data/" + dataset.Spec.Filename
 }

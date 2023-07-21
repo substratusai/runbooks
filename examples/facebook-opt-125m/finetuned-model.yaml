@@ -5,7 +5,8 @@ metadata:
 spec:
   container:
     git:
-      url: https://github.com/substratusai/model-trainer-huggingface
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
   trainer:
     model:
       name: facebook-opt-125m

@@ -1,6 +1,20 @@
 apiVersion: substratus.ai/v1
 kind: Notebook
 metadata:
-  name: falcon-40b
+  name: falcon-40b-trainer
 spec:
-  modelName: falcon-40b
+  command: ["notebook.sh"]
+  suspend: false
+  image:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
+  model:
+    name: falcon-40b
+  dataset:
+    name: k8s-instructions
+  resources:
+    disk: 50
+    gpu:
+      type: nvidia-l4
+      count: 8

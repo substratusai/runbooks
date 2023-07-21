@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"flag"
+	"io/ioutil"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v2"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +44,8 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var configDumpPath string
+	flag.StringVar(&configDumpPath, "config-dump-path", "", "The filepath to dump the running config to.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -79,10 +85,19 @@ func main() {
 
 	// NOTE: NewCloudContext() will look up environment variables (intended for local development)
 	// and if they are not specified, it will try to use metadata servers on the cloud.
-	cloudContext, err := cloud.NewContext()
+	cld, err := cloud.New(context.Background())
 	if err != nil {
-		setupLog.Error(err, "unable to determine cloud context")
+		setupLog.Error(err, "unable to determine cloud configuration")
 		os.Exit(1)
+	}
+
+	if configDumpPath != "" {
+		if err := dumpConfigToFile(configDumpPath, struct {
+			Cloud cloud.Cloud
+		}{Cloud: cld}); err != nil {
+			setupLog.Error(err, "unable to dump config to path")
+			os.Exit(1)
+		}
 	}
 
 	// TODO(any): setup TLS
@@ -100,15 +115,19 @@ func main() {
 	gc := sci.NewControllerClient(conn)
 
 	if err = (&controller.ModelReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  cld,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:                 mgr.GetScheme(),
-			Client:                 mgr.GetClient(),
-			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: gc,
-			Kind:                   "Model",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  cld,
+			SCI:    gc,
+			Kind:   "Model",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
@@ -118,11 +137,11 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:                 mgr.GetScheme(),
-			Client:                 mgr.GetClient(),
-			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: gc,
-			Kind:                   "Server",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  cld,
+			SCI:    gc,
+			Kind:   "Server",
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
@@ -133,26 +152,34 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:                 mgr.GetScheme(),
-			Client:                 mgr.GetClient(),
-			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: gc,
-			Kind:                   "Notebook",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  cld,
+			SCI:    gc,
+			Kind:   "Notebook",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)
 	}
 	if err = (&controller.DatasetReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		CloudContext: cloudContext,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Cloud:  cld,
 		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme:                 mgr.GetScheme(),
-			Client:                 mgr.GetClient(),
-			CloudContext:           cloudContext,
-			CloudManagerGrpcClient: gc,
-			Kind:                   "Dataset",
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+			Cloud:  cld,
+			SCI:    gc,
+			Kind:   "Dataset",
+		},
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Dataset")
@@ -174,4 +201,15 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func dumpConfigToFile(path string, config interface{}) error {
+	var buf bytes.Buffer
+	if err := yaml.NewEncoder(&buf).Encode(config); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(path, buf.Bytes(), 0644); err != nil {
+		return err
+	}
+	return nil
 }

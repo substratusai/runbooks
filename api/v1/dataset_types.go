@@ -10,9 +10,6 @@ type DatasetSpec struct {
 	// Command to run in the container.
 	Command []string `json:"command,omitempty"`
 
-	// Filename is the name of the file when it is downloaded.
-	Filename string `json:"filename"`
-
 	// Image that contains dataset loading code and dependencies.
 	Image Image `json:"image"`
 
@@ -21,6 +18,10 @@ type DatasetSpec struct {
 
 	// Params will be passed into the loading process as environment variables.
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
+}
+
+func (d *Dataset) GetParams() map[string]intstr.IntOrString {
+	return d.Spec.Params
 }
 
 func (d *Dataset) GetImage() *Image {
@@ -37,6 +38,10 @@ func (d *Dataset) GetStatusReady() bool {
 
 func (d *Dataset) SetStatusReady(r bool) {
 	d.Status.Ready = r
+}
+
+func (d *Dataset) GetStatusArtifacts() ArtifactsStatus {
+	return d.Status.Artifacts
 }
 
 func (d *Dataset) SetStatusImage(us ImageStatus) {
@@ -56,11 +61,11 @@ type DatasetStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Dataset.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// URL of the loaded data.
-	URL string `json:"url,omitempty"`
+	// Artifacts status.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Upload contains details the controller returns from a requested signed upload URL.
-	Image ImageStatus `json:"upload,omitempty"`
+	// Image contains the status of the image. Upload URL is reported here.
+	Image ImageStatus `json:"image,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

@@ -6,7 +6,7 @@ spec:
   command: ["load.sh"]
   image:
     git:
-      url: https://github.com/substratusai/model-loader-huggingface
-      branch: nick-refactor
+      url: https://github.com/substratusai/images
+      path: model-loader-huggingface
   params:
     name: facebook/opt-125m
