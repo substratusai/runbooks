@@ -43,7 +43,7 @@ func main() {
 	var uploadCmd = &cobra.Command{
 		Use:   "upload [kind] [name]",
 		Short: "Upload a resource of a given Kind and Name to be built as a substratus container image",
-		Args:  cobra.ExactArgs(2), // Expect exactly 2 positional arguments
+		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.Resource.Kind = args[0]
 			cfg.Resource.Name = args[1]
@@ -62,7 +62,7 @@ func main() {
 	}
 	uploadCmd.Flags().BoolVarP(&cfg.Verbose, "verbose", "v", false, "Verbose output")
 
-	var rootCmd = &cobra.Command{Use: "kubectl upload"}
+	var rootCmd = &cobra.Command{Use: "upload"}
 	rootCmd.AddCommand(uploadCmd)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
