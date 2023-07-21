@@ -1,11 +1,11 @@
 apiVersion: substratus.ai/v1
-kind: Dataset
+kind: Model
 metadata:
-  name: squad
+  name: falcon-40b
 spec:
-  command: ["load.sh"]
   image:
     git:
       url: https://github.com/substratusai/images
-      path: dataset-squad
-      branch: main
+      path: model-loader-huggingface
+  params:
+    name: tiiuae/falcon-40b

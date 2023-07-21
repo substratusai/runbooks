@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -25,11 +25,14 @@ func TestDataset(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.DatasetSpec{
-			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
 				Git: &apiv1.ImageGit{
 					URL: "https://github.com/substratusai/dataset-some-dataset",
 				},
+			},
+			Params: map[string]intstr.IntOrString{
+				"s": intstr.FromString("something-dataset"),
+				"x": intstr.FromInt(123),
 			},
 		},
 	}
@@ -38,6 +41,7 @@ func TestDataset(t *testing.T) {
 	t.Cleanup(debugObject(t, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: dataset.Namespace, Name: dataset.Name + "-data-loader"}}))
 
 	testContainerBuild(t, dataset, "Dataset")
+	testParamsConfigMap(t, dataset, "Dataset", `{ "s": "something-dataset", "x": 123 }`)
 
 	testDatasetLoad(t, dataset)
 }
@@ -67,5 +71,6 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		assert.True(t, meta.IsStatusConditionTrue(dataset.Status.Conditions, apiv1.ConditionLoaded))
 		assert.True(t, dataset.Status.Ready)
 	}, timeout, interval, "waiting for the dataset to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-datasets/%v/data/%v", dataset.UID, dataset.Spec.Filename), dataset.Status.URL)
+	require.Contains(t, dataset.Status.Artifacts.URL, "gs://test-artifact-bucket")
+
 }

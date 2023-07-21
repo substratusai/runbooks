@@ -28,6 +28,10 @@ type ModelSpec struct {
 	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
+func (m *Model) GetParams() map[string]intstr.IntOrString {
+	return m.Spec.Params
+}
+
 func (m *Model) GetImage() *Image {
 	return &m.Spec.Image
 }
@@ -42,6 +46,10 @@ func (m *Model) GetStatusReady() bool {
 
 func (m *Model) SetStatusReady(r bool) {
 	m.Status.Ready = r
+}
+
+func (m *Model) GetStatusArtifacts() ArtifactsStatus {
+	return m.Status.Artifacts
 }
 
 func (m *Model) SetStatusImage(us ImageStatus) {
@@ -61,11 +69,11 @@ type ModelStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Model.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// URL of model artifacts.
-	URL string `json:"url,omitempty"`
+	// Artifacts status.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Upload contains details the controller returns from a requested signed upload URL.
-	Image ImageStatus `json:"upload,omitempty"`
+	// Image contains the status of the image. Upload URL is reported here.
+	Image ImageStatus `json:"image,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

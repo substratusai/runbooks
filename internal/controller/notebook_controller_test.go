@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -48,12 +49,17 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Model: &apiv1.ObjectRef{
 				Name: model.Name,
 			},
+			Params: map[string]intstr.IntOrString{
+				"s": intstr.FromString("something-notebook"),
+				"x": intstr.FromInt(789),
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, notebook), "creating a notebook")
 	t.Cleanup(debugObject(t, notebook))
 
 	testContainerBuild(t, notebook, "Notebook")
+	testParamsConfigMap(t, notebook, "Notebook", `{"s":"something-notebook","x":789}`)
 
 	// Test that a notebook Pod gets created by the controller.
 	var pod corev1.Pod

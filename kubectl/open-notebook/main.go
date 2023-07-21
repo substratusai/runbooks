@@ -246,7 +246,8 @@ func run() error {
 	spin.Stop()
 	fmt.Println("Connection: Ready")
 
-	url := "http://localhost:8888"
+	// TODO(nstogner): Grab token from Notebook status.
+	url := "http://localhost:8888?token=default"
 	if !flags.noOpenBrowser {
 		fmt.Printf("Browser: opening: %s\n", url)
 		browser.OpenURL(url)

@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestModelLoaderFromGit(t *testing.T) {
@@ -29,11 +29,16 @@ func TestModelLoaderFromGit(t *testing.T) {
 					URL: "https://test.internal/test/model-loader.git",
 				},
 			},
+			Params: map[string]intstr.IntOrString{
+				"s": intstr.FromString("something-model"),
+				"x": intstr.FromInt(456),
+			},
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
 
 	testContainerBuild(t, model, "Model")
+	testParamsConfigMap(t, model, "Model", `{ "s": "something-model", "x": 456 }`)
 
 	testModelLoad(t, model)
 }
@@ -55,7 +60,7 @@ func testModelLoad(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
+	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
 }
 
 func TestModelTrainerFromGit(t *testing.T) {
@@ -84,7 +89,6 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.DatasetSpec{
-			Filename: "does-not-exist.jsonl",
 			Image: apiv1.Image{
 				Name: "some-image",
 			},
@@ -121,6 +125,8 @@ func TestModelTrainerFromGit(t *testing.T) {
 	t.Cleanup(debugObject(t, trainedModel))
 
 	testContainerBuild(t, trainedModel, "Model")
+	// Check that nil params marshalls to an empty object.
+	testParamsConfigMap(t, trainedModel, "Model", `{}`)
 
 	testModelTrain(t, trainedModel)
 }
@@ -151,5 +157,5 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
-	require.Equal(t, fmt.Sprintf("gs://test-project-id-substratus-models/%v/", model.UID), model.Status.URL)
+	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
 }

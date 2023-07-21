@@ -6,5 +6,5 @@ spec:
   command: ["load.sh"]
   image:
     git:
-      url: https://github.com/substratusai/dataset-k8s-instructions
-  filename: k8s-instructions.jsonl
+      url: https://github.com/substratusai/images
+      path: dataset-k8s-instructions

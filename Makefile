@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= docker.io/substratusai/controller-manager:v0.4.2-alpha
+IMG ?= docker.io/substratusai/controller-manager:v0.5.0-alpha
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
@@ -114,8 +114,8 @@ dev: manifests kustomize install-crds
 	go run ./cmd/controllermanager/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/controllermanager/main.go
+run: ## Run a controller from your host.
+	go run ./cmd/controllermanager/main.go --config-dump-path=/tmp/substratus-config.yaml
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.

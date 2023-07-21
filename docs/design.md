@@ -27,7 +27,7 @@ spec:
 If a container is built, the resulting image will use the following naming scheme:
 
 ```sh
-image_name = {registry}/{cluster}-{namespace}-{name}-{lower(kind)}
+image_name = {registry}/{cluster}-{lower(kind)}-{namespace}-{name}
 ```
 
 For example:
@@ -41,7 +41,7 @@ spec:
   image:
     git:
       # ...
-    name: us-central1-docker.pkg.dev/my-project/my-repo/cluster1-default-falcon-7b-model
+    name: us-central1-docker.pkg.dev/my-project/my-repo/cluster1-model-default-falcon-7b
 ```
 
 ### Resources
@@ -112,12 +112,12 @@ The following scheme can be used for storing artifacts for Models, Datasets, and
 
 ```sh
 # Models
-gs://{bucket}/{hash}/model # Model artifacts (*.pt, etc)
-gs://{bucket}/{hash}/logs  # Logs and converted notebooks
+gs://{bucket}/{hash}/model     # Model artifacts (*.pt, etc)
+gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Datasets
-gs://{bucket}/{hash}/data # Model artifacts (*.pt, etc)
-gs://{bucket}/{hash}/logs # Logs and converted notebooks
+gs://{bucket}/{hash}/data      # Data artifacts (*.jsonl, etc)
+gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Notebooks
 gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
@@ -411,7 +411,7 @@ kind: Server
 spec:
   image:
     image: substratusai/basaran
-  # model artifacts get mounted to /model/saved
+  # model artifacts get mounted to /content/saved-model
   model:
     name: falcon-7b-k8s
   # FUTURE:

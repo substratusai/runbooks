@@ -7,9 +7,10 @@ require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/briandowns/spinner v1.23.0
 	github.com/go-logr/logr v1.2.3
-	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/go-playground/validator/v10 v10.14.1
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/spf13/cobra v1.6.0
+	github.com/sethvargo/go-envconfig v0.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.49.0
@@ -22,6 +23,14 @@ require (
 )
 
 require github.com/inconshreveable/mousetrap v1.0.1 // indirect
+
+require (
+	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/leodido/go-urn v1.2.4 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

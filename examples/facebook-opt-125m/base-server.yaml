@@ -3,9 +3,9 @@ kind: Server
 metadata:
   name: facebook-opt-125m
 spec:
-  command: ["serve.sh"]
   image:
     git:
-      url: https://github.com/substratusai/model-server-basaran
+      url: https://github.com/substratusai/images
+      path: model-server-basaran
   model:
     name: facebook-opt-125m
