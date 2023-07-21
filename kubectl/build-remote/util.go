@@ -37,7 +37,7 @@ func calculateMD5(path string) (string, error) {
 func tarGz(src, dst string) error {
 	tarFile, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create tarFile: %w", err)
 	}
 	defer tarFile.Close()
 
@@ -47,9 +47,10 @@ func tarGz(src, dst string) error {
 	tarWriter := tar.NewWriter(gzWriter)
 	defer tarWriter.Close()
 
+	// TODO(bjb): #121 read .dockerignore if it exists, exclude those files
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to walk the tempdir path: %w", err)
 		}
 
 		// Skip the root directory
@@ -59,13 +60,13 @@ func tarGz(src, dst string) error {
 
 		header, err := tar.FileInfoHeader(info, info.Name())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read file headers: %w", err)
 		}
 
 		// Use relative filepath to ensure the root directory is not included in tarball
 		relativePath, err := filepath.Rel(src, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to determine relative path: %w", err)
 		}
 
 		// clean up the file name to avoid including preceding "./" or "/"
@@ -77,17 +78,17 @@ func tarGz(src, dst string) error {
 		}
 
 		if err := tarWriter.WriteHeader(header); err != nil {
-			return err
+			return fmt.Errorf("failed to prepare a tarfile header: %w", err)
 		}
 
 		if info.Mode().IsRegular() {
 			file, err := os.Open(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to open file during compression: %w", err)
 			}
 			defer file.Close()
 			if _, err := io.Copy(tarWriter, file); err != nil {
-				return err
+				return fmt.Errorf("failed to copy file contents: %w", err)
 			}
 		}
 
@@ -106,13 +107,13 @@ func fileExists(filename string) bool {
 func uploadTarball(tarPath, url, encodedMd5Checksum string) error {
 	file, err := os.Open(tarPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("tar upload: %w", err)
 	}
 	defer file.Close()
 
 	req, err := http.NewRequest(http.MethodPut, url, file)
 	if err != nil {
-		return err
+		return fmt.Errorf("tar upload: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
@@ -122,7 +123,7 @@ func uploadTarball(tarPath, url, encodedMd5Checksum string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("tar upload: %w", err)
 	}
 	defer resp.Body.Close()
 

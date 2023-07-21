@@ -24,6 +24,7 @@ type Config struct {
 	Verbose    bool
 	Path       string
 	Kubeconfig string
+	TarPath    string
 	Resource
 }
 
@@ -58,8 +59,8 @@ func main() {
 	var cfg Config
 
 	var cmd = &cobra.Command{
-		Use:   "upload [kind] [name]",
-		Short: "Upload a resource of a given Kind and Name to be built as a substratus container image",
+		Use:   "build-remote [kind] [name]",
+		Short: "build-remote packages and uploads a resource of a given Kind and Name to be remotely built by substratus as an image",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.Resource.Kind = strings.ToTitle(args[0])
@@ -103,20 +104,20 @@ func run(cfg Config, client KubernetesClient) error {
 	if cfg.Verbose {
 		fmt.Println("packaging the directory into a tarball")
 	}
-	tmpDir, err := os.MkdirTemp("/tmp", "kubctl-upload")
+	tmpDir, err := os.MkdirTemp("/tmp", "substratus-kubctl-upload")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tarPath := tmpDir + "/archive.tar.gz"
-	err = tarGz(cfg.Path, tarPath)
+	cfg.TarPath = tmpDir + "/archive.tar.gz"
+	err = tarGz(cfg.Path, cfg.TarPath)
 	if err != nil {
 		return fmt.Errorf("failed to create a .tar.gz of the directory: %w", err)
 	}
-	defer os.Remove(tarPath)
+	defer os.Remove(cfg.TarPath)
 
-	checksum, err := calculateMD5(tarPath)
+	checksum, err := calculateMD5(cfg.TarPath)
 	if err != nil {
 		return fmt.Errorf("failed to calculate the checksum: %w", err)
 	}
@@ -153,7 +154,7 @@ func run(cfg Config, client KubernetesClient) error {
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			err = handleWatchEvent(event, cfg, tarPath)
+			err = handleWatchEvent(event, cfg, "upload")
 			if err != nil {
 				return fmt.Errorf("failed watching the resource: %w", err)
 			}
@@ -167,7 +168,7 @@ func run(cfg Config, client KubernetesClient) error {
 	}
 
 	if cfg.Verbose {
-		fmt.Printf("Upload is complete. Waiting for the build job to complete.\n")
+		fmt.Printf("Upload was successful. Waiting for the build job to complete.\n")
 	}
 	// TODO(bjb): should we put a watcher also on name-kind-container-builder or does the utility stop here?
 
@@ -191,23 +192,30 @@ func createCustomResource(cfg Config) *unstructured.Unstructured {
 	}}
 }
 
-func handleWatchEvent(event watch.Event, cfg Config, tarPath string) error {
+func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 	updatedResource := event.Object.(*unstructured.Unstructured)
 
-	// Retrieve the value of .status.upload.uploadURL
-	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status", "upload")
+	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status")
 	if err != nil || !ok {
-		// If the field is not found, or there is an error retrieving it, return
-		// TODO(bjb): revisit
-		return fmt.Errorf("fetching upload status: %w", err)
+		return nil
 	}
 
-	uploadURL, ok := status["uploadURL"].(string)
-	if ok && uploadURL != "" {
-		err = uploadTarball(tarPath, uploadURL, cfg.Resource.EncodedMd5)
-		if err != nil {
-			return fmt.Errorf("tar upload: %w", err)
+	switch phase {
+	case "upload":
+		uploadURL, ok := status["uploadURL"].(string)
+		if ok && uploadURL != "" {
+			err = uploadTarball(cfg.TarPath, uploadURL, cfg.Resource.EncodedMd5)
+			if err != nil {
+				return fmt.Errorf("tar upload: %w", err)
+			}
+		}
+	case "build":
+		ready, ok := status["ready"].(bool)
+		if ok && ready {
+			fmt.Printf("Build job is complete.\n")
+			return nil
 		}
 	}
+
 	return nil
 }
