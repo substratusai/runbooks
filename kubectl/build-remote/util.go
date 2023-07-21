@@ -72,6 +72,9 @@ func tarGz(src, dst string) error {
 		// clean up the file name to avoid including preceding "./" or "/"
 		header.Name = strings.TrimPrefix(relativePath, string(filepath.Separator))
 
+		// Add "/workspace" to the beginning of the header.Name
+		header.Name = filepath.Join("workspace", header.Name)
+
 		// Skip if it is not a regular file or a directory
 		if !info.Mode().IsRegular() && !info.IsDir() {
 			return nil

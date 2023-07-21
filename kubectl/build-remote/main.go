@@ -23,6 +23,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var (
+	ErrStatusNotFound  = errors.New("status not found")
+	ErrBuildIncomplete = errors.New("build not completed")
+	lastUploadURL      string
+)
+
 type Config struct {
 	Verbose    bool
 	Path       string
@@ -57,8 +63,6 @@ func (c *realKubernetesClient) CreateResource(gvr schema.GroupVersionResource, n
 func (c *realKubernetesClient) WatchResource(gvr schema.GroupVersionResource, namespace string, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.dynamicClient.Resource(gvr).Namespace(namespace).Watch(context.Background(), opts)
 }
-
-var ErrStatusNotFound = errors.New("status not found")
 
 func main() {
 	var cfg Config
@@ -202,6 +206,7 @@ func run(cfg Config, client KubernetesClient) error {
 			err = handleWatchEvent(event, cfg, "build")
 			if errors.Is(err, ErrBuildIncomplete) {
 				// When build is complete, stop the watcher
+				time.Sleep(500 * time.Millisecond)
 				continue
 			} else if err != nil && !errors.Is(err, ErrStatusNotFound) {
 				return fmt.Errorf("failed watching the resource: %w", err)
@@ -212,6 +217,8 @@ func run(cfg Config, client KubernetesClient) error {
 			if status, ok := event.Object.(*metav1.Status); ok {
 				return fmt.Errorf("watch error occurred: %s", status.Message)
 			}
+			// TODO(bjb): occasionally this watch errors with:
+			// watch error occurred: an error on the server ("unable to decode an event from the watch stream: http2: response body closed") has prevented the request from succeeding
 			return errors.New("unknown watch error occurred")
 		case watch.Deleted:
 			return errors.New("the custom resource was deleted")
@@ -242,9 +249,6 @@ func createCustomResource(cfg Config) *unstructured.Unstructured {
 		},
 	}}
 }
-
-var lastUploadURL string
-var ErrBuildIncomplete = errors.New("build not completed")
 
 func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 	updatedResource := event.Object.(*unstructured.Unstructured)
