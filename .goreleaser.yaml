@@ -18,7 +18,7 @@ builds:
       - arm64
       - arm
       - ppc64le
-  - main: ./kubectl/upload-kind/
+  - main: ./kubectl/upload-resource/
     env:
       - CGO_ENABLED=0
     goos:
