@@ -1,8 +1,9 @@
 # [Substratus.AI](https://www.substratus.ai)
 
-Deploy and finetune Large Language Models on K8s in a breeze.
+Deploy and fine-tune Large Language Models on K8s with ease.
 
-Main features:
+Features:
+
 * Deploy large models in minutes  (e.g. latest Large Language Models)
 * Fine-tuning without writing code
 * Built-in serving layer compatible with OpenAI APIs
