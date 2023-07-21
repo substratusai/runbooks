@@ -40,7 +40,7 @@ type Resource struct {
 func main() {
 	var cfg Config
 
-	var uploadCmd = &cobra.Command{
+	var cmd = &cobra.Command{
 		Use:   "upload [kind] [name]",
 		Short: "Upload a resource of a given Kind and Name to be built as a substratus container image",
 		Args:  cobra.ExactArgs(2),
@@ -53,18 +53,16 @@ func main() {
 			}
 		},
 	}
-	uploadCmd.Flags().StringVarP(&cfg.Path, "path", "p", ".", "Path to the directory to be uploaded")
-	uploadCmd.Flags().StringVarP(&cfg.Resource.Namespace, "namespace", "n", "default", "Namespace of the resource created")
+	cmd.Flags().StringVarP(&cfg.Path, "path", "p", ".", "Path to the directory to be uploaded")
+	cmd.Flags().StringVarP(&cfg.Resource.Namespace, "namespace", "n", "default", "Namespace of the resource created")
 	if home := homeDir(); home != "" {
-		uploadCmd.Flags().StringVarP(&cfg.Kubeconfig, "kubeconfig", "", filepath.Join(home, ".kube", "config"), "")
+		cmd.Flags().StringVarP(&cfg.Kubeconfig, "kubeconfig", "", filepath.Join(home, ".kube", "config"), "")
 	} else {
-		uploadCmd.Flags().StringVarP(&cfg.Kubeconfig, "kubeconfig", "", "", "")
+		cmd.Flags().StringVarP(&cfg.Kubeconfig, "kubeconfig", "", "", "")
 	}
-	uploadCmd.Flags().BoolVarP(&cfg.Verbose, "verbose", "v", false, "Verbose output")
+	cmd.Flags().BoolVarP(&cfg.Verbose, "verbose", "v", false, "Verbose output")
 
-	var rootCmd = &cobra.Command{Use: "upload"}
-	rootCmd.AddCommand(uploadCmd)
-	if err := rootCmd.Execute(); err != nil {
+	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }
