@@ -62,7 +62,7 @@ func main() {
 		Short: "Upload a resource of a given Kind and Name to be built as a substratus container image",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			cfg.Resource.Kind = args[0]
+			cfg.Resource.Kind = strings.ToTitle(args[0])
 			cfg.Resource.Name = args[1]
 
 			config, _ := clientcmd.BuildConfigFromFlags("", cfg.Kubeconfig)
@@ -103,34 +103,37 @@ func run(cfg Config, client KubernetesClient) error {
 	if cfg.Verbose {
 		fmt.Println("packaging the directory into a tarball")
 	}
-
-	tarPath := "/tmp/archive.tar.gz"
-	err := tarGz(cfg.Path, tarPath)
+	tmpDir, err := os.MkdirTemp("/tmp", "kubctl-upload")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tarPath := tmpDir + "/archive.tar.gz"
+	err = tarGz(cfg.Path, tarPath)
+	if err != nil {
+		return fmt.Errorf("failed to create a .tar.gz of the directory: %w", err)
 	}
 	defer os.Remove(tarPath)
 
 	checksum, err := calculateMD5(tarPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to calculate the checksum: %w", err)
 	}
 
 	cfg.Resource.Md5Checksum = checksum
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode hex checksum: %w", err)
 	}
 	cfg.Resource.EncodedMd5 = base64.StdEncoding.EncodeToString(data)
 
 	customResource := createCustomResource(cfg)
-
 	gvr := schema.GroupVersionResource{
 		Group:    "substratus.ai",
 		Version:  "v1",
 		Resource: strings.ToLower(cfg.Resource.Kind) + "s", // plural is needed here
 	}
-
 	result, err := client.CreateResource(gvr, cfg.Resource.Namespace, customResource, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create custom resource: %w", err)
@@ -152,7 +155,7 @@ func run(cfg Config, client KubernetesClient) error {
 		case watch.Added, watch.Modified:
 			err = handleWatchEvent(event, cfg, tarPath)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed watching the resource: %w", err)
 			}
 		case watch.Error:
 			return errors.New("encountered a watch error")
@@ -167,10 +170,6 @@ func run(cfg Config, client KubernetesClient) error {
 		fmt.Printf("Upload is complete. Waiting for the build job to complete.\n")
 	}
 	// TODO(bjb): should we put a watcher also on name-kind-container-builder or does the utility stop here?
-	// spin.Start()
-	// spin.Suffix = " Waiting for the build job to complete..."
-	// spin.Stop()
-	// TODO(bjb): if it's a notebook, wait for it to be ready, then open it in a browser
 
 	return nil
 }
@@ -198,14 +197,16 @@ func handleWatchEvent(event watch.Event, cfg Config, tarPath string) error {
 	// Retrieve the value of .status.upload.uploadURL
 	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status", "upload")
 	if err != nil || !ok {
-		return nil
+		// If the field is not found, or there is an error retrieving it, return
+		// TODO(bjb): revisit
+		return fmt.Errorf("fetching upload status: %w", err)
 	}
 
 	uploadURL, ok := status["uploadURL"].(string)
 	if ok && uploadURL != "" {
 		err = uploadTarball(tarPath, uploadURL, cfg.Resource.EncodedMd5)
 		if err != nil {
-			return err
+			return fmt.Errorf("tar upload: %w", err)
 		}
 	}
 	return nil
