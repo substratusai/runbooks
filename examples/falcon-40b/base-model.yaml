@@ -4,8 +4,6 @@ metadata:
   name: falcon-40b
 spec:
   image:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-loader-huggingface
+    name: substratusai/model-loader-huggingface
   params:
     name: tiiuae/falcon-40b

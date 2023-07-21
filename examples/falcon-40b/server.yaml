@@ -4,9 +4,7 @@ metadata:
   name: falcon-40b
 spec:
   image:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-server-basaran
+    name: substratusai/model-server-basaran
   model:
     name: falcon-40b
   resources:
