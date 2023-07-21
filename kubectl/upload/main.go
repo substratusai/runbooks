@@ -195,7 +195,7 @@ func createCustomResource(cfg Config) *unstructured.Unstructured {
 func handleWatchEvent(event watch.Event, cfg Config, tarPath string) error {
 	updatedResource := event.Object.(*unstructured.Unstructured)
 
-	// Retrieve the value of .status.upload.md5checksum and .status.upload.uploadURL
+	// Retrieve the value of .status.upload.uploadURL
 	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status", "upload")
 	if err != nil || !ok {
 		return nil
