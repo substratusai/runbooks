@@ -10,8 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -55,6 +58,8 @@ func (c *realKubernetesClient) WatchResource(gvr schema.GroupVersionResource, na
 	return c.dynamicClient.Resource(gvr).Namespace(namespace).Watch(context.Background(), opts)
 }
 
+var ErrStatusNotFound = errors.New("status not found")
+
 func main() {
 	var cfg Config
 
@@ -63,7 +68,8 @@ func main() {
 		Short: "build-remote packages and uploads a resource of a given Kind and Name to be remotely built by substratus as an image",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			cfg.Resource.Kind = strings.ToTitle(args[0])
+			cfg.Resource.Kind = strings.Title(args[0])
+			cfg.Resource.Kind = cases.Title(language.English).String(args[0])
 			cfg.Resource.Name = args[1]
 
 			config, _ := clientcmd.BuildConfigFromFlags("", cfg.Kubeconfig)
@@ -155,9 +161,17 @@ func run(cfg Config, client KubernetesClient) error {
 		switch event.Type {
 		case watch.Added, watch.Modified:
 			err = handleWatchEvent(event, cfg, "upload")
+			if errors.Is(err, ErrStatusNotFound) {
+				// The status field was not found. Continue with the next iteration.
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
 			if err != nil {
 				return fmt.Errorf("failed watching the resource: %w", err)
 			}
+
+			// When upload is successful, stop the watcher
+			watcher.Stop()
 		case watch.Error:
 			return errors.New("encountered a watch error")
 		case watch.Deleted:
@@ -170,8 +184,25 @@ func run(cfg Config, client KubernetesClient) error {
 	if cfg.Verbose {
 		fmt.Printf("Upload was successful. Waiting for the build job to complete.\n")
 	}
-	// TODO(bjb): should we put a watcher also on name-kind-container-builder or does the utility stop here?
 
+	for event := range watcher.ResultChan() {
+		switch event.Type {
+		case watch.Added, watch.Modified:
+			err = handleWatchEvent(event, cfg, "build")
+			if err != nil {
+				return fmt.Errorf("failed watching the resource: %w", err)
+			}
+		case watch.Error:
+			return errors.New("encountered a watch error")
+		case watch.Deleted:
+			return errors.New("the custom resource was deleted")
+		default:
+			return errors.New("unhandled event type")
+		}
+	}
+	if cfg.Verbose {
+		fmt.Printf("Build job is complete and successful.\n")
+	}
 	return nil
 }
 
@@ -192,30 +223,48 @@ func createCustomResource(cfg Config) *unstructured.Unstructured {
 	}}
 }
 
+var lastUploadURL string
+
 func handleWatchEvent(event watch.Event, cfg Config, phase string) error {
 	updatedResource := event.Object.(*unstructured.Unstructured)
 
 	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status")
 	if err != nil || !ok {
-		return nil
+		return ErrStatusNotFound
 	}
 
 	switch phase {
 	case "upload":
-		uploadURL, ok := status["uploadURL"].(string)
-		if ok && uploadURL != "" {
+		// Retrieve the value of .status.image.uploadURL
+		imageStatus, ok := status["image"].(map[string]interface{})
+		if !ok {
+			// Image status not found, return error or simply log and continue based on your use case
+			return fmt.Errorf("image status not found")
+		}
+
+		uploadURL, ok := imageStatus["uploadURL"].(string)
+		if ok && uploadURL != "" && uploadURL != lastUploadURL {
+			lastUploadURL = uploadURL
+			if cfg.Verbose {
+				fmt.Println("Upload URL is ready.")
+			}
+
 			err = uploadTarball(cfg.TarPath, uploadURL, cfg.Resource.EncodedMd5)
 			if err != nil {
 				return fmt.Errorf("tar upload: %w", err)
 			}
 		}
+
 	case "build":
 		ready, ok := status["ready"].(bool)
-		if ok && ready {
-			fmt.Printf("Build job is complete.\n")
-			return nil
+		if ok {
+			if ready {
+				fmt.Printf("Build job is complete.\n")
+				return nil
+			} else {
+				fmt.Printf("Build job is not yet complete.\n")
+			}
 		}
-	}
 
 	return nil
 }

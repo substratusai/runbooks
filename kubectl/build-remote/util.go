@@ -130,5 +130,6 @@ func uploadTarball(tarPath, url, encodedMd5Checksum string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %d", resp.StatusCode)
 	}
+	fmt.Println("successfully uploaded tarball")
 	return nil
 }
