@@ -1,10 +1,25 @@
+# Only some zones have L4 and using multizonal nodepools is important
+# due to limited amount of capacity available
+# source of info: https://cloud.google.com/compute/docs/gpus/gpu-regions-zones
+locals {
+  l4_locations = {
+    "asia-south1"     = ["asia-south1-a"]
+    "asia-southeast1" = ["asia-southeast1-b"]
+    "europe-west4"    = ["europe-west4-a", "europe-west4-b", "europe-west4-c"]
+    "us-central1"     = ["us-central1-a", "us-central1-b"]
+    "us-east1"        = ["us-east1-b", "us-east1-d"]
+    "us-east4"        = ["us-east4-a"]
+    "us-west1"        = ["us-west1-a", "us-west1-b"]
+  }
+}
+
 # The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
 resource "google_container_node_pool" "g2-standard-4" {
   name = "g2-standard-4"
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -42,7 +57,7 @@ resource "google_container_node_pool" "g2-standard-8" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -80,7 +95,7 @@ resource "google_container_node_pool" "g2-standard-12" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -118,7 +133,7 @@ resource "google_container_node_pool" "g2-standard-16" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -156,7 +171,7 @@ resource "google_container_node_pool" "g2-standard-24" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -194,7 +209,7 @@ resource "google_container_node_pool" "g2-standard-32" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -232,7 +247,7 @@ resource "google_container_node_pool" "g2-standard-48" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
@@ -270,7 +285,7 @@ resource "google_container_node_pool" "g2-standard-96" {
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
-  node_locations     = [var.zone]
+  node_locations     = local.l4_locations[var.region]
 
   autoscaling {
     min_node_count  = 0
