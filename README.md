@@ -11,17 +11,21 @@ Main features:
 Learn more at [substratus.ai](https://www.substratus.ai).
 
 ## Intro and demo
+
 Read the [Introduction](https://www.substratus.ai/docs/introduction) and
 watch the video below:
 [![Watch the video](https://img.youtube.com/vi/CLyXKJHIQ6A/hq2.jpg)](https://youtu.be/CLyXKJHIQ6A)
 
 ## Docs
+
 Read the full docs at [substratus.ai/docs](https://www.substratus.ai/docs)
 
 ## Quickstart
+
 Read the [Quickstart Docs](https://www.substratus.ai/docs/quickstart)
 
 ## Architecture
+
 To learn more about how Substratus works, check out the [Architecture](https://www.substratus.ai/docs/architecture) page.
 
 ## Developer docs
