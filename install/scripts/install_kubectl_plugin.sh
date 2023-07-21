@@ -8,7 +8,8 @@ LATEST_RELEASE=$(curl ${REPO}/releases -s |
   perl -n -e '/v([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?)/ && print $&')
 OS=$(uname -s)
 ARCH=$(uname -m | sed 's/aarch64/arm64/g')
-LATEST_ARTIFACT_URL=$(echo $LATEST_RELEASE | awk -v repo=$REPO -v os=$OS -v arch=$ARCH -v release=$LATEST_RELEASE '{print repo "/releases/download/" release "/kubectl-open-notebook_" os "_" arch ".tar.gz"}')
+LATEST_OPEN_NOTEBOOK_ARTIFACT_URL=$(echo $LATEST_RELEASE | awk -v repo=$REPO -v os=$OS -v arch=$ARCH -v release=$LATEST_RELEASE '{print repo "/releases/download/" release "/kubectl-open-notebook_" os "_" arch ".tar.gz"}')
+LATEST_UPLOAD_KIND_ARTIFACT_URL=$(echo $LATEST_RELEASE | awk -v repo=$REPO -v os=$OS -v arch=$ARCH -v release=$LATEST_RELEASE '{print repo "/releases/download/" release "/kubectl-open-notebook_" os "_" arch ".tar.gz"}')
 
 wget -qO- ${LATEST_ARTIFACT_URL} | tar zxv
 chmod +x kubectl-open-notebook

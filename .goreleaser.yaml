@@ -18,6 +18,18 @@ builds:
       - arm64
       - arm
       - ppc64le
+  - main: ./kubectl/upload-kind/
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - ppc64le
 archives:
   - id: archive
     format: tar.gz
