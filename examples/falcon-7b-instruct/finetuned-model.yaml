@@ -4,7 +4,9 @@ metadata:
   name: falcon-7b-instruct-k8s
 spec:
   image:
-    name: substratusai/model-trainer-huggingface
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
   baseModel:
     name: falcon-7b-instruct
   trainingDataset:
