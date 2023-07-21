@@ -37,6 +37,23 @@ type Resource struct {
 	Md5Checksum string
 }
 
+type KubernetesClient interface {
+	CreateResource(gvr schema.GroupVersionResource, namespace string, obj *unstructured.Unstructured, opts metav1.CreateOptions) (*unstructured.Unstructured, error)
+	WatchResource(gvr schema.GroupVersionResource, namespace string, opts metav1.ListOptions) (watch.Interface, error)
+}
+
+type realKubernetesClient struct {
+	dynamicClient dynamic.Interface
+}
+
+func (c *realKubernetesClient) CreateResource(gvr schema.GroupVersionResource, namespace string, obj *unstructured.Unstructured, opts metav1.CreateOptions) (*unstructured.Unstructured, error) {
+	return c.dynamicClient.Resource(gvr).Namespace(namespace).Create(context.Background(), obj, opts)
+}
+
+func (c *realKubernetesClient) WatchResource(gvr schema.GroupVersionResource, namespace string, opts metav1.ListOptions) (watch.Interface, error) {
+	return c.dynamicClient.Resource(gvr).Namespace(namespace).Watch(context.Background(), opts)
+}
+
 func main() {
 	var cfg Config
 
@@ -47,7 +64,18 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg.Resource.Kind = args[0]
 			cfg.Resource.Name = args[1]
-			err := run(cfg)
+
+			config, _ := clientcmd.BuildConfigFromFlags("", cfg.Kubeconfig)
+			dynamicClient, err := dynamic.NewForConfig(config)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			client := &realKubernetesClient{
+				dynamicClient: dynamicClient,
+			}
+
+			err = run(cfg, client)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -67,12 +95,8 @@ func main() {
 	}
 }
 
-func run(cfg Config) error {
-	// spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+func run(cfg Config, client KubernetesClient) error {
 	if !fileExists(filepath.Join(cfg.Path, "Dockerfile")) {
-		// Q: in this case do we want to dynamically create or use a pre-existing,
-		// minimal dockerfile that works for the given kind? e.g. for a notebook
-		// it would likely install python and run jupyter lab --no-browser
 		return errors.New("a Dockerfile does not exist at the given path")
 	}
 
@@ -99,13 +123,60 @@ func run(cfg Config) error {
 	}
 	cfg.Resource.EncodedMd5 = base64.StdEncoding.EncodeToString(data)
 
-	config, _ := clientcmd.BuildConfigFromFlags("", cfg.Kubeconfig)
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return err
+	customResource := createCustomResource(cfg)
+
+	gvr := schema.GroupVersionResource{
+		Group:    "substratus.ai",
+		Version:  "v1",
+		Resource: strings.ToLower(cfg.Resource.Kind) + "s", // plural is needed here
 	}
 
-	customResource := &unstructured.Unstructured{Object: map[string]interface{}{
+	result, err := client.CreateResource(gvr, cfg.Resource.Namespace, customResource, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create custom resource: %w", err)
+	}
+
+	watcher, err := client.WatchResource(gvr, cfg.Resource.Namespace, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("metadata.name=%s", customResource.GetName()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to watch resource %q: %w", customResource.GetName(), err)
+	}
+	if cfg.Verbose {
+		fmt.Printf("Created custom resource %q.\n", result.GetName())
+	}
+
+	// Monitor the watcher channel
+	for event := range watcher.ResultChan() {
+		switch event.Type {
+		case watch.Added, watch.Modified:
+			err = handleWatchEvent(event, cfg, tarPath)
+			if err != nil {
+				return err
+			}
+		case watch.Error:
+			return errors.New("encountered a watch error")
+		case watch.Deleted:
+			return errors.New("the custom resource was deleted")
+		default:
+			return errors.New("unhandled event type")
+		}
+	}
+
+	if cfg.Verbose {
+		fmt.Printf("Upload is complete. Waiting for the build job to complete.\n")
+	}
+	// TODO(bjb): should we put a watcher also on name-kind-container-builder or does the utility stop here?
+	// spin.Start()
+	// spin.Suffix = " Waiting for the build job to complete..."
+	// spin.Stop()
+	// TODO(bjb): if it's a notebook, wait for it to be ready, then open it in a browser
+
+	return nil
+}
+
+func createCustomResource(cfg Config) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": "substratus.ai/v1",
 		"kind":       cfg.Resource.Kind,
 		"metadata": map[string]interface{}{
@@ -119,71 +190,23 @@ func run(cfg Config) error {
 			},
 		},
 	}}
+}
 
-	gvr := schema.GroupVersionResource{
-		Group:    "substratus.ai",
-		Version:  "v1",
-		Resource: strings.ToLower(cfg.Resource.Kind) + "s", // plural is needed here
+func handleWatchEvent(event watch.Event, cfg Config, tarPath string) error {
+	updatedResource := event.Object.(*unstructured.Unstructured)
+
+	// Retrieve the value of .status.upload.md5checksum and .status.upload.uploadURL
+	status, ok, err := unstructured.NestedMap(updatedResource.Object, "status", "upload")
+	if err != nil || !ok {
+		return nil
 	}
 
-	result, err := dynamicClient.Resource(gvr).Namespace(cfg.Resource.Namespace).Create(context.Background(), customResource, metav1.CreateOptions{})
-	if err != nil {
-		log.Fatalf("Failed to create custom resource: %v", err)
-		return err
-	}
-
-	watcher, err := dynamicClient.Resource(gvr).Namespace(cfg.Resource.Namespace).Watch(context.Background(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("metadata.name=%s", customResource.GetName()),
-	})
-	if err != nil {
-		log.Fatalf("Failed to watch resource %q: %v", customResource.GetName(), err)
-		return err
-	}
-	if cfg.Verbose {
-		fmt.Printf("Created custom resource %q.\n", result.GetName())
-	}
-
-	// Monitor the watcher channel
-	for event := range watcher.ResultChan() {
-		switch event.Type {
-		case watch.Added, watch.Modified:
-			updatedResource := event.Object.(*unstructured.Unstructured)
-
-			// Retrieve the value of .status.upload.md5checksum and .status.upload.uploadURL
-			status, ok, err := unstructured.NestedMap(updatedResource.Object, "status", "upload")
-			if err != nil || !ok {
-				continue
-			}
-
-			uploadURL, ok := status["uploadURL"].(string)
-			if ok && uploadURL != "" {
-				watcher.Stop()
-
-				err = uploadTarball(tarPath, uploadURL, cfg.Resource.EncodedMd5)
-				if err != nil {
-					return err
-				}
-			}
-		case watch.Error:
-			watcher.Stop()
-			return errors.New("encountered a watch error")
-		case watch.Deleted:
-			watcher.Stop()
-			return errors.New("the custom resource was deleted")
-		default:
-			watcher.Stop()
-			return errors.New("unhandled event type")
+	uploadURL, ok := status["uploadURL"].(string)
+	if ok && uploadURL != "" {
+		err = uploadTarball(tarPath, uploadURL, cfg.Resource.EncodedMd5)
+		if err != nil {
+			return err
 		}
 	}
-
-	if cfg.Verbose {
-		fmt.Printf("Upload is complete. Waiting for the build job to complete.\n")
-	}
-
-	// TODO(bjb): should we put a watcher also on name-kind-container-builder or does the utility stop here?
-	// spin.Start()
-	// spin.Suffix = " Waiting for the build job to complete..."
-	// spin.Stop()
-	// TODO(bjb): if it's a notebook, wait for it to be ready, then open it in a browser
 	return nil
 }
