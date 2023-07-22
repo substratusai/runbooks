@@ -155,6 +155,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 							Name:    containerName,
 							Image:   dataset.Spec.Image.Name,
 							Command: dataset.Spec.Command,
+							Env:     paramsToEnv(dataset.Spec.Params),
 						},
 					},
 					RestartPolicy: "Never",
