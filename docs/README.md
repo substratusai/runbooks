@@ -1,4 +1,6 @@
-# Substratus: Deploy and fine-tune large language models on K8s
+# Substratus
+
+Deploy and fine-tune large language models on K8s
 
 [![Substratus.AI](../assets/ssai-logo.png "Substratus.AI")](https://www.substratus.ai)
 
