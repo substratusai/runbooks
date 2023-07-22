@@ -15,16 +15,17 @@ jobs:
           fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v4
-      - name: Run GoReleaser
+      - id: build-open-notebook
+        name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          args: release --clean -f kubectl/open-notebook/.goreleaser.yaml
       - name: Upload assets
         uses: actions/upload-artifact@v3
         with:
-          name: kubectl-plugin
+          name: kubectl-open-notebook-plugin
           path: |
             dist/*
             !dist/artifacts.json

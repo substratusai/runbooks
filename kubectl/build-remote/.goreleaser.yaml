@@ -1,4 +1,4 @@
-project_name: kubectl-open-notebook
+project_name: kubectl-build-remote
 before:
   hooks:
     - go mod tidy
@@ -6,19 +6,7 @@ before:
 release:
   prerelease: "true"
 builds:
-  - main: ./kubectl/open-notebook/
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-      - arm
-      - ppc64le
-  - main: ./kubectl/build-remote/
+  - main: .
     env:
       - CGO_ENABLED=0
     goos:
