@@ -1,6 +1,6 @@
 # Substratus - Multi-cloud substrate for AI
 
-![Substratus.AI](assets/ssai-logo.png "Substratus.AI")
+![Substratus.AI](../assets/ssai-logo.png "Substratus.AI")
 
 Deploy and fine-tune Large Language Models on K8s.
 
