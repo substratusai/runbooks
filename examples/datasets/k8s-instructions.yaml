@@ -3,8 +3,9 @@ kind: Dataset
 metadata:
   name: k8s-instructions
 spec:
-  command: ["load.sh"]
+  params:
+    urls: https://huggingface.co/datasets/substratusai/k8s-instructions/raw/main/k8s-instructions.jsonl
   image:
     git:
       url: https://github.com/substratusai/images
-      path: dataset-k8s-instructions
+      path: dataset-loader-http
