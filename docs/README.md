@@ -1,4 +1,4 @@
-# Substratus - Multi-cloud substrate for AI
+# Substratus: Multi-cloud substrate for AI
 
 ![Substratus.AI](../assets/ssai-logo.png "Substratus.AI")
 
@@ -15,8 +15,8 @@ Learn more at [substratus.ai](https://www.substratus.ai).
 
 ## Intro and demo
 
-Read the [Introduction](https://www.substratus.ai/docs/introduction) and
-watch the video below:
+Read the [Introduction](https://www.substratus.ai/docs/introduction) and watch
+the video below:
 
 [![Watch the video](https://img.youtube.com/vi/CLyXKJHIQ6A/hq2.jpg)](https://youtu.be/CLyXKJHIQ6A)
 
