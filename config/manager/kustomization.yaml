@@ -1,8 +1,8 @@
 resources:
-  - manager.yaml
+- manager.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-  - name: controller
-    newName: docker.io/substratusai/controller-manager
-    newTag: v0.6.3-alpha
+- name: controller
+  newName: docker.io/substratusai/controller-manager
+  newTag: v0.6.4-alpha
