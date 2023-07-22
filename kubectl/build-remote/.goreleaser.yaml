@@ -6,7 +6,7 @@ before:
 release:
   prerelease: "true"
 builds:
-  - main: .
+  - main: ./kubectl/build-remote/
     env:
       - CGO_ENABLED=0
     goos:
