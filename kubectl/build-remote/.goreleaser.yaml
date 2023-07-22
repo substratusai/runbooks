@@ -33,7 +33,7 @@ archives:
       - goos: windows
         format: zip
 checksum:
-  name_template: "checksums.txt"
+  name_template: "{{ .ProjectName }}-checksums.txt"
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
