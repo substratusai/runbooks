@@ -25,7 +25,7 @@ spec:
         - name: gcp-manager
           # use this when running via skaffold
           # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
-          image: substratusai/gcp-manager:v0.6.3-alpha
+          image: gcp-manager:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 10080

@@ -1,6 +1,9 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= docker.io/substratusai/controller-manager:v0.6.4-alpha
+VERSION ?= v0.6.5-alpha
+IMG ?= docker.io/substratusai/controller-manager:${VERSION}
+IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
@@ -176,6 +179,7 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 
 install/kubernetes/system.yaml: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
 
 RUN_SUBSTRATUS_INSTALLER := docker run -it \
