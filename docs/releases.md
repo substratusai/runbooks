@@ -1,24 +1,23 @@
 # Releases
+Generating releases is done by doing the following:
 
-## Update Controller Image
+1. Update the `VERSION` in Makefile
 
-Update `IMG` in `Makefile`.
+   ```makefile
+    VERSION ?= v0.6.5-alpha
+   ```
 
-```makefile
-IMG ?= docker.io/substratusai/controller-manager:v0.0.1-alpha
-```
+2. Generate the new install manifest that points to the new image
 
-Generate install manifest.
+   ```sh
+   make install/kubernetes/system.yaml
+   ```
 
-```sh
-make install/kubernetes/system.yaml
-```
+3. Submit a PR
 
-## Generate snippets
+4. Once the PR is merged make sure to create the new release by pushing a new tag with the exact same version name
 
-We use [embedmd](https://github.com/campoy/embedmd) to help keep documentation
-up to date with snippets. Run the following to generate new doc snippets:
-
-```bash
-make docs
-```
+   ```sh
+   git tag v0.6.5-alpha
+   git push --tags
+   ```
