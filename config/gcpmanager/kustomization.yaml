@@ -1,11 +1,9 @@
 resources:
-- manager.yaml
+- gcp-manager.yaml
+- bootstrapper-job.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- name: controller
-  newName: docker.io/substratusai/controller-manager
-  newTag: v0.6.5-alpha
 - name: gcp-manager
   newName: docker.io/substratusai/gcp-manager
   newTag: v0.6.5-alpha

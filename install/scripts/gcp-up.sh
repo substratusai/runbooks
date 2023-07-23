@@ -44,6 +44,4 @@ if [ "$INSTALL_OPERATOR" == "yes" ]; then
   kubectl apply -f kubernetes/namespace.yaml
   kubectl apply -f kubernetes/config.yaml
   kubectl apply -f kubernetes/system.yaml
-  kubectl apply -f config/gcpmanager/bootstrapper-job.yaml
-  kubectl apply -f config/gcpmanager/gcp-manager.yaml
 fi

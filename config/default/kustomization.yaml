@@ -11,6 +11,7 @@ resources:
   - ../crd
   - ../rbac
   - ../manager
+  - ../gcpmanager
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook
