@@ -15,7 +15,14 @@ kubectl open notebook -n my-namespace my-nb-name
 kubectl open notebook -f notebook.yaml
 ```
 
-### Installation
+### Install from source
+
+You can test out the latest kubectl plugin by building from source directly:
+```sh
+go build ./kubectl/open-notebook && sudo mv open-notebook /usr/local/bin/kubectl-open-notebook
+```
+
+### Install using script
 
 Release binaries are created for most architectures when the repo is tagged.
 Be aware that moving the binary to your PATH might fail due to permissions
