@@ -4,11 +4,7 @@ metadata:
   name: falcon-7b-instruct-k8s-custom-prompt
 spec:
   image:
-    git:
-      url: https://github.com/substratusai/images
-      branch: dynamic-prompttemplate
-      path: model-trainer-huggingface
-        # name: substratusai/model-trainer-huggingface
+    name: substratusai/model-trainer-huggingface
   baseModel:
     name: falcon-7b-instruct
   trainingDataset:
