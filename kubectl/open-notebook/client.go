@@ -51,11 +51,11 @@ func (c *notebookClient) create(ctx context.Context, nb *unstructured.Unstructur
 }
 
 func (c *notebookClient) copyTo(ctx context.Context, nb *unstructured.Unstructured) error {
-	return cp.ToPod(ctx, "./src", "/model/", podForNotebook(nb))
+	return cp.ToPod(ctx, "./src", "/content/", podForNotebook(nb))
 }
 
 func (c *notebookClient) copyFrom(ctx context.Context, nb *unstructured.Unstructured) error {
-	return cp.FromPod(ctx, "/model/src", "./src", podForNotebook(nb))
+	return cp.FromPod(ctx, "/content/src", "./src", podForNotebook(nb))
 }
 
 func (c *notebookClient) waitReady(ctx context.Context, nb *unstructured.Unstructured) error {
