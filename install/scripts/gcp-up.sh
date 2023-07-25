@@ -18,18 +18,18 @@ gcloud services enable --project ${PROJECT} container.googleapis.com
 gcloud services enable --project ${PROJECT} artifactregistry.googleapis.com
 
 # Create terraform state bucket if one does not exist.
-tf_bucket=${PROJECT}-substratus-terraform
-gcloud storage buckets describe gs://${tf_bucket} >/dev/null || gcloud storage buckets create --project ${PROJECT} gs://${tf_bucket}
+TF_BUCKET=${PROJECT}-substratus-terraform
+gcloud storage buckets describe gs://${TF_BUCKET} >/dev/null || gcloud storage buckets create --project ${PROJECT} gs://${TF_BUCKET}
 
 # Apply infrastructure.
 cd terraform/gcp
 
 # Backend variables cannot be configured via env variables.
-echo "bucket = \"${tf_bucket}\"" >>backend.tfvars
+echo "bucket = \"${TF_BUCKET}\"" >>backend.tfvars
 terraform init --backend-config=backend.tfvars
 
 export TF_VAR_project_id=${PROJECT}
-if [ "$AUTO_APPROVE" == "yes" ]; then
+if [ "${AUTO_APPROVE}" == "yes" ]; then
   terraform apply -auto-approve
 else
   terraform apply
@@ -45,7 +45,7 @@ gcloud container clusters get-credentials --project ${PROJECT} --region ${cluste
 kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml
 
 # Install cluster components.
-if [ "$INSTALL_OPERATOR" == "yes" ]; then
+if [ "${INSTALL_OPERATOR}" == "yes" ]; then
   kubectl apply -f kubernetes/namespace.yaml
   kubectl apply -f kubernetes/config.yaml
   kubectl apply -f kubernetes/system.yaml
