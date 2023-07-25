@@ -11,6 +11,7 @@ export CLOUDSDK_AUTH_ACCESS_TOKEN=${TOKEN}
 # Used by terraform:
 export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
 INSTALL_OPERATOR="${INSTALL_OPERATOR:-yes}"
+AUTO_APPROVE="${AUTO_APPROVE:-no}"
 
 # Enable required services.
 gcloud services enable --project ${PROJECT} container.googleapis.com
@@ -28,7 +29,11 @@ echo "bucket = \"${tf_bucket}\"" >>backend.tfvars
 terraform init --backend-config=backend.tfvars
 
 export TF_VAR_project_id=${PROJECT}
-terraform apply
+if [ "$AUTO_APPROVE" == "yes" ]; then
+  terraform apply -auto-approve
+else
+  terraform apply
+fi
 cluster_name=$(terraform output --raw cluster_name)
 cluster_region=$(terraform output --raw cluster_region)
 
