@@ -47,6 +47,15 @@ func hasCondition(u *unstructured.Unstructured, typ, status string) bool {
 	return false
 }
 
+func isReady(u *unstructured.Unstructured) bool {
+	status, ok := u.Object["status"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	ready, _ := status["ready"].(bool)
+	return ready
+}
+
 func isSuspended(u *unstructured.Unstructured) bool {
 	spec := u.Object["spec"].(map[string]interface{})
 	suspended, _ := spec["suspend"].(bool)

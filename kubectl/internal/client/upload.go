@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"k8s.io/klog/v2"
@@ -61,18 +60,18 @@ func PrepareImageTarball(buildPath string) (*Tarball, error) {
 	}, nil
 }
 
-func SetUploadContainerSpec(obj client.Object, tb *Tarball) error {
+func SetUploadContainerSpec(obj Object, tb *Tarball) error {
 	return setContainerUpload(obj, tb.MD5Checksum)
 }
 
-func (c *Client) Apply(obj client.Object) error {
+func (r *Resource) Apply(obj Object) error {
 	applyManifest, err := Encode(obj)
 	if err != nil {
 		return err
 	}
 
 	// Server-side apply.
-	if _, err := c.resource.Patch(obj.GetNamespace(), obj.GetName(), types.ApplyPatchType, applyManifest, &metav1.PatchOptions{
+	if _, err := r.Patch(obj.GetNamespace(), obj.GetName(), types.ApplyPatchType, applyManifest, &metav1.PatchOptions{
 		FieldManager: FieldManager,
 	}); err != nil {
 		return err
@@ -81,8 +80,8 @@ func (c *Client) Apply(obj client.Object) error {
 	return nil
 }
 
-func (c *Client) Upload(obj client.Object, tb *Tarball) error {
-	watcher, err := c.resource.Watch(obj.GetNamespace(), obj.GetName(), &metav1.ListOptions{})
+func (r *Resource) Upload(obj Object, tb *Tarball) error {
+	watcher, err := r.Watch(obj.GetNamespace(), obj.GetName(), &metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ loop:
 	return nil
 }
 
-func setContainerUpload(obj client.Object, md5 string) error {
+func setContainerUpload(obj Object, md5 string) error {
 	type imager interface {
 		GetImage() *apiv1.Image
 	}

@@ -1,9 +1,13 @@
 package client
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	meta "k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -14,6 +18,8 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
+type Object = client.Object
+
 var FieldManager = "kubectl"
 
 func init() {
@@ -21,27 +27,17 @@ func init() {
 }
 
 type Client struct {
-	resource *resource.Helper
-	//kubeClientset kubernetes.Interface
-	//restConfig    *rest.Config
+	kubernetes.Interface
+	Config *rest.Config
 }
 
-func NewClientFor(kubeClientset kubernetes.Interface, restConfig *rest.Config, obj client.Object) (*Client, error) {
-	res, err := resourceFor(kubeClientset, restConfig, obj)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Client{
-		resource: res,
-		//kubeClientset: kubeClientset,
-		//restConfig:    restConfig,
-	}, nil
+type Resource struct {
+	*resource.Helper
 }
 
-func resourceFor(kubeClientset kubernetes.Interface, restConfig *rest.Config, obj runtime.Object) (*resource.Helper, error) {
+func (c *Client) Resource(obj Object) (*Resource, error) {
 	// Create a REST mapper that tracks information about the available resources in the cluster.
-	groupResources, err := restmapper.GetAPIGroupResources(kubeClientset.Discovery())
+	groupResources, err := restmapper.GetAPIGroupResources(c.Interface.Discovery())
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +58,13 @@ func resourceFor(kubeClientset kubernetes.Interface, restConfig *rest.Config, ob
 	_ = name
 
 	// Create a client specifically for creating the object.
-	restClient, err := newRestClient(restConfig, mapping.GroupVersionKind.GroupVersion())
+	restClient, err := newRestClient(c.Config, mapping.GroupVersionKind.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
 
 	// Use the REST helper to create the object in the "default" namespace.
-	return resource.NewHelper(restClient, mapping), nil
+	return &Resource{Helper: resource.NewHelper(restClient, mapping)}, nil
 }
 
 func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
@@ -81,4 +77,25 @@ func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interf
 	}
 
 	return rest.RESTClientFor(restConfig)
+}
+
+func (r *Resource) WaitReady(ctx context.Context, obj Object) error {
+	if err := wait.PollImmediateInfiniteWithContext(ctx, time.Second,
+		func(ctx context.Context) (bool, error) {
+			fetched, err := r.Get(obj.GetNamespace(), obj.GetName())
+			if err != nil {
+				return false, err
+			}
+			readyable, ok := fetched.(interface{ GetStatusReady() bool })
+			if !ok {
+				return false, fmt.Errorf("object is not readyable: %T", fetched)
+			}
+
+			return readyable.GetStatusReady(), nil
+		},
+	); err != nil {
+		return fmt.Errorf("waiting for object to be ready: %w", err)
+	}
+
+	return nil
 }

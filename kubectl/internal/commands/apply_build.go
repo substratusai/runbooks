@@ -53,7 +53,8 @@ func ApplyBuild() *cobra.Command {
 				obj.SetNamespace("default")
 			}
 
-			c, err := client.NewClientFor(clientset, restConfig, obj)
+			c := &client.Client{Interface: clientset, Config: restConfig}
+			r, err := c.Resource(obj)
 			if err != nil {
 				return err
 			}
@@ -62,11 +63,11 @@ func ApplyBuild() *cobra.Command {
 				return err
 			}
 
-			if err := c.Apply(obj); err != nil {
+			if err := r.Apply(obj); err != nil {
 				return err
 			}
 
-			if err := c.Upload(obj, tarball); err != nil {
+			if err := r.Upload(obj, tarball); err != nil {
 				return err
 			}
 

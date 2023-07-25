@@ -11,7 +11,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,7 +27,6 @@ const (
 
 var (
 	kubectlKubeconfigPath string
-	cfg                   *rest.Config
 	k8sClient             client.Client
 	testEnv               *envtest.Environment
 	ctx                   context.Context

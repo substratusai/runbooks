@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/substratusai/substratus/kubectl/internal/clientx"
 	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
@@ -94,10 +93,10 @@ func run() error {
 		cancel()
 	}()
 
-	client := &clientx.Client{
-		Config:     config,
-		Clientset:  clientset,
-		DClientset: dclientset,
+	client := &notebookClient{
+		config:     config,
+		clientset:  clientset,
+		dclientset: dclientset,
 	}
 
 	var notebook *unstructured.Unstructured
@@ -114,11 +113,11 @@ func run() error {
 			return fmt.Errorf("namespace in manifest does not match namespace flag")
 		}
 
-		fetchedNotebook, err := client.Get(ctx, notebook)
+		fetchedNotebook, err := client.get(ctx, notebook)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				unsuspend(notebook)
-				notebook, err = client.Create(ctx, notebook)
+				notebook, err = client.create(ctx, notebook)
 				if err != nil {
 					return fmt.Errorf("creating notebook: %w", err)
 				}
@@ -128,7 +127,7 @@ func run() error {
 		} else {
 			notebook = fetchedNotebook
 			if isSuspended(notebook) {
-				notebook, err = client.UnsuspendNotebook(ctx, notebook)
+				notebook, err = client.unsuspend(ctx, notebook)
 				if err != nil {
 					return fmt.Errorf("unsuspending notebook: %w", err)
 				}
@@ -141,12 +140,12 @@ func run() error {
 		notebook.SetName(notebookName)
 		notebook.SetNamespace(flags.namespace)
 
-		notebook, err = client.Get(ctx, notebook)
+		notebook, err = client.get(ctx, notebook)
 		if err != nil {
 			return fmt.Errorf("getting notebook in namespace %v: %w", flags.namespace, err)
 		}
 		if isSuspended(notebook) {
-			notebook, err = client.UnsuspendNotebook(ctx, notebook)
+			notebook, err = client.unsuspend(ctx, notebook)
 			if err != nil {
 				return fmt.Errorf("unsuspending notebook: %w", err)
 			}
@@ -162,7 +161,7 @@ func run() error {
 		// Suspend notebook.
 		spin.Suffix = " Cleanup: Suspending notebook..."
 		spin.Start()
-		if _, err := client.SuspendNotebook(cleanupCtx, notebook); err != nil {
+		if _, err := client.suspend(cleanupCtx, notebook); err != nil {
 			fmt.Println("Error suspending notebook:", err)
 		}
 		spin.Stop()
@@ -172,7 +171,7 @@ func run() error {
 	spin.Suffix = " Waiting for Notebook to be ready..."
 	spin.Start()
 	waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, flags.timeout)
-	if err := client.WaitReady(waitReadyCtx, notebook); err != nil {
+	if err := client.waitReady(waitReadyCtx, notebook); err != nil {
 		cleanup()
 		log.Fatal(err)
 	}
@@ -183,7 +182,7 @@ func run() error {
 	if flags.sync {
 		spin.Suffix = " Syncing local directory with Notebook..."
 		spin.Start()
-		if err := client.CopyToNotebook(ctx, notebook); err != nil {
+		if err := client.copyTo(ctx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}
@@ -217,7 +216,7 @@ func run() error {
 				ready = make(chan struct{})
 			}
 
-			if err := client.PortForwardNotebook(portFwdCtx, flags.verbose, notebook, ready); err != nil {
+			if err := client.portForward(portFwdCtx, flags.verbose, notebook, ready); err != nil {
 				//if errors.Is(err, context.Canceled) {
 				//	fmt.Println("Serve: stopping: context was cancelled")
 				//	return
@@ -262,7 +261,7 @@ func run() error {
 	if flags.sync {
 		spin.Suffix = " Syncing Notebook to local directory..."
 		spin.Start()
-		if err := client.CopyFromNotebook(cleanupCtx, notebook); err != nil {
+		if err := client.copyFrom(cleanupCtx, notebook); err != nil {
 			cleanup()
 			log.Fatal(err)
 		}

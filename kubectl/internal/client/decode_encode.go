@@ -2,11 +2,10 @@ package client
 
 import (
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
-func Decode(data []byte) (client.Object, error) {
+func Decode(data []byte) (Object, error) {
 	decoder := scheme.Codecs.UniversalDeserializer()
 
 	runtimeObject, gvk, err := decoder.Decode(data, nil, nil)
@@ -16,9 +15,9 @@ func Decode(data []byte) (client.Object, error) {
 
 	_ = gvk
 
-	return runtimeObject.(client.Object), nil
+	return runtimeObject.(Object), nil
 }
 
-func Encode(obj client.Object) ([]byte, error) {
+func Encode(obj Object) ([]byte, error) {
 	return yaml.Marshal(obj)
 }
