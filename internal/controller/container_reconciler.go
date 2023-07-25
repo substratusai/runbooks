@@ -11,7 +11,6 @@ import (
 	"time"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	ssv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
 	"github.com/substratusai/substratus/internal/sci"
@@ -89,7 +88,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 				return result{}, fmt.Errorf("generating upload url: %w", err)
 			}
 
-			obj.SetStatusImage(ssv1.ImageStatus{
+			obj.SetStatusImage(apiv1.ImageStatus{
 				UploadURL:   url,
 				Md5Checksum: specUpload.Md5Checksum,
 			})
@@ -115,7 +114,7 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 
 			if time.Now().After(expirationTime) {
 				log.Info("The signed URL has expired. Clearing status.")
-				obj.SetStatusImage(ssv1.ImageStatus{
+				obj.SetStatusImage(apiv1.ImageStatus{
 					UploadURL:   "",
 					Md5Checksum: statusMd5,
 				})

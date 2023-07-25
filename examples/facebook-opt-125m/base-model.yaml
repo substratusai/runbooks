@@ -1,6 +1,7 @@
 apiVersion: substratus.ai/v1
 kind: Model
 metadata:
+  namespace: default
   name: facebook-opt-125m
 spec:
   command: ["load.sh"]

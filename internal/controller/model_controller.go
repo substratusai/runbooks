@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
@@ -217,17 +216,17 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Model{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForBaseModel))).
-		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForDataset))).
+		Watches(&apiv1.Model{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForBaseModel))).
+		Watches(&apiv1.Dataset{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForDataset))).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
-func (r *ModelReconciler) findModelsForBaseModel(obj client.Object) []reconcile.Request {
+func (r *ModelReconciler) findModelsForBaseModel(ctx context.Context, obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
 	var models apiv1.ModelList
-	if err := r.List(context.Background(), &models,
+	if err := r.List(ctx, &models,
 		client.MatchingFields{modelBaseModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -247,11 +246,11 @@ func (r *ModelReconciler) findModelsForBaseModel(obj client.Object) []reconcile.
 	return reqs
 }
 
-func (r *ModelReconciler) findModelsForDataset(obj client.Object) []reconcile.Request {
+func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.Object) []reconcile.Request {
 	dataset := obj.(*apiv1.Dataset)
 
 	var models apiv1.ModelList
-	if err := r.List(context.Background(), &models,
+	if err := r.List(ctx, &models,
 		client.MatchingFields{modelTrainingDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {

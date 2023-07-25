@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
@@ -73,16 +72,16 @@ func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&apiv1.Notebook{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Pod{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForModel))).
-		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForDataset))).
+		Watches(&apiv1.Model{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForModel))).
+		Watches(&apiv1.Dataset{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForDataset))).
 		Complete(r)
 }
 
-func (r *NotebookReconciler) findNotebooksForModel(obj client.Object) []reconcile.Request {
+func (r *NotebookReconciler) findNotebooksForModel(ctx context.Context, obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
 	var notebooks apiv1.NotebookList
-	if err := r.List(context.Background(), &notebooks,
+	if err := r.List(ctx, &notebooks,
 		client.MatchingFields{notebookModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -102,11 +101,11 @@ func (r *NotebookReconciler) findNotebooksForModel(obj client.Object) []reconcil
 	return reqs
 }
 
-func (r *NotebookReconciler) findNotebooksForDataset(obj client.Object) []reconcile.Request {
+func (r *NotebookReconciler) findNotebooksForDataset(ctx context.Context, obj client.Object) []reconcile.Request {
 	dataset := obj.(*apiv1.Dataset)
 
 	var notebooks apiv1.NotebookList
-	if err := r.List(context.Background(), &notebooks,
+	if err := r.List(ctx, &notebooks,
 		client.MatchingFields{notebookDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {

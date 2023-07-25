@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -72,18 +71,18 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Server{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findServersForModel))).
+		Watches(&apiv1.Model{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findServersForModel))).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
-func (r *ServerReconciler) findServersForModel(obj client.Object) []reconcile.Request {
+func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
 	var servers apiv1.ServerList
-	if err := r.List(context.Background(), &servers,
+	if err := r.List(ctx, &servers,
 		client.MatchingFields{modelServerModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {

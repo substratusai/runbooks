@@ -93,6 +93,10 @@ vet: ## Run go vet against code.
 test: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
+.PHONY: test-kubectl
+test-kubectl: manifests fmt vet envtest ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./kubectl/internal/commands -v
+
 .PHONY: render-skaffold-manifests
 render-skaffold-manifests: envsubst ## run envsubs against skaffold manifest tesmplates
 	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
