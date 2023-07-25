@@ -32,7 +32,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: "linux/amd64"
+          platforms: "linux/amd64,linux/arm64"
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-controller-manager.outputs.tags }}
           labels: ${{ steps.meta-controller-manager.outputs.labels }}
@@ -47,7 +47,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.gcpmanager
-          platforms: "linux/amd64"
+          platforms: "linux/amd64,linux/arm64"
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-gcp-manager.outputs.tags }}
           labels: ${{ steps.meta-gcp-manager.outputs.labels }}
@@ -61,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: install/
-          platforms: "linux/amd64"
+          platforms: "linux/amd64,linux/arm64"
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-installer.outputs.tags }}
           labels: ${{ steps.meta-installer.outputs.labels }}
