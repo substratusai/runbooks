@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -140,7 +141,12 @@ func Notebook() *cobra.Command {
 			}
 
 			c := &client.Client{Interface: clientset, Config: restConfig}
-			notebooks, err := c.Resource(&apiv1.Notebook{})
+			notebooks, err := c.Resource(&apiv1.Notebook{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "substratus.ai/v1",
+					Kind:       "Notebook",
+				},
+			})
 			if err != nil {
 				return err
 			}
@@ -162,7 +168,7 @@ func Notebook() *cobra.Command {
 			} else if len(args) == 1 {
 				fetched, err := notebooks.Get(defaultNamespace(cfg.namespace), args[0])
 				if err != nil {
-					return err
+					return fmt.Errorf("getting notebook: %w", err)
 				}
 				obj = fetched.(client.Object)
 			} else {
@@ -171,7 +177,7 @@ func Notebook() *cobra.Command {
 
 			nb, err := client.NotebookForObject(obj)
 			if err != nil {
-				return err
+				return fmt.Errorf("notebook for object: %w", err)
 			}
 
 			if cfg.build != "" {

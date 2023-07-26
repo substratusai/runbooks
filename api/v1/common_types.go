@@ -25,7 +25,7 @@ type ImageStatus struct {
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5Checksum,omitempty"`
+	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
 type ImageGit struct {

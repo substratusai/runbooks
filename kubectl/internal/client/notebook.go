@@ -57,6 +57,11 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 		return nil, fmt.Errorf("unknown object type: %T", obj)
 	}
 
+	nb.ObjectMeta.ManagedFields = nil
+	nb.TypeMeta = metav1.TypeMeta{
+		APIVersion: "substratus.ai/v1",
+		Kind:       "Notebook",
+	}
 	nb.Spec.Suspend = false
 
 	return nb, nil

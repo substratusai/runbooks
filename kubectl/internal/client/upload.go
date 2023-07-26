@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -92,13 +91,9 @@ loop:
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			// NOTE: event.Object is a *unstructured.Unstructured,
-			// not the original Object type.
-			// imgStatus := event.Object.(interface{ GetStatusImage() *apiv1.ImageStatus }).GetStatusImage()
-
-			uploadURL, _, _ = unstructured.NestedString(event.Object.(*unstructured.Unstructured).Object, "status", "image", "uploadURL")
-			md5Checksum, _, _ := unstructured.NestedString(event.Object.(*unstructured.Unstructured).Object, "status", "image", "md5Checksum")
-			if uploadURL != "" && md5Checksum == tb.MD5Checksum {
+			imgStatus := event.Object.(interface{ GetStatusImage() apiv1.ImageStatus }).GetStatusImage()
+			if imgStatus.UploadURL != "" && imgStatus.Md5Checksum == tb.MD5Checksum {
+				uploadURL = imgStatus.UploadURL
 				watcher.Stop()
 				break loop
 			}

@@ -57,18 +57,22 @@ func (c *Client) Resource(obj Object) (*Resource, error) {
 	}
 	_ = name
 
-	// Create a client specifically for creating the object.
+	// Create a client specifically for working with the object.
 	restClient, err := newRestClient(c.Config, mapping.GroupVersionKind.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
 
+	helper := resource.NewHelper(restClient, mapping)
+	//helper.FieldValidation = "Strict"
+
 	// Use the REST helper to create the object in the "default" namespace.
-	return &Resource{Helper: resource.NewHelper(restClient, mapping)}, nil
+	return &Resource{Helper: helper}, nil
 }
 
 func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
-	restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	//restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	restConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	restConfig.GroupVersion = &gv
 	if len(gv.Group) == 0 {
 		restConfig.APIPath = "/api"

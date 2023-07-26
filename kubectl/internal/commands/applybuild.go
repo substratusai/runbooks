@@ -2,6 +2,7 @@ package commands
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"k8s.io/klog/v2"
@@ -20,9 +21,13 @@ func ApplyBuild() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "apply-build [flags]",
+		Use:   "applybuild [flags]",
 		Short: "Apply and build",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if cfg.filename == "" {
+				return fmt.Errorf("-f (--filename) is required")
+			}
+
 			tarball, err := client.PrepareImageTarball(cfg.build)
 			if err != nil {
 				return err
