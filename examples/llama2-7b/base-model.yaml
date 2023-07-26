@@ -1,0 +1,14 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: llama-2-7b
+spec:
+  image:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-loader-huggingface
+      branch: hf-token
+        #name: substratusai/model-loader-huggingface:hf-token
+  params:
+    name: meta-llama/Llama-2-7b
+    hugging_face_hub_token: hf_supersecrettokenincleartext
