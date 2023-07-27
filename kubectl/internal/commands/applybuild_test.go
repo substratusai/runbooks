@@ -19,10 +19,8 @@ import (
 func TestApplyBuild(t *testing.T) {
 	cmd := commands.ApplyBuild()
 	cmd.SetArgs([]string{
-		// TODO: Avoid using the same notebook as other tests to avoid
-		// collisions.
-		"--filename", "../../../examples/notebook/notebook.yaml",
-		"--build", "../../../examples/notebook",
+		"--filename", "./test-applybuild/notebook.yaml",
+		"--build", "./test-applybuild",
 		"--kubeconfig", kubectlKubeconfigPath,
 		//"-v=9",
 	})
@@ -49,7 +47,7 @@ func TestApplyBuild(t *testing.T) {
 
 	nb := &apiv1.Notebook{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "example",
+			Name:      "test-applybuild",
 			Namespace: "default",
 		},
 	}
@@ -59,7 +57,7 @@ func TestApplyBuild(t *testing.T) {
 	}, timeout, interval, "waiting for the notebook to be created")
 
 	// Need to figure out the md4 checksum of the tarball.
-	tarball, err := client.PrepareImageTarball("../../../examples/notebook")
+	tarball, err := client.PrepareImageTarball("./test-applybuild")
 	require.NoError(t, err)
 
 	nb.Status.Image = apiv1.ImageStatus{

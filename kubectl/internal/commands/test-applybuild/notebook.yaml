@@ -1,0 +1,10 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: test-applybuild
+spec:
+  image:
+    name: substratusai/base:latest
+  params:
+    foo: bar
+    x: 123
