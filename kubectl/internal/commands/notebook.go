@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/client"
@@ -104,7 +105,7 @@ func Notebook() *cobra.Command {
 		Use:   "notebook [flags] <name>",
 		Short: "Start a Jupyter Notebook development environment",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(cmd.Context())
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -128,6 +129,7 @@ func Notebook() *cobra.Command {
 				defer os.Remove(tarball.TempDir)
 
 				spin.Stop()
+				fmt.Println("Building: Prepared")
 			}
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
@@ -199,17 +201,18 @@ func Notebook() *cobra.Command {
 				}
 
 				spin.Stop()
+				fmt.Println("Building: Uploaded")
 			}
 
 			spin.Suffix = " Waiting for Notebook to be ready..."
 			spin.Start()
 
 			waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, cfg.timeout)
+			defer cancelWaitReady() // Avoid context leak.
 			if err := notebooks.WaitReady(waitReadyCtx, nb); err != nil {
 				//cleanup()
 				return err
 			}
-			cancelWaitReady() // Avoid context leak.
 
 			spin.Stop()
 			fmt.Println("Notebook: Ready")
@@ -222,14 +225,11 @@ func Notebook() *cobra.Command {
 				defer wg.Done()
 
 				first := true
-
 				for {
-					portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
-					defer cancelPortFwd() // Avoid a context leak
 					runtime.ErrorHandlers = []func(err error){
 						func(err error) {
 							fmt.Println("Port forward error:", err)
-							cancelPortFwd()
+							cancel()
 						},
 					}
 
@@ -243,14 +243,9 @@ func Notebook() *cobra.Command {
 						ready = make(chan struct{})
 					}
 
-					if err := c.PortForwardNotebook(portFwdCtx, false, nb, ready); err != nil {
-						//if errors.Is(err, context.Canceled) {
-						//	fmt.Println("Serve: stopping: context was cancelled")
-						//	return
-						//} else {
+					if err := c.PortForwardNotebook(ctx, false, nb, ready); err != nil {
 						fmt.Println("Serve: returned an error: ", err)
 						return
-						//}
 					}
 
 					if err := ctx.Err(); err != nil {
@@ -259,16 +254,29 @@ func Notebook() *cobra.Command {
 					}
 
 					fmt.Println("Restarting port forward")
-					cancelPortFwd() // Avoid a context leak
 					first = false
 				}
 			}()
 
 			spin.Suffix = " Waiting for connection to be ready to serve..."
 			spin.Start()
-			<-serveReady
+			select {
+			case <-serveReady:
+			case <-ctx.Done():
+				spin.Stop()
+				return ctx.Err()
+			}
 			spin.Stop()
 			fmt.Println("Connection: Ready")
+
+			// TODO(nstogner): Grab token from Notebook status.
+			url := "http://localhost:8888?token=default"
+			if !cfg.noOpenBrowser {
+				fmt.Printf("Browser: opening: %s\n", url)
+				browser.OpenURL(url)
+			} else {
+				fmt.Printf("Browser: open to: %s\n", url)
+			}
 
 			wg.Wait()
 

@@ -35,10 +35,9 @@ func (c *Client) PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv
 		return err
 	}
 
-	// TODO: Remove hardcoding.
+	// TODO: Use an available local port, or allow it to be overridden.
 	localPort, podPort := 8888, 8888
 
-	// TODO: Add retry on broken connections.
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
 
 	var stdout, stderr io.Writer

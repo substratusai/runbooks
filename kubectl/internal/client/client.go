@@ -26,6 +26,13 @@ func init() {
 	apiv1.AddToScheme(scheme.Scheme)
 }
 
+var _ Interface = &Client{}
+
+type Interface interface {
+	PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error
+	Resource(obj Object) (*Resource, error)
+}
+
 type Client struct {
 	kubernetes.Interface
 	Config *rest.Config

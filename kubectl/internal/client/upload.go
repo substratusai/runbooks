@@ -259,6 +259,6 @@ func uploadTarball(tarball *Tarball, url string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %d", resp.StatusCode)
 	}
-	fmt.Println("successfully uploaded tarball")
+	klog.Info("successfully uploaded tarball")
 	return nil
 }

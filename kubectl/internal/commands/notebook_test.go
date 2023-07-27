@@ -1,31 +1,37 @@
 package commands_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/client"
 	"github.com/substratusai/substratus/kubectl/internal/commands"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestApplyBuild(t *testing.T) {
-	cmd := commands.ApplyBuild()
+func TestNotebook(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := commands.Notebook()
 	cmd.SetArgs([]string{
 		// TODO: Avoid using the same notebook as other tests to avoid
 		// collisions.
 		"--filename", "../../../examples/notebook/notebook.yaml",
 		"--build", "../../../examples/notebook",
 		"--kubeconfig", kubectlKubeconfigPath,
+		"--no-open-browser",
 		//"-v=9",
 	})
+	cmd.SetContext(ctx)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -73,6 +79,16 @@ func TestApplyBuild(t *testing.T) {
 		assert.Equal(t, "/some-signed-url", uploadedPath)
 		uploadedPathMtx.Unlock()
 	}, timeout, interval, "waiting for command to upload the tarball")
+
+	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Namespace: nb.Namespace, Name: nb.Name}, nb))
+	nb.Status.Ready = true
+	require.NoError(t, k8sClient.Status().Update(ctx, nb))
+
+	// TODO: How should the port-forwarding be tested?
+
+	time.Sleep(time.Second * 5)
+	t.Logf("Killing command")
+	cancel()
 
 	t.Log("wait group waiting")
 	wg.Wait()
