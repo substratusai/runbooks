@@ -88,6 +88,10 @@ func TestNotebook(t *testing.T) {
 	t.Logf("Killing command")
 	cancel()
 
-	t.Log("wait group waiting")
+	t.Log("Test wait group waiting")
 	wg.Wait()
+
+	// Use context.Background() because the original context is cancelled.
+	require.NoError(t, k8sClient.Get(context.Background(), types.NamespacedName{Namespace: nb.Namespace, Name: nb.Name}, nb))
+	require.True(t, nb.Spec.Suspend, "Make sure cleanup ran")
 }

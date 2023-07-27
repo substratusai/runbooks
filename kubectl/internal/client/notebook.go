@@ -62,7 +62,6 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 		APIVersion: "substratus.ai/v1",
 		Kind:       "Notebook",
 	}
-	nb.Spec.Suspend = false
 
 	return nb, nil
 }

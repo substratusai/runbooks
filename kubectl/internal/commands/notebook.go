@@ -129,7 +129,7 @@ func Notebook() *cobra.Command {
 				defer os.Remove(tarball.TempDir)
 
 				spin.Stop()
-				fmt.Fprintln(Stdout, "Building: Prepared")
+				fmt.Fprintln(NotebookStdout, "Building: Prepared")
 			}
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
@@ -181,6 +181,7 @@ func Notebook() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("notebook for object: %w", err)
 			}
+			nb.Spec.Suspend = false
 
 			if cfg.build != "" {
 				if err := client.SetUploadContainerSpec(nb, tarball); err != nil {
@@ -192,6 +193,30 @@ func Notebook() *cobra.Command {
 				return err
 			}
 
+			var wg sync.WaitGroup
+			defer func() {
+				fmt.Fprintln(NotebookStdout, "Waiting to shutdown")
+				wg.Wait()
+			}()
+
+			wg.Add(1)
+			cleanup := func() {
+				defer wg.Done()
+				// Use a new context to avoid using the cancelled one.
+				//ctx := context.Background()
+
+				// Suspend notebook.
+				spin.Suffix = " Cleanup: Suspending notebook..."
+				spin.Start()
+				nb.Spec.Suspend = true
+				if err := notebooks.Apply(nb); err != nil {
+					fmt.Fprintf(NotebookStdout, "Cleanup: Error suspending notebook: %v\n", err)
+				}
+				spin.Stop()
+				fmt.Fprintln(NotebookStdout, "Cleanup: Suspended")
+			}
+			defer cleanup()
+
 			if cfg.build != "" {
 				spin.Suffix = " Building: Uploading tarball..."
 				spin.Start()
@@ -201,7 +226,7 @@ func Notebook() *cobra.Command {
 				}
 
 				spin.Stop()
-				fmt.Fprintln(Stdout, "Building: Uploaded")
+				fmt.Fprintln(NotebookStdout, "Building: Uploaded")
 			}
 
 			spin.Suffix = " Waiting for Notebook to be ready..."
@@ -215,9 +240,7 @@ func Notebook() *cobra.Command {
 			}
 
 			spin.Stop()
-			fmt.Fprintln(Stdout, "Notebook: Ready")
-
-			var wg sync.WaitGroup
+			fmt.Fprintln(NotebookStdout, "Notebook: Ready")
 
 			serveReady := make(chan struct{})
 			wg.Add(1)
@@ -228,7 +251,7 @@ func Notebook() *cobra.Command {
 				for {
 					runtime.ErrorHandlers = []func(err error){
 						func(err error) {
-							fmt.Fprintln(Stdout, "Port forward error:", err)
+							fmt.Fprintln(NotebookStdout, "Port forward error:", err)
 							cancel()
 						},
 					}
@@ -244,16 +267,16 @@ func Notebook() *cobra.Command {
 					}
 
 					if err := c.PortForwardNotebook(ctx, false, nb, ready); err != nil {
-						fmt.Fprintln(Stdout, "Serve: returned an error: ", err)
+						fmt.Fprintln(NotebookStdout, "Serve: returned an error: ", err)
 						return
 					}
 
 					if err := ctx.Err(); err != nil {
-						fmt.Fprintln(Stdout, "Serve: stopping:", err.Error())
+						fmt.Fprintln(NotebookStdout, "Serve: stopping:", err.Error())
 						return
 					}
 
-					fmt.Fprintln(Stdout, "Restarting port forward")
+					fmt.Fprintln(NotebookStdout, "Restarting port forward")
 					first = false
 				}
 			}()
@@ -267,18 +290,16 @@ func Notebook() *cobra.Command {
 				return ctx.Err()
 			}
 			spin.Stop()
-			fmt.Fprintln(Stdout, "Connection: Ready")
+			fmt.Fprintln(NotebookStdout, "Connection: Ready")
 
 			// TODO(nstogner): Grab token from Notebook status.
 			url := "http://localhost:8888?token=default"
 			if !cfg.noOpenBrowser {
-				fmt.Fprintf(Stdout, "Browser: opening: %s\n", url)
+				fmt.Fprintf(NotebookStdout, "Browser: opening: %s\n", url)
 				browser.OpenURL(url)
 			} else {
-				fmt.Fprintf(Stdout, "Browser: open to: %s\n", url)
+				fmt.Fprintf(NotebookStdout, "Browser: open to: %s\n", url)
 			}
-
-			wg.Wait()
 
 			return nil
 		},

@@ -42,7 +42,7 @@ var (
 
 func TestMain(m *testing.M) {
 	commands.NewClient = newClientWithMockPortForward
-	commands.Stdout = &stdout
+	commands.NotebookStdout = &stdout
 
 	//var buf bytes.Buffer
 	logf.SetLogger(zap.New(
@@ -104,6 +104,12 @@ func TestMain(m *testing.M) {
 	cancel()
 	log.Println("stopping test environment")
 	requireNoError(testEnv.Stop())
+
+	fmt.Printf(`
+======== Command Stdout ========
+%s
+================================
+`, stdout.String())
 
 	os.Exit(code)
 }
