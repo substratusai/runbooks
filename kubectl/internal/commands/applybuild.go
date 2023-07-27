@@ -22,7 +22,7 @@ func ApplyBuild() *cobra.Command {
 
 	var cmd = &cobra.Command{
 		Use:   "applybuild [flags]",
-		Short: "Apply and build",
+		Short: "Apply a Substratus object, upload and build container in-cluster from a local directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfg.filename == "" {
 				return fmt.Errorf("-f (--filename) is required")
