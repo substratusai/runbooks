@@ -58,7 +58,7 @@ func ApplyBuild() *cobra.Command {
 				obj.SetNamespace("default")
 			}
 
-			c := &client.Client{Interface: clientset, Config: restConfig}
+			c := NewClient(clientset, restConfig)
 			r, err := c.Resource(obj)
 			if err != nil {
 				return err

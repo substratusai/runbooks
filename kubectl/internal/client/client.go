@@ -33,6 +33,10 @@ type Interface interface {
 	Resource(obj Object) (*Resource, error)
 }
 
+func NewClient(inf kubernetes.Interface, cfg *rest.Config) Interface {
+	return &Client{Interface: inf, Config: cfg}
+}
+
 type Client struct {
 	kubernetes.Interface
 	Config *rest.Config

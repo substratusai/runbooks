@@ -129,7 +129,7 @@ func Notebook() *cobra.Command {
 				defer os.Remove(tarball.TempDir)
 
 				spin.Stop()
-				fmt.Println("Building: Prepared")
+				fmt.Fprintln(Stdout, "Building: Prepared")
 			}
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
@@ -142,7 +142,7 @@ func Notebook() *cobra.Command {
 				return err
 			}
 
-			c := &client.Client{Interface: clientset, Config: restConfig}
+			c := NewClient(clientset, restConfig)
 			notebooks, err := c.Resource(&apiv1.Notebook{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "substratus.ai/v1",
@@ -201,7 +201,7 @@ func Notebook() *cobra.Command {
 				}
 
 				spin.Stop()
-				fmt.Println("Building: Uploaded")
+				fmt.Fprintln(Stdout, "Building: Uploaded")
 			}
 
 			spin.Suffix = " Waiting for Notebook to be ready..."
@@ -215,7 +215,7 @@ func Notebook() *cobra.Command {
 			}
 
 			spin.Stop()
-			fmt.Println("Notebook: Ready")
+			fmt.Fprintln(Stdout, "Notebook: Ready")
 
 			var wg sync.WaitGroup
 
@@ -228,7 +228,7 @@ func Notebook() *cobra.Command {
 				for {
 					runtime.ErrorHandlers = []func(err error){
 						func(err error) {
-							fmt.Println("Port forward error:", err)
+							fmt.Fprintln(Stdout, "Port forward error:", err)
 							cancel()
 						},
 					}
@@ -244,16 +244,16 @@ func Notebook() *cobra.Command {
 					}
 
 					if err := c.PortForwardNotebook(ctx, false, nb, ready); err != nil {
-						fmt.Println("Serve: returned an error: ", err)
+						fmt.Fprintln(Stdout, "Serve: returned an error: ", err)
 						return
 					}
 
 					if err := ctx.Err(); err != nil {
-						fmt.Println("Serve: stopping:", err.Error())
+						fmt.Fprintln(Stdout, "Serve: stopping:", err.Error())
 						return
 					}
 
-					fmt.Println("Restarting port forward")
+					fmt.Fprintln(Stdout, "Restarting port forward")
 					first = false
 				}
 			}()
@@ -267,15 +267,15 @@ func Notebook() *cobra.Command {
 				return ctx.Err()
 			}
 			spin.Stop()
-			fmt.Println("Connection: Ready")
+			fmt.Fprintln(Stdout, "Connection: Ready")
 
 			// TODO(nstogner): Grab token from Notebook status.
 			url := "http://localhost:8888?token=default"
 			if !cfg.noOpenBrowser {
-				fmt.Printf("Browser: opening: %s\n", url)
+				fmt.Fprintf(Stdout, "Browser: opening: %s\n", url)
 				browser.OpenURL(url)
 			} else {
-				fmt.Printf("Browser: open to: %s\n", url)
+				fmt.Fprintf(Stdout, "Browser: open to: %s\n", url)
 			}
 
 			wg.Wait()

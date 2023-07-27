@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,9 +83,10 @@ func TestNotebook(t *testing.T) {
 	nb.Status.Ready = true
 	require.NoError(t, k8sClient.Status().Update(ctx, nb))
 
-	// TODO: How should the port-forwarding be tested?
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Contains(t, stdout.String(), "Browser:")
+	}, timeout, interval, "waiting for command to indicate a browser should be opened")
 
-	time.Sleep(time.Second * 5)
 	t.Logf("Killing command")
 	cancel()
 
