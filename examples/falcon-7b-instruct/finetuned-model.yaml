@@ -4,13 +4,14 @@ metadata:
   name: falcon-7b-instruct-k8s
 spec:
   image:
-    name: substratusai/model-trainer-huggingface
+    name: substratusai/model-trainer-huggingface:pr-16
   baseModel:
     name: falcon-7b-instruct
   trainingDataset:
     name: k8s-instructions
   params:
-    epochs: 1
+    # num_train_epochs: 1
+    max_steps: 5
   resources:
     gpu:
       count: 4
