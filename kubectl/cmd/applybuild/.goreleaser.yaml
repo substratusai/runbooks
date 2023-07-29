@@ -1,4 +1,4 @@
-project_name: kubectl-open-notebook
+project_name: kubectl-applybuild
 before:
   hooks:
     - go mod tidy
@@ -6,7 +6,7 @@ before:
 release:
   prerelease: "true"
 builds:
-  - main: ./kubectl/open-notebook/
+  - main: ./kubectl/cmd/applybuild/
     env:
       - CGO_ENABLED=0
     goos:

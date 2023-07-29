@@ -1,4 +1,4 @@
-project_name: kubectl-build-remote
+project_name: kubectl-notebook
 before:
   hooks:
     - go mod tidy
@@ -6,7 +6,7 @@ before:
 release:
   prerelease: "true"
 builds:
-  - main: ./kubectl/build-remote/
+  - main: ./kubectl/cmd/notebook/
     env:
       - CGO_ENABLED=0
     goos:
