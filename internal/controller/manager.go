@@ -27,7 +27,7 @@ func SetupIndexes(mgr manager.Manager) error {
 		}
 		return []string{notebook.Spec.Model.Name}
 	}); err != nil {
-		return fmt.Errorf("Notebook: %w", err)
+		return fmt.Errorf("notebook: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Notebook{}, notebookDatasetIndex, func(rawObj client.Object) []string {
@@ -37,7 +37,7 @@ func SetupIndexes(mgr manager.Manager) error {
 		}
 		return []string{notebook.Spec.Dataset.Name}
 	}); err != nil {
-		return fmt.Errorf("Notebook: %w", err)
+		return fmt.Errorf("notebook: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelBaseModelIndex, func(rawObj client.Object) []string {
@@ -47,7 +47,7 @@ func SetupIndexes(mgr manager.Manager) error {
 		}
 		return []string{model.Spec.BaseModel.Name}
 	}); err != nil {
-		return fmt.Errorf("Model: %w", err)
+		return fmt.Errorf("model: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelTrainingDatasetIndex, func(rawObj client.Object) []string {
@@ -57,14 +57,14 @@ func SetupIndexes(mgr manager.Manager) error {
 		}
 		return []string{model.Spec.TrainingDataset.Name}
 	}); err != nil {
-		return fmt.Errorf("Model: %w", err)
+		return fmt.Errorf("model: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Server{}, modelServerModelIndex, func(rawObj client.Object) []string {
 		server := rawObj.(*apiv1.Server)
 		return []string{server.Spec.Model.Name}
 	}); err != nil {
-		return fmt.Errorf("Server: %w", err)
+		return fmt.Errorf("server: %w", err)
 	}
 
 	return nil

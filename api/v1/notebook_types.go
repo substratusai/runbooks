@@ -11,7 +11,8 @@ type NotebookSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Suspend should be set to true to stop the notebook (Pod) from running.
-	Suspend bool `json:"suspend,omitempty"`
+	// This is a pointer to distinguish between explicit false and not specified.
+	Suspend *bool `json:"suspend,omitempty"`
 
 	// Image that contains notebook and dependencies.
 	Image Image `json:"image"`
@@ -55,6 +56,10 @@ func (n *Notebook) SetStatusImage(us ImageStatus) {
 
 func (n *Notebook) GetStatusImage() ImageStatus {
 	return n.Status.Image
+}
+
+func (n *Notebook) IsSuspended() bool {
+	return n.Spec.Suspend != nil && *n.Spec.Suspend
 }
 
 // NotebookStatus defines the observed state of Notebook

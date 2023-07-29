@@ -424,6 +424,11 @@ func (in *NotebookSpec) DeepCopyInto(out *NotebookSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Suspend != nil {
+		in, out := &in.Suspend, &out.Suspend
+		*out = new(bool)
+		**out = **in
+	}
 	in.Image.DeepCopyInto(&out.Image)
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources

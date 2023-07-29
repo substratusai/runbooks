@@ -67,12 +67,12 @@ spec:
                       be built within the cluster. Built image will be set in the
                       Image field.
                     properties:
-                      branch:
-                        description: Branch is the git branch to use.
-                        type: string
                       path:
                         description: Path within the git repository referenced by
                           url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use.
                         type: string
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'

@@ -1,11 +1,11 @@
 package v1
 
 type Image struct {
+	// Name of container image (example: "docker.io/your-username/your-image").
+	Name string `json:"name,omitempty"`
 	// Git is a reference to a git repository that will be built within the cluster.
 	// Built image will be set in the Image field.
 	Git *ImageGit `json:"git,omitempty"`
-	// Name of container image (example: "docker.io/your-username/your-image").
-	Name string `json:"name,omitempty"`
 	// Upload is a signal that a local tar of the directory should be uploaded to be built as an image.
 	Upload *ImageUpload `json:"upload,omitempty"`
 }
@@ -34,8 +34,8 @@ type ImageGit struct {
 	URL string `json:"url"`
 	// Path within the git repository referenced by url.
 	Path string `json:"path,omitempty"`
-	// Branch is the git branch to use.
-	Branch string `json:"branch,omitempty"`
+	// Tag is the git tag to use.
+	Tag string `json:"tag,omitempty"`
 }
 
 type ObjectRef struct {

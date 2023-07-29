@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -180,7 +180,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		Status:             metav1.ConditionFalse,
 		Reason:             apiv1.ReasonJobNotComplete,
 		ObservedGeneration: model.Generation,
-		Message:            fmt.Sprintf("Waiting for modeller Job to complete"),
+		Message:            "Waiting for modeller Job to complete",
 	})
 	if err := r.Status().Update(ctx, model); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
@@ -282,7 +282,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 			Namespace: model.Namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.Int32(1),
+			BackoffLimit: ptr.To(int32(1)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -291,7 +291,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: ptr.Int64(3003),
+						FSGroup: ptr.To(int64(3003)),
 					},
 					ServiceAccountName: modellerServiceAccountName,
 					Containers: []corev1.Container{

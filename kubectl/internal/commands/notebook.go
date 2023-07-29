@@ -16,10 +16,12 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 /*
@@ -92,13 +94,15 @@ kubectl notebook -b -n default my-nb-name
 
 func Notebook() *cobra.Command {
 	var cfg struct {
-		build         string
-		kubeconfig    string
-		filename      string
-		namespace     string
-		noOpenBrowser bool
-		sync          bool
-		timeout       time.Duration
+		build          string
+		kubeconfig     string
+		filename       string
+		namespace      string
+		noOpenBrowser  bool
+		sync           bool
+		forceConflicts bool
+		noSuspend      bool
+		timeout        time.Duration
 	}
 
 	var cmd = &cobra.Command{
@@ -181,7 +185,7 @@ func Notebook() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("notebook for object: %w", err)
 			}
-			nb.Spec.Suspend = false
+			nb.Spec.Suspend = ptr.To(false)
 
 			if cfg.build != "" {
 				if err := client.SetUploadContainerSpec(nb, tarball); err != nil {
@@ -189,31 +193,24 @@ func Notebook() *cobra.Command {
 				}
 			}
 
-			if err := notebooks.Apply(nb); err != nil {
+			if err := notebooks.Apply(nb, cfg.forceConflicts); err != nil {
 				return err
 			}
 
-			var wg sync.WaitGroup
-			defer func() {
-				fmt.Fprintln(NotebookStdout, "Waiting to shutdown")
-				wg.Wait()
-			}()
-
-			wg.Add(1)
 			cleanup := func() {
-				defer wg.Done()
 				// Use a new context to avoid using the cancelled one.
 				//ctx := context.Background()
 
-				// Suspend notebook.
-				spin.Suffix = " Cleanup: Suspending notebook..."
-				spin.Start()
-				nb.Spec.Suspend = true
-				if err := notebooks.Apply(nb); err != nil {
-					fmt.Fprintf(NotebookStdout, "Cleanup: Error suspending notebook: %v\n", err)
+				if !cfg.noSuspend {
+					// Suspend notebook.
+					spin.Suffix = " Cleanup: Suspending notebook..."
+					spin.Start()
+					if _, err := notebooks.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{}); err != nil {
+						fmt.Fprintf(NotebookStdout, "Cleanup: Error suspending notebook: %v\n", err)
+					}
+					spin.Stop()
+					fmt.Fprintln(NotebookStdout, "Cleanup: Suspended")
 				}
-				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Cleanup: Suspended")
 			}
 			defer cleanup()
 
@@ -221,7 +218,7 @@ func Notebook() *cobra.Command {
 				spin.Suffix = " Building: Uploading tarball..."
 				spin.Start()
 
-				if err := notebooks.Upload(nb, tarball); err != nil {
+				if err := notebooks.Upload(ctx, nb, tarball); err != nil {
 					return err
 				}
 
@@ -242,6 +239,8 @@ func Notebook() *cobra.Command {
 			spin.Stop()
 			fmt.Fprintln(NotebookStdout, "Notebook: Ready")
 
+			var wg sync.WaitGroup
+
 			serveReady := make(chan struct{})
 			wg.Add(1)
 			go func() {
@@ -249,10 +248,13 @@ func Notebook() *cobra.Command {
 
 				first := true
 				for {
+					portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
+					defer cancelPortFwd() // Avoid a context leak
 					runtime.ErrorHandlers = []func(err error){
 						func(err error) {
-							fmt.Fprintln(NotebookStdout, "Port forward error:", err)
-							cancel()
+							// Cancel a broken port forward to attempt to restart the port-forward.
+							klog.Errorf("Port-forward error: %v", err)
+							cancelPortFwd()
 						},
 					}
 
@@ -266,17 +268,20 @@ func Notebook() *cobra.Command {
 						ready = make(chan struct{})
 					}
 
-					if err := c.PortForwardNotebook(ctx, false, nb, ready); err != nil {
-						fmt.Fprintln(NotebookStdout, "Serve: returned an error: ", err)
+					if err := c.PortForwardNotebook(portFwdCtx, true, nb, ready); err != nil {
+						klog.Errorf("Port-forward returned an error: %v", err)
 						return
 					}
 
+					// Check if the command's context is cancelled, if so,
+					// avoid restarting the port forward.
 					if err := ctx.Err(); err != nil {
-						fmt.Fprintln(NotebookStdout, "Serve: stopping:", err.Error())
+						klog.V(1).Infof("Context done, not attempting to restart port-forward: %v", err.Error())
 						return
 					}
 
-					fmt.Fprintln(NotebookStdout, "Restarting port forward")
+					cancelPortFwd() // Avoid a build up of contexts before returning.
+					klog.V(1).Info("Restarting port forward")
 					first = false
 				}
 			}()
@@ -286,8 +291,7 @@ func Notebook() *cobra.Command {
 			select {
 			case <-serveReady:
 			case <-ctx.Done():
-				spin.Stop()
-				return ctx.Err()
+				return fmt.Errorf("context done while waiting on connection to be ready: %w", ctx.Err())
 			}
 			spin.Stop()
 			fmt.Fprintln(NotebookStdout, "Connection: Ready")
@@ -301,6 +305,10 @@ func Notebook() *cobra.Command {
 				fmt.Fprintf(NotebookStdout, "Browser: open to: %s\n", url)
 			}
 
+			klog.V(2).Info("Waiting for routines to complete before exiting")
+			wg.Wait()
+			klog.V(2).Info("Routines completed, exiting")
+
 			return nil
 		},
 	}
@@ -313,7 +321,9 @@ func Notebook() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.build, "build", "b", "", "Build the Notebook from this local directory")
 	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to develop against.")
 	cmd.Flags().StringVarP(&cfg.namespace, "namespace", "n", "default", "Namespace of Notebook")
+	cmd.Flags().BoolVar(&cfg.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
 	cmd.Flags().BoolVar(&cfg.sync, "sync", false, "Sync local directory with Notebook")
+	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
 	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
 

@@ -3,9 +3,11 @@ package client
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +16,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/utils/ptr"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -63,15 +68,15 @@ func SetUploadContainerSpec(obj Object, tb *Tarball) error {
 	return setContainerUpload(obj, tb.MD5Checksum)
 }
 
-func (r *Resource) Apply(obj Object) error {
-	applyManifest, err := Encode(obj)
+func (r *Resource) Apply(obj Object, force bool) error {
+	applyManifest, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
 
 	// Server-side apply.
 	if _, err := r.Patch(obj.GetNamespace(), obj.GetName(), types.ApplyPatchType, applyManifest, &metav1.PatchOptions{
-		FieldManager: FieldManager,
+		Force: ptr.To(force),
 	}); err != nil {
 		return err
 	}
@@ -79,8 +84,18 @@ func (r *Resource) Apply(obj Object) error {
 	return nil
 }
 
-func (r *Resource) Upload(obj Object, tb *Tarball) error {
-	watcher, err := r.Watch(obj.GetNamespace(), obj.GetName(), &metav1.ListOptions{})
+func (r *Resource) Upload(ctx context.Context, obj Object, tb *Tarball) error {
+	// NOTE: The r.Helper.WatchSingle() method does not support passing a context, calling the code
+	// below instead (it was pulled from the Helper implementation).
+	watcher, err := r.RESTClient.Get().
+		NamespaceIfScoped(obj.GetNamespace(), r.NamespaceScoped).
+		Resource(r.Resource).
+		VersionedParams(&metav1.ListOptions{
+			ResourceVersion: obj.GetResourceVersion(),
+			Watch:           true,
+			FieldSelector:   fields.OneTermEqualSelector("metadata.name", obj.GetName()).String(),
+		}, metav1.ParameterCodec).
+		Watch(ctx)
 	if err != nil {
 		return err
 	}
@@ -131,7 +146,6 @@ func setContainerUpload(obj Object, md5 string) error {
 
 	img := imgObj.GetImage()
 	img.Git = nil
-	img.Name = ""
 	img.Upload = &apiv1.ImageUpload{
 		Md5Checksum: md5,
 	}
@@ -240,7 +254,7 @@ func uploadTarball(tarball *Tarball, url string) error {
 	}
 	defer file.Close()
 
-	klog.Infof("uploading tarball to: %s", url)
+	klog.V(2).Infof("uploading tarball to: %s", url)
 	req, err := http.NewRequest(http.MethodPut, url, file)
 	if err != nil {
 		return fmt.Errorf("tar upload: %w", err)
@@ -259,6 +273,6 @@ func uploadTarball(tarball *Tarball, url string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %d", resp.StatusCode)
 	}
-	klog.Info("successfully uploaded tarball")
+	klog.V(1).Info("successfully uploaded tarball")
 	return nil
 }

@@ -57,7 +57,10 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 		return nil, fmt.Errorf("unknown object type: %T", obj)
 	}
 
+	// "This field is managed by the API server and should not be changed by the user."
+	// https://kubernetes.io/docs/reference/using-api/server-side-apply/#field-management
 	nb.ObjectMeta.ManagedFields = nil
+
 	nb.TypeMeta = metav1.TypeMeta{
 		APIVersion: "substratus.ai/v1",
 		Kind:       "Notebook",

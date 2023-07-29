@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -105,7 +105,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		Status:             metav1.ConditionFalse,
 		Reason:             apiv1.ReasonJobNotComplete,
 		ObservedGeneration: dataset.Generation,
-		Message:            fmt.Sprintf("Waiting for data loader Job to complete"),
+		Message:            "Waiting for data loader Job to complete",
 	})
 	if err := r.Status().Update(ctx, dataset); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
@@ -147,7 +147,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: ptr.Int64(3003),
+						FSGroup: ptr.To(int64(3003)),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{

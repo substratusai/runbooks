@@ -8,3 +8,4 @@ spec:
   params:
     foo: bar
     x: 123
+  suspend: false

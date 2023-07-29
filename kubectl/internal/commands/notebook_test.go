@@ -93,5 +93,5 @@ func TestNotebook(t *testing.T) {
 
 	// Use context.Background() because the original context is cancelled.
 	require.NoError(t, k8sClient.Get(context.Background(), types.NamespacedName{Namespace: nb.Namespace, Name: nb.Name}, nb))
-	require.True(t, nb.Spec.Suspend, "Make sure cleanup ran")
+	require.True(t, nb.IsSuspended(), "Make sure cleanup ran")
 }

@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -128,7 +127,7 @@ func (r *NotebookReconciler) findNotebooksForDataset(ctx context.Context, obj cl
 func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *apiv1.Notebook) (result, error) {
 	log := log.FromContext(ctx)
 
-	if notebook.Spec.Suspend {
+	if notebook.IsSuspended() {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 			Type:               apiv1.ConditionDeployed,
@@ -403,35 +402,35 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	return pod, nil
 }
 
-func notebookPVCName(nb *apiv1.Notebook) string {
-	return nb.Name + "-notebook"
-}
+//func notebookPVCName(nb *apiv1.Notebook) string {
+//	return nb.Name + "-notebook"
+//}
 
-func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.PersistentVolumeClaim, error) {
-	pvc := &corev1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      notebookPVCName(nb),
-			Namespace: nb.Namespace,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				"ReadWriteOnce",
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					"storage": resource.MustParse("10Gi"),
-				},
-			},
-		},
-	}
-
-	if err := ctrl.SetControllerReference(nb, pvc, r.Scheme); err != nil {
-		return nil, fmt.Errorf("failed to set controller reference: %w", err)
-	}
-
-	return pvc, nil
-}
+//func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.PersistentVolumeClaim, error) {
+//	pvc := &corev1.PersistentVolumeClaim{
+//		TypeMeta: metav1.TypeMeta{
+//			APIVersion: "v1",
+//			Kind:       "PersistentVolumeClaim",
+//		},
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      notebookPVCName(nb),
+//			Namespace: nb.Namespace,
+//		},
+//		Spec: corev1.PersistentVolumeClaimSpec{
+//			AccessModes: []corev1.PersistentVolumeAccessMode{
+//				"ReadWriteOnce",
+//			},
+//			Resources: corev1.ResourceRequirements{
+//				Requests: corev1.ResourceList{
+//					"storage": resource.MustParse("10Gi"),
+//				},
+//			},
+//		},
+//	}
+//
+//	if err := ctrl.SetControllerReference(nb, pvc, r.Scheme); err != nil {
+//		return nil, fmt.Errorf("failed to set controller reference: %w", err)
+//	}
+//
+//	return pvc, nil
+//}

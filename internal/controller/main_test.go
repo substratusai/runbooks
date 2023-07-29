@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,7 +38,6 @@ const (
 )
 
 var (
-	cfg       *rest.Config
 	k8sClient client.Client
 	testEnv   *envtest.Environment
 	ctx       context.Context
@@ -175,15 +171,6 @@ func requireNoError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func slurpTestFile(t *testing.T, filename string) string {
-	_, testFilename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(testFilename)
-	contents, err := ioutil.ReadFile(filepath.Join(dir, "tests", filename))
-	require.NoError(t, err)
-
-	return string(contents)
 }
 
 type testObject interface {

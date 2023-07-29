@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -219,31 +219,6 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 	return result{success: true}, nil
 }
 
-func tiniInitContainer() corev1.Container {
-	const dockerfileWithTini = `
-# Add Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-`
-	return corev1.Container{
-		Name:  "dockerfile-tini-appender",
-		Image: "busybox",
-		Args: []string{
-			"sh",
-			"-c",
-			"echo '" + dockerfileWithTini + "' >> /workspace/Dockerfile",
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "workspace",
-				MountPath: "/workspace",
-			},
-		},
-	}
-}
-
 func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
 	git := obj.GetImage().Git
@@ -269,8 +244,8 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 		"clone",
 		git.URL,
 	}
-	if git.Branch != "" {
-		cloneArgs = append(cloneArgs, "--branch", git.Branch)
+	if git.Tag != "" {
+		cloneArgs = append(cloneArgs, "--branch", git.Tag)
 	}
 	cloneArgs = append(cloneArgs, "/workspace")
 
@@ -320,7 +295,7 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 			Namespace: obj.GetNamespace(),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.Int32(1),
+			BackoffLimit: ptr.To(int32(1)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: annotations,
@@ -328,9 +303,9 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 				Spec: corev1.PodSpec{
 					InitContainers: initContainers,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  ptr.Int64(0),
-						RunAsGroup: ptr.Int64(0),
-						FSGroup:    ptr.Int64(3003),
+						RunAsUser:  ptr.To(int64(0)),
+						RunAsGroup: ptr.To(int64(0)),
+						FSGroup:    ptr.To(int64(3003)),
 					},
 					ServiceAccountName: containerBuilderServiceAccountName,
 					Containers: []corev1.Container{{
@@ -405,7 +380,7 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 			Namespace: obj.GetNamespace(),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.Int32(1),
+			BackoffLimit: ptr.To(int32(1)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: annotations,
@@ -413,9 +388,9 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 				Spec: corev1.PodSpec{
 					InitContainers: initContainers,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsUser:  ptr.Int64(0),
-						RunAsGroup: ptr.Int64(0),
-						FSGroup:    ptr.Int64(3003),
+						RunAsUser:  ptr.To(int64(0)),
+						RunAsGroup: ptr.To(int64(0)),
+						FSGroup:    ptr.To(int64(3003)),
 					},
 					ServiceAccountName: containerBuilderServiceAccountName,
 					Containers: []corev1.Container{{

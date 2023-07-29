@@ -75,6 +75,7 @@ func (c *Client) Resource(obj Object) (*Resource, error) {
 	}
 
 	helper := resource.NewHelper(restClient, mapping)
+	helper.FieldManager = FieldManager
 	//helper.FieldValidation = "Strict"
 
 	// Use the REST helper to create the object in the "default" namespace.
