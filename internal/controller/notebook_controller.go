@@ -28,7 +28,8 @@ type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
+	Cloud cloud.Cloud
+
 	*ParamsReconciler
 }
 
@@ -43,8 +44,9 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &notebook); !result.success {
-		return result.Result, err
+	if notebook.Spec.Image == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.ReconcileParamsConfigMap(ctx, &notebook); !result.success {
@@ -318,7 +320,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			Containers: []corev1.Container{
 				{
 					Name:  containerName,
-					Image: notebook.Spec.Image.Name,
+					Image: notebook.Spec.Image,
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Command: notebook.Spec.Command,

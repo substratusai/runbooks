@@ -46,7 +46,7 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 				Namespace: obj.Namespace,
 			},
 			Spec: apiv1.NotebookSpec{
-				Image: obj.Spec.Image,
+				Build: obj.Spec.Build,
 				Dataset: &apiv1.ObjectRef{
 					Name: obj.Name,
 				},

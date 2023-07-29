@@ -90,61 +90,70 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Model",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Model{} },
+		Kind:      "Model",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.ServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Server",
-		},
+		Cloud:  testCloud,
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Server{} },
+		Kind:      "Server",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Notebook",
-		},
+		Cloud:  testCloud,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Notebook{} },
+		Kind:      "Notebook",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Dataset",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
-
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Dataset{} },
+		Kind:      "Dataset",
+	}).SetupWithManager(mgr)
+	requireNoError(err)
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
@@ -178,7 +187,7 @@ type testObject interface {
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
-	GetImage() *apiv1.Image
+	GetBuild() *apiv1.Build
 }
 
 func testContainerBuild(t *testing.T, obj testObject, kind string) {

@@ -30,7 +30,7 @@ type ServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
+	Cloud cloud.Cloud
 
 	// log should be used outside the context of Reconcile()
 	log logr.Logger
@@ -54,8 +54,9 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &server); !result.success {
-		return result.Result, err
+	if server.Spec.Image == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.reconcileServer(ctx, &server); !result.success {
@@ -136,7 +137,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           server.Spec.Image.Name,
+							Image:           server.Spec.Image,
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.

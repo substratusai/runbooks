@@ -118,13 +118,6 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  cld,
-			SCI:    gc,
-			Kind:   "Model",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -133,31 +126,40 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Model")
 		os.Exit(1)
 	}
+	if err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     cld,
+		SCI:       gc,
+		NewObject: func() controller.BuildableObject { return &apiv1.Model{} },
+		Kind:      "Model",
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ModelBuilder")
+		os.Exit(1)
+	}
 	if err = (&controller.ServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  cld,
-			SCI:    gc,
-			Kind:   "Server",
-		},
+		Cloud:  cld,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
 	}
-
+	if err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     cld,
+		SCI:       gc,
+		NewObject: func() controller.BuildableObject { return &apiv1.Server{} },
+		Kind:      "Server",
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ServerBuilder")
+		os.Exit(1)
+	}
 	if err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  cld,
-			SCI:    gc,
-			Kind:   "Notebook",
-		},
+		Cloud:  cld,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -166,23 +168,38 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Notebook")
 		os.Exit(1)
 	}
+	if err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     cld,
+		SCI:       gc,
+		NewObject: func() controller.BuildableObject { return &apiv1.Notebook{} },
+		Kind:      "Notebook",
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NotebookBuilder")
+		os.Exit(1)
+	}
 	if err = (&controller.DatasetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  cld,
-			SCI:    gc,
-			Kind:   "Dataset",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Dataset")
+		os.Exit(1)
+	}
+	if err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     cld,
+		SCI:       gc,
+		NewObject: func() controller.BuildableObject { return &apiv1.Dataset{} },
+		Kind:      "Dataset",
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DatasetBuilder")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

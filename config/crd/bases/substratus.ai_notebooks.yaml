@@ -45,27 +45,13 @@ spec:
           spec:
             description: Spec is the observed state of the Notebook.
             properties:
-              command:
-                description: Command to run in the container.
-                items:
-                  type: string
-                type: array
-              dataset:
-                description: Dataset to load into the notebook container.
-                properties:
-                  name:
-                    description: Name of Kubernetes object.
-                    type: string
-                required:
-                - name
-                type: object
-              image:
-                description: Image that contains notebook and dependencies.
+              build:
+                description: Build specifies how to build an image.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
                       be built within the cluster. Built image will be set in the
-                      Image field.
+                      .spec.image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
@@ -85,9 +71,7 @@ spec:
                     required:
                     - url
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
+                    x-kubernetes-map-type: atomic
                   upload:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
@@ -100,7 +84,26 @@ spec:
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              dataset:
+                description: Dataset to load into the notebook container.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              image:
+                description: Image that contains notebook and dependencies.
+                type: string
               model:
                 description: Model to load into the notebook container.
                 properties:
@@ -154,12 +157,24 @@ spec:
                   from running. This is a pointer to distinguish between explicit
                   false and not specified.
                 type: boolean
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Notebook.
             properties:
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Notebook.
@@ -230,21 +245,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates that the Notebook is ready to serve.

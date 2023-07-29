@@ -11,7 +11,10 @@ type ModelSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains model code and dependencies.
-	Image Image `json:"image"`
+	Image string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -32,8 +35,19 @@ func (m *Model) GetParams() map[string]intstr.IntOrString {
 	return m.Spec.Params
 }
 
-func (m *Model) GetImage() *Image {
-	return &m.Spec.Image
+func (m *Model) GetBuild() *Build {
+	return m.Spec.Build
+}
+func (m *Model) SetBuild(b *Build) {
+	m.Spec.Build = b
+}
+
+func (m *Model) SetImage(image string) {
+	m.Spec.Image = image
+}
+
+func (m *Model) GetImage() string {
+	return m.Spec.Image
 }
 
 func (m *Model) GetConditions() *[]metav1.Condition {
@@ -52,12 +66,12 @@ func (m *Model) GetStatusArtifacts() ArtifactsStatus {
 	return m.Status.Artifacts
 }
 
-func (m *Model) SetStatusImage(us ImageStatus) {
-	m.Status.Image = us
+func (m *Model) SetStatusBuild(b BuildStatus) {
+	m.Status.Build = b
 }
 
-func (m *Model) GetStatusImage() ImageStatus {
-	return m.Status.Image
+func (m *Model) GetStatusBuild() BuildStatus {
+	return m.Status.Build
 }
 
 // ModelStatus defines the observed state of Model
@@ -72,8 +86,8 @@ type ModelStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// Build contains the status of the image build.
+	Build BuildStatus `json:"build,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

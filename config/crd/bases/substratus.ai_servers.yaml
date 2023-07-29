@@ -42,18 +42,13 @@ spec:
           spec:
             description: Spec is the desired state of the Server.
             properties:
-              command:
-                description: Command to run in the container.
-                items:
-                  type: string
-                type: array
-              image:
-                description: Image that contains model serving application and dependencies.
+              build:
+                description: Build specifies how to build an image.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
                       be built within the cluster. Built image will be set in the
-                      Image field.
+                      .spec.image field.
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
@@ -73,9 +68,7 @@ spec:
                     required:
                     - url
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
+                    x-kubernetes-map-type: atomic
                   upload:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
@@ -88,7 +81,17 @@ spec:
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model serving application and dependencies.
+                type: string
               model:
                 description: Model references the Model object to be served.
                 properties:
@@ -128,12 +131,24 @@ spec:
                     format: int64
                     type: integer
                 type: object
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Server.
             properties:
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Server.
@@ -204,21 +219,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates whether the Server is ready to serve

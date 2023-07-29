@@ -3,8 +3,7 @@ kind: Notebook
 metadata:
   name: test-notebook
 spec:
-  image:
-    name: substratusai/base:latest
+  image: substratusai/base:latest
   params:
     foo: bar
     x: 123

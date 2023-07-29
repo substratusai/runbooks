@@ -25,7 +25,6 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
 	*ParamsReconciler
 
 	Cloud cloud.Cloud
@@ -42,8 +41,9 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &dataset); !result.success {
-		return result.Result, err
+	if dataset.Spec.Image == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.ReconcileParamsConfigMap(ctx, &dataset); !result.success {
@@ -153,7 +153,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					Containers: []corev1.Container{
 						{
 							Name:    containerName,
-							Image:   dataset.Spec.Image.Name,
+							Image:   dataset.Spec.Image,
 							Command: dataset.Spec.Command,
 							Env:     paramsToEnv(dataset.Spec.Params),
 						},

@@ -25,7 +25,7 @@ type Cloud interface {
 
 	// ObjectBuildImageURL returns the URL of the container image that should be used
 	// when Substratus builds a given Object.
-	ObjectBuiltImageURL(ImageObject) string
+	ObjectBuiltImageURL(BuildableObject) string
 
 	// ObjectArtifactURL returns the URL of the artifact that was stored for a given Object.
 	ObjectArtifactURL(Object) *BucketURL
@@ -90,9 +90,11 @@ type MountBucketConfig struct {
 
 type Object = client.Object
 
-type ImageObject interface {
+type BuildableObject interface {
 	client.Object
-	GetImage() *apiv1.Image
+	GetBuild() *apiv1.Build
+	SetImage(string)
+	GetImage() string
 }
 
 type ArtifactObject interface {

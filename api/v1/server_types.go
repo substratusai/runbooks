@@ -10,7 +10,10 @@ type ServerSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains model serving application and dependencies.
-	Image Image `json:"image"`
+	Image string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -28,8 +31,8 @@ type ServerStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Server.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// Build contains the status of the image build.
+	Build BuildStatus `json:"build,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai
@@ -49,8 +52,19 @@ type Server struct {
 	Status ServerStatus `json:"status,omitempty"`
 }
 
-func (s *Server) GetImage() *Image {
-	return &s.Spec.Image
+func (s *Server) GetBuild() *Build {
+	return s.Spec.Build
+}
+func (s *Server) SetBuild(b *Build) {
+	s.Spec.Build = b
+}
+
+func (s *Server) GetImage() string {
+	return s.Spec.Image
+}
+
+func (s *Server) SetImage(image string) {
+	s.Spec.Image = image
 }
 
 func (s *Server) GetConditions() *[]metav1.Condition {
@@ -65,12 +79,12 @@ func (s *Server) SetStatusReady(r bool) {
 	s.Status.Ready = r
 }
 
-func (s *Server) SetStatusImage(us ImageStatus) {
-	s.Status.Image = us
+func (s *Server) SetStatusBuild(b BuildStatus) {
+	s.Status.Build = b
 }
 
-func (s *Server) GetStatusImage() ImageStatus {
-	return s.Status.Image
+func (s *Server) GetStatusBuild() BuildStatus {
+	return s.Status.Build
 }
 
 //+kubebuilder:object:root=true

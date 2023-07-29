@@ -11,7 +11,10 @@ type DatasetSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains dataset loading code and dependencies.
-	Image Image `json:"image"`
+	Image string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -24,8 +27,18 @@ func (d *Dataset) GetParams() map[string]intstr.IntOrString {
 	return d.Spec.Params
 }
 
-func (d *Dataset) GetImage() *Image {
-	return &d.Spec.Image
+func (d *Dataset) GetBuild() *Build {
+	return d.Spec.Build
+}
+func (d *Dataset) SetBuild(b *Build) {
+	d.Spec.Build = b
+}
+
+func (d *Dataset) SetImage(image string) {
+	d.Spec.Image = image
+}
+func (d *Dataset) GetImage() string {
+	return d.Spec.Image
 }
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {
@@ -44,12 +57,12 @@ func (d *Dataset) GetStatusArtifacts() ArtifactsStatus {
 	return d.Status.Artifacts
 }
 
-func (d *Dataset) SetStatusImage(us ImageStatus) {
-	d.Status.Image = us
+func (d *Dataset) SetStatusBuild(us BuildStatus) {
+	d.Status.Build = us
 }
 
-func (d *Dataset) GetStatusImage() ImageStatus {
-	return d.Status.Image
+func (d *Dataset) GetStatusBuild() BuildStatus {
+	return d.Status.Build
 }
 
 // DatasetStatus defines the observed state of Dataset.
@@ -64,8 +77,8 @@ type DatasetStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// Build contains the status of the image build.
+	Build BuildStatus `json:"build,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

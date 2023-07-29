@@ -15,7 +15,10 @@ type NotebookSpec struct {
 	Suspend *bool `json:"suspend,omitempty"`
 
 	// Image that contains notebook and dependencies.
-	Image Image `json:"image"`
+	Image string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -34,8 +37,19 @@ func (n *Notebook) GetParams() map[string]intstr.IntOrString {
 	return n.Spec.Params
 }
 
-func (n *Notebook) GetImage() *Image {
-	return &n.Spec.Image
+func (n *Notebook) GetBuild() *Build {
+	return n.Spec.Build
+}
+func (n *Notebook) SetBuild(b *Build) {
+	n.Spec.Build = b
+}
+
+func (n *Notebook) GetImage() string {
+	return n.Spec.Image
+}
+
+func (n *Notebook) SetImage(image string) {
+	n.Spec.Image = image
 }
 
 func (n *Notebook) GetConditions() *[]metav1.Condition {
@@ -50,12 +64,12 @@ func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
 }
 
-func (n *Notebook) SetStatusImage(us ImageStatus) {
-	n.Status.Image = us
+func (n *Notebook) SetStatusBuild(b BuildStatus) {
+	n.Status.Build = b
 }
 
-func (n *Notebook) GetStatusImage() ImageStatus {
-	return n.Status.Image
+func (n *Notebook) GetStatusBuild() BuildStatus {
+	return n.Status.Build
 }
 
 func (n *Notebook) IsSuspended() bool {
@@ -71,8 +85,8 @@ type NotebookStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// Build contains the status of the image build.
+	Build BuildStatus `json:"build,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

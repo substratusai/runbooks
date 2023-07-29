@@ -14,7 +14,7 @@ type Common struct {
 	RegistryURL       string     `env:"REGISTRY_URL" validate:"required"`
 }
 
-func (c *Common) ObjectBuiltImageURL(obj ImageObject) string {
+func (c *Common) ObjectBuiltImageURL(obj BuildableObject) string {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if kind == "" {
 		// This can be empty if the Go object was not instantiated with the kind field set.
@@ -22,14 +22,16 @@ func (c *Common) ObjectBuiltImageURL(obj ImageObject) string {
 		panic("kind is empty")
 	}
 
+	build := obj.GetBuild()
+
 	tag := "latest"
-	if git := obj.GetImage().Git; git != nil {
+	if git := build.Git; git != nil {
 		if git.Tag != "" {
 			tag = git.Tag
 		} else if git.Branch != "" {
 			tag = git.Branch
 		}
-	} else if upload := obj.GetImage().Upload; upload != nil {
+	} else if upload := build.Upload; upload != nil {
 		tag = upload.Md5Checksum
 	}
 

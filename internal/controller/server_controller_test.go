@@ -22,9 +22,7 @@ func TestServerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Name: "some-image",
-			},
+			Image: "some-image",
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the server")
@@ -39,8 +37,8 @@ func TestServerFromGit(t *testing.T) {
 		},
 		Spec: apiv1.ServerSpec{
 			Command: []string{"serve.sh"},
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					URL: "https://github.com/substratusai/some-server",
 				},
 			},

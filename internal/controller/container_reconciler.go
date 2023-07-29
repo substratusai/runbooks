@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,38 +29,44 @@ import (
 
 const latestUploadPath = "uploads/latest.tar.gz"
 
-type ContainerizedObject interface {
+type BuildableObject interface {
 	client.Object
 
+	GetBuild() *apiv1.Build
+	GetImage() string
+	SetImage(string)
+
 	GetConditions() *[]metav1.Condition
-
 	SetStatusReady(bool)
-
-	GetStatusImage() apiv1.ImageStatus
-	SetStatusImage(apiv1.ImageStatus)
-
-	GetImage() *apiv1.Image
+	GetStatusBuild() apiv1.BuildStatus
+	SetStatusBuild(apiv1.BuildStatus)
 }
 
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
-// ContainerImageReconciler builds container images. It is intended to be called from other top-level reconcilers.
-type ContainerImageReconciler struct {
+// BuildReconciler builds container images.
+type BuildReconciler struct {
 	Scheme *runtime.Scheme
 	Client client.Client
 
-	Kind string
+	Kind      string
+	NewObject func() BuildableObject
 
 	Cloud cloud.Cloud
 	SCI   sci.ControllerClient
 }
 
-func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, obj ContainerizedObject) (result, error) {
+func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	if obj.GetImage().Name != "" {
-		return result{success: true}, nil
+	obj := r.NewObject()
+	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting object: %w", err)
+	}
+
+	if obj.GetImage() != "" {
+		return ctrl.Result{}, nil
 	}
 
 	log.Info("Reconciling container")
@@ -72,23 +79,23 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			Namespace: obj.GetNamespace(),
 		},
 	}); !result.success {
-		return result, err
+		return result.Result, err
 	}
 
 	var buildJob *batchv1.Job
 
-	if specUpload := obj.GetImage().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
-		statusMd5, statusUploadURL := obj.GetStatusImage().Md5Checksum, obj.GetStatusImage().UploadURL
+	if specUpload := obj.GetBuild().Upload; specUpload != nil && specUpload.Md5Checksum != "" {
+		statusMd5, statusUploadURL := obj.GetStatusBuild().Md5Checksum, obj.GetStatusBuild().UploadURL
 
 		// an upload object md5 has been declared and doesn't match the current spec
 		// generate a signed URL
 		if specUpload.Md5Checksum != statusMd5 {
 			url, err := r.generateSignedURL(obj)
 			if err != nil {
-				return result{}, fmt.Errorf("generating upload url: %w", err)
+				return ctrl.Result{}, fmt.Errorf("generating upload url: %w", err)
 			}
 
-			obj.SetStatusImage(apiv1.ImageStatus{
+			obj.SetStatusBuild(apiv1.BuildStatus{
 				UploadURL:   url,
 				Md5Checksum: specUpload.Md5Checksum,
 			})
@@ -100,41 +107,41 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 				Message:            fmt.Sprintf("Waiting for object upload to complete: %v", obj.GetName()),
 			})
 			if err := r.Client.Status().Update(ctx, obj); err != nil {
-				return result{}, fmt.Errorf("updating status: %w", err)
+				return ctrl.Result{}, fmt.Errorf("updating status: %w", err)
 			}
-			return result{}, nil
+			return ctrl.Result{}, nil
 		}
 
 		// if the upload URL has expired, clear it from the status leaving the md5 checksum
 		if statusUploadURL != "" {
 			expirationTime, err := r.getSignedURLExpiration(statusUploadURL)
 			if err != nil {
-				return result{}, fmt.Errorf("getting URL expiration time: %w", err)
+				return ctrl.Result{}, fmt.Errorf("getting URL expiration time: %w", err)
 			}
 
 			if time.Now().After(expirationTime) {
 				log.Info("The signed URL has expired. Clearing status.")
-				obj.SetStatusImage(apiv1.ImageStatus{
+				obj.SetStatusBuild(apiv1.BuildStatus{
 					UploadURL:   "",
 					Md5Checksum: statusMd5,
 				})
 				if err := r.Client.Status().Update(ctx, obj); err != nil {
-					return result{}, fmt.Errorf("updating status: %w", err)
+					return ctrl.Result{}, fmt.Errorf("updating status: %w", err)
 				}
-				return result{}, nil
+				return ctrl.Result{}, nil
 			}
 		}
 
 		// verify the object has been uploaded to storage
 		storageMd5, err := r.storageObjectMd5(obj, r.SCI)
 		if err != nil {
-			return result{}, fmt.Errorf("getting storage object md5: %w", err)
+			return ctrl.Result{}, fmt.Errorf("getting storage object md5: %w", err)
 		}
 
 		// verify the object's md5 matches the spec md5
 		if storageMd5 != specUpload.Md5Checksum {
 			log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
-			return result{}, nil
+			return ctrl.Result{}, nil
 		}
 
 		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
@@ -150,33 +157,33 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		if err != nil {
 			log.Error(err, "unable to construct storage image-builder Job")
 			// No use in retrying...
-			return result{}, nil
+			return ctrl.Result{}, nil
 		}
 	}
 
-	if obj.GetImage().Git != nil {
+	if obj.GetBuild().Git != nil {
 		var err error
 		buildJob, err = r.gitBuildJob(ctx, obj)
 		if err != nil {
 			log.Error(err, "unable to construct git image-builder Job")
 			// No use in retrying...
-			return result{}, nil
+			return ctrl.Result{}, nil
 		}
 	}
 
 	if buildJob.Name == "" {
 		err := errors.New("no build job was created")
 		log.Error(err, "no build job was created")
-		return result{}, nil
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(buildJob), buildJob); err != nil {
 		if apierrors.IsNotFound(err) {
 			if err := r.Client.Create(ctx, buildJob); client.IgnoreAlreadyExists(err) != nil {
-				return result{}, fmt.Errorf("creating builder Job: %w", err)
+				return ctrl.Result{}, fmt.Errorf("creating builder Job: %w", err)
 			}
 		} else {
-			return result{}, fmt.Errorf("getting builder Job: %w", err)
+			return ctrl.Result{}, fmt.Errorf("getting builder Job: %w", err)
 		}
 	}
 
@@ -192,17 +199,16 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 			Message:            fmt.Sprintf("Waiting for builder Job to complete: %v", buildJob.Name),
 		})
 		if err := r.Client.Status().Update(ctx, obj); err != nil {
-			return result{}, fmt.Errorf("updating status: %w", err)
+			return ctrl.Result{}, fmt.Errorf("updating status: %w", err)
 		}
 
 		// Allow Job watch to requeue.
-		return result{}, nil
+		return ctrl.Result{}, nil
 	}
 
-	container := obj.GetImage()
-	container.Name = r.Cloud.ObjectBuiltImageURL(obj)
+	obj.SetImage(r.Cloud.ObjectBuiltImageURL(obj))
 	if err := r.Client.Update(ctx, obj); err != nil {
-		return result{}, fmt.Errorf("updating container image: %w", err)
+		return ctrl.Result{}, fmt.Errorf("updating container image: %w", err)
 	}
 
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
@@ -213,15 +219,22 @@ func (r *ContainerImageReconciler) ReconcileContainerImage(ctx context.Context, 
 		Message:            fmt.Sprintf("Builder Job completed: %v", buildJob.Name),
 	})
 	if err := r.Client.Status().Update(ctx, obj); err != nil {
-		return result{}, fmt.Errorf("updating status: %w", err)
+		return ctrl.Result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	return result{success: true}, nil
+	return ctrl.Result{}, nil
 }
 
-func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
+func (r *BuildReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(r.NewObject()).
+		Owns(&batchv1.Job{}).
+		Complete(r)
+}
+
+func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
-	git := obj.GetImage().Git
+	git := obj.GetBuild().Git
 
 	annotations := map[string]string{}
 
@@ -329,7 +342,7 @@ func (r *ContainerImageReconciler) gitBuildJob(ctx context.Context, obj Containe
 	return job, nil
 }
 
-func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj ContainerizedObject) (*batchv1.Job, error) {
+func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObject) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
 	annotations := map[string]string{}
@@ -414,7 +427,7 @@ func (r *ContainerImageReconciler) storageBuildJob(ctx context.Context, obj Cont
 	return job, nil
 }
 
-func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c sci.ControllerClient) (string, error) {
+func (r *BuildReconciler) storageObjectMd5(obj BuildableObject, c sci.ControllerClient) (string, error) {
 	u := r.Cloud.ObjectArtifactURL(obj)
 
 	req := &sci.GetObjectMd5Request{
@@ -430,14 +443,14 @@ func (r *ContainerImageReconciler) storageObjectMd5(obj ContainerizedObject, c s
 	return resp.Md5Checksum, nil
 }
 
-func (r *ContainerImageReconciler) generateSignedURL(obj ContainerizedObject) (string, error) {
+func (r *BuildReconciler) generateSignedURL(obj BuildableObject) (string, error) {
 	u := r.Cloud.ObjectArtifactURL(obj)
 
 	req := &sci.CreateSignedURLRequest{
 		BucketName:        u.Bucket,
 		ObjectName:        filepath.Join(u.Path, latestUploadPath),
 		ExpirationSeconds: 300,
-		Md5Checksum:       obj.GetImage().Upload.Md5Checksum,
+		Md5Checksum:       obj.GetBuild().Upload.Md5Checksum,
 	}
 
 	resp, err := r.SCI.CreateSignedURL(context.Background(), req)
@@ -448,7 +461,7 @@ func (r *ContainerImageReconciler) generateSignedURL(obj ContainerizedObject) (s
 	return resp.Url, nil
 }
 
-func (r *ContainerImageReconciler) getSignedURLExpiration(signedUrl string) (time.Time, error) {
+func (r *BuildReconciler) getSignedURLExpiration(signedUrl string) (time.Time, error) {
 	u, err := url.Parse(signedUrl)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("parsing signed url: %w", err)

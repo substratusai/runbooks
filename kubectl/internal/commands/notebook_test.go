@@ -65,7 +65,7 @@ func TestNotebook(t *testing.T) {
 	tarball, err := client.PrepareImageTarball("./test-notebook")
 	require.NoError(t, err)
 
-	nb.Status.Image = apiv1.ImageStatus{
+	nb.Status.Build = apiv1.BuildStatus{
 		UploadURL:   mockBucketServer.URL + "/some-signed-url",
 		Md5Checksum: tarball.MD5Checksum,
 	}

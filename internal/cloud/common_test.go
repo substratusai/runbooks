@@ -33,15 +33,15 @@ func TestCommon(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
 		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{},
+			Build: &apiv1.Build{},
 		},
 	}))
 	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model:v1.2.3", common.ObjectBuiltImageURL(&apiv1.Model{
 		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
 		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					Tag: "v1.2.3",
 				},
 			},
@@ -51,8 +51,8 @@ func TestCommon(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
 		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					Branch: "feature-x",
 				},
 			},
@@ -62,8 +62,8 @@ func TestCommon(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
 		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Upload: &apiv1.ImageUpload{
+			Build: &apiv1.Build{
+				Upload: &apiv1.BuildUpload{
 					Md5Checksum: "80355073480594a99470dcacccd8cf2c",
 				},
 			},

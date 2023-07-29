@@ -49,25 +49,25 @@ spec:
           spec:
             description: Spec is the desired state of the Dataset.
             properties:
-              command:
-                description: Command to run in the container.
-                items:
-                  type: string
-                type: array
-              image:
-                description: Image that contains dataset loading code and dependencies.
+              build:
+                description: Build specifies how to build an image.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
                       be built within the cluster. Built image will be set in the
-                      Image field.
+                      .spec.image field.
                     properties:
                       branch:
-                        description: Branch is the git branch to use.
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag.
                         type: string
                       path:
                         description: Path within the git repository referenced by
                           url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch.
                         type: string
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
@@ -75,9 +75,7 @@ spec:
                     required:
                     - url
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
+                    x-kubernetes-map-type: atomic
                   upload:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
@@ -90,7 +88,17 @@ spec:
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains dataset loading code and dependencies.
+                type: string
               params:
                 additionalProperties:
                   anyOf:
@@ -130,8 +138,6 @@ spec:
                     format: int64
                     type: integer
                 type: object
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Dataset.
@@ -140,6 +146,20 @@ spec:
                 description: Artifacts status.
                 properties:
                   url:
+                    type: string
+                type: object
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
                     type: string
                 type: object
               conditions:
@@ -212,21 +232,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates that the Dataset is ready to use. See
@@ -296,25 +301,25 @@ spec:
                 required:
                 - name
                 type: object
-              command:
-                description: Command to run in the container.
-                items:
-                  type: string
-                type: array
-              image:
-                description: Image that contains model code and dependencies.
+              build:
+                description: Build specifies how to build an image.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
                       be built within the cluster. Built image will be set in the
-                      Image field.
+                      .spec.image field.
                     properties:
                       branch:
-                        description: Branch is the git branch to use.
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag.
                         type: string
                       path:
                         description: Path within the git repository referenced by
                           url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch.
                         type: string
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
@@ -322,9 +327,7 @@ spec:
                     required:
                     - url
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
+                    x-kubernetes-map-type: atomic
                   upload:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
@@ -337,7 +340,17 @@ spec:
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model code and dependencies.
+                type: string
               params:
                 additionalProperties:
                   anyOf:
@@ -387,8 +400,6 @@ spec:
                 required:
                 - name
                 type: object
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Model.
@@ -397,6 +408,20 @@ spec:
                 description: Artifacts status.
                 properties:
                   url:
+                    type: string
+                type: object
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
                     type: string
                 type: object
               conditions:
@@ -469,21 +494,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates that the Model is ready to use. See Conditions
@@ -544,6 +554,48 @@ spec:
           spec:
             description: Spec is the observed state of the Notebook.
             properties:
+              build:
+                description: Build specifies how to build an image.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      .spec.image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch.
+                        type: string
+                      url:
+                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  upload:
+                    description: Upload is a signal that a local tar of the directory
+                      should be uploaded to be built as an image.
+                    properties:
+                      md5checksum:
+                        description: Md5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+                x-kubernetes-map-type: atomic
               command:
                 description: Command to run in the container.
                 items:
@@ -560,41 +612,7 @@ spec:
                 type: object
               image:
                 description: Image that contains notebook and dependencies.
-                properties:
-                  git:
-                    description: Git is a reference to a git repository that will
-                      be built within the cluster. Built image will be set in the
-                      Image field.
-                    properties:
-                      branch:
-                        description: Branch is the git branch to use.
-                        type: string
-                      path:
-                        description: Path within the git repository referenced by
-                          url.
-                        type: string
-                      url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
-                        type: string
-                    required:
-                    - url
-                    type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
-                  upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
-                    properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
-                          repo root requested to be uploaded and built.
-                        maxLength: 32
-                        minLength: 32
-                        pattern: ^[a-fA-F0-9]{32}$
-                        type: string
-                    type: object
-                type: object
+                type: string
               model:
                 description: Model to load into the notebook container.
                 properties:
@@ -645,14 +663,27 @@ spec:
                 type: object
               suspend:
                 description: Suspend should be set to true to stop the notebook (Pod)
-                  from running.
+                  from running. This is a pointer to distinguish between explicit
+                  false and not specified.
                 type: boolean
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Notebook.
             properties:
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Notebook.
@@ -723,21 +754,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates that the Notebook is ready to serve.
@@ -795,25 +811,25 @@ spec:
           spec:
             description: Spec is the desired state of the Server.
             properties:
-              command:
-                description: Command to run in the container.
-                items:
-                  type: string
-                type: array
-              image:
-                description: Image that contains model serving application and dependencies.
+              build:
+                description: Build specifies how to build an image.
                 properties:
                   git:
                     description: Git is a reference to a git repository that will
                       be built within the cluster. Built image will be set in the
-                      Image field.
+                      .spec.image field.
                     properties:
                       branch:
-                        description: Branch is the git branch to use.
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag.
                         type: string
                       path:
                         description: Path within the git repository referenced by
                           url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch.
                         type: string
                       url:
                         description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
@@ -821,9 +837,7 @@ spec:
                     required:
                     - url
                     type: object
-                  name:
-                    description: 'Name of container image (example: "docker.io/your-username/your-image").'
-                    type: string
+                    x-kubernetes-map-type: atomic
                   upload:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
@@ -836,7 +850,17 @@ spec:
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
                     type: object
+                    x-kubernetes-map-type: atomic
                 type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model serving application and dependencies.
+                type: string
               model:
                 description: Model references the Model object to be served.
                 properties:
@@ -876,12 +900,24 @@ spec:
                     format: int64
                     type: integer
                 type: object
-            required:
-            - image
             type: object
           status:
             description: Status is the observed state of the Server.
             properties:
+              build:
+                description: Build contains the status of the image build.
+                properties:
+                  md5checksum:
+                    description: Md5Checksum is the last md5 checksum that resulted
+                      in the successful creation of an UploadURL.
+                    maxLength: 32
+                    minLength: 32
+                    pattern: ^[a-fA-F0-9]{32}$
+                    type: string
+                  uploadURL:
+                    description: the Signed upload URL
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Server.
@@ -952,21 +988,6 @@ spec:
                   - type
                   type: object
                 type: array
-              image:
-                description: Image contains the status of the image. Upload URL is
-                  reported here.
-                properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
-                    type: string
-                  uploadURL:
-                    description: the Signed upload URL
-                    type: string
-                type: object
               ready:
                 default: false
                 description: Ready indicates whether the Server is ready to serve

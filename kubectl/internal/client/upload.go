@@ -106,7 +106,7 @@ loop:
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			imgStatus := event.Object.(interface{ GetStatusImage() apiv1.ImageStatus }).GetStatusImage()
+			imgStatus := event.Object.(interface{ GetStatusBuild() apiv1.BuildStatus }).GetStatusBuild()
 			if imgStatus.UploadURL != "" && imgStatus.Md5Checksum == tb.MD5Checksum {
 				uploadURL = imgStatus.UploadURL
 				watcher.Stop()
@@ -135,20 +135,25 @@ loop:
 }
 
 func setContainerUpload(obj Object, md5 string) error {
-	type imager interface {
-		GetImage() *apiv1.Image
+	type buildable interface {
+		GetBuild() *apiv1.Build
+		SetBuild(*apiv1.Build)
 	}
 
-	imgObj, ok := obj.(imager)
+	bObj, ok := obj.(buildable)
 	if !ok {
 		return fmt.Errorf("object not compatible image uploads")
 	}
 
-	img := imgObj.GetImage()
-	img.Git = nil
-	img.Upload = &apiv1.ImageUpload{
+	b := bObj.GetBuild()
+	if b == nil {
+		b = &apiv1.Build{}
+	}
+	b.Git = nil
+	b.Upload = &apiv1.BuildUpload{
 		Md5Checksum: md5,
 	}
+	bObj.SetBuild(b)
 
 	return nil
 }
