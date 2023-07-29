@@ -4,7 +4,7 @@ metadata:
   name: falcon-7b-instruct-k8s-custom-prompt
 spec:
   image:
-    name: substratusai/model-trainer-huggingface:pr-16
+    name: substratusai/model-trainer-huggingface
   baseModel:
     name: falcon-7b-instruct
   trainingDataset:
