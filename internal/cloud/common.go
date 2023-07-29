@@ -23,10 +23,14 @@ func (c *Common) ObjectBuiltImageURL(obj ImageObject) string {
 	}
 
 	tag := "latest"
-	if obj.GetImage().Git != nil {
-		tag = obj.GetImage().Git.Tag
-	} else if obj.GetImage().Upload != nil {
-		tag = obj.GetImage().Upload.Md5Checksum
+	if git := obj.GetImage().Git; git != nil {
+		if git.Tag != "" {
+			tag = git.Tag
+		} else if git.Branch != "" {
+			tag = git.Branch
+		}
+	} else if upload := obj.GetImage().Upload; upload != nil {
+		tag = upload.Md5Checksum
 	}
 
 	return fmt.Sprintf("%s/%s-%s-%s-%s:%s", c.RegistryURL,

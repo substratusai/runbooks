@@ -1,5 +1,15 @@
 package v1
 
+type ImageStatus struct {
+	// the Signed upload URL
+	UploadURL string `json:"uploadURL,omitempty"`
+	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=32
+	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
+	Md5Checksum string `json:"md5checksum,omitempty"`
+}
+
 type Image struct {
 	// Name of container image (example: "docker.io/your-username/your-image").
 	Name string `json:"name,omitempty"`
@@ -18,24 +28,17 @@ type ImageUpload struct {
 	Md5Checksum string `json:"md5checksum,omitempty"`
 }
 
-type ImageStatus struct {
-	// the Signed upload URL
-	UploadURL string `json:"uploadURL,omitempty"`
-	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
-	// +kubebuilder:validation:MaxLength=32
-	// +kubebuilder:validation:MinLength=32
-	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
-}
-
 type ImageGit struct {
 	// URL to the git repository.
 	// Example: https://github.com/my-username/my-repo
 	URL string `json:"url"`
 	// Path within the git repository referenced by url.
 	Path string `json:"path,omitempty"`
-	// Tag is the git tag to use.
+
+	// Tag is the git tag to use. Choose either tag or branch.
 	Tag string `json:"tag,omitempty"`
+	// Branch is the git branch to use. Choose either branch or tag.
+	Branch string `json:"branch,omitempty"`
 }
 
 type ObjectRef struct {

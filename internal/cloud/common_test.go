@@ -29,6 +29,13 @@ func TestCommon(t *testing.T) {
 		RegistryURL:       "gcr.io/my-project",
 	}, common)
 
+	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model:latest", common.ObjectBuiltImageURL(&apiv1.Model{
+		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
+		Spec: apiv1.ModelSpec{
+			Image: apiv1.Image{},
+		},
+	}))
 	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model:v1.2.3", common.ObjectBuiltImageURL(&apiv1.Model{
 		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
 		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
@@ -36,6 +43,17 @@ func TestCommon(t *testing.T) {
 			Image: apiv1.Image{
 				Git: &apiv1.ImageGit{
 					Tag: "v1.2.3",
+				},
+			},
+		},
+	}))
+	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model:feature-x", common.ObjectBuiltImageURL(&apiv1.Model{
+		TypeMeta:   metav1.TypeMeta{Kind: "Model"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-model", Namespace: "my-ns"},
+		Spec: apiv1.ModelSpec{
+			Image: apiv1.Image{
+				Git: &apiv1.ImageGit{
+					Branch: "feature-x",
 				},
 			},
 		},
