@@ -258,7 +258,10 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 		git.URL,
 	}
 	if git.Tag != "" {
+		// NOTE: --branch flag is used for tags too.
 		cloneArgs = append(cloneArgs, "--branch", git.Tag)
+	} else if git.Branch != "" {
+		cloneArgs = append(cloneArgs, "--branch", git.Branch)
 	}
 	cloneArgs = append(cloneArgs, "/workspace")
 

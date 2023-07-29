@@ -3,8 +3,7 @@ kind: Server
 metadata:
   name: falcon-7b-instruct
 spec:
-  image:
-    name: substratusai/model-server-basaran
+  image: substratusai/model-server-basaran
   model:
     name: falcon-7b-instruct
   resources:

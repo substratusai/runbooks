@@ -5,7 +5,7 @@ metadata:
 spec:
   params:
     urls: https://huggingface.co/datasets/substratusai/k8s-instructions/raw/main/k8s-instructions.jsonl
-  image:
+  build:
     git:
       url: https://github.com/substratusai/images
       path: dataset-loader-http
