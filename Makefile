@@ -118,7 +118,8 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: dev
 dev: manifests kustomize install-crds
-	go run ./cmd/controllermanager/main.go
+    # Take a look at ./hack/dev/example-gcp-env.sh
+	GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json go run ./cmd/gcpmanager & go run ./cmd/controllermanager/main.go --sci-address=localhost:10080
 
 .PHONY: run
 run: ## Run a controller from your host.

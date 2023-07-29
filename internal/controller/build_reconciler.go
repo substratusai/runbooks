@@ -58,14 +58,17 @@ type BuildReconciler struct {
 }
 
 func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// TODO(nstogner): Name build jobs according to the image name so conflicts
+	// wont arise when re-building based on a new spec (use-case: Notebook rebuilds).
+
 	log := log.FromContext(ctx)
 
 	obj := r.NewObject()
 	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
-		return ctrl.Result{}, fmt.Errorf("getting object: %w", err)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if obj.GetImage() != "" {
+	if obj.GetImage() == r.Cloud.ObjectBuiltImageURL(obj) {
 		return ctrl.Result{}, nil
 	}
 
@@ -345,7 +348,7 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 	return job, nil
 }
 
-func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObject) (*batchv1.Job, error) {
+func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObject, md5 string) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
 	annotations := map[string]string{}

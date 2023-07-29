@@ -81,7 +81,7 @@ type DatasetStatus struct {
 	Build BuildStatus `json:"build,omitempty"`
 }
 
-//+kubebuilder:resource:categories=ai
+//+kubebuilder:resource:categories=ai,shortName=data
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"

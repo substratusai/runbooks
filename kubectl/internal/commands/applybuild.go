@@ -32,28 +32,28 @@ func ApplyBuild() *cobra.Command {
 
 			tarball, err := client.PrepareImageTarball(cfg.build)
 			if err != nil {
-				return err
+				return fmt.Errorf("preparing tarball: %w", err)
 			}
 			defer os.Remove(tarball.TempDir)
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("rest config: %w", err)
 			}
 
 			clientset, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("clientset: %w", err)
 			}
 
 			manifest, err := os.ReadFile(cfg.filename)
 			if err != nil {
-				return err
+				return fmt.Errorf("reading file: %w", err)
 			}
 
 			obj, err := client.Decode(manifest)
 			if err != nil {
-				return err
+				return fmt.Errorf("decoding: %w", err)
 			}
 			if obj.GetNamespace() == "" {
 				// TODO: Add -n flag to specify namespace.
@@ -63,19 +63,22 @@ func ApplyBuild() *cobra.Command {
 			c := NewClient(clientset, restConfig)
 			r, err := c.Resource(obj)
 			if err != nil {
-				return err
+				return fmt.Errorf("resource client: %w", err)
 			}
 
 			if err := client.SetUploadContainerSpec(obj, tarball); err != nil {
-				return err
+				return fmt.Errorf("setting upload in spec: %w", err)
+			}
+			if err := client.ClearImage(obj); err != nil {
+				return fmt.Errorf("clearing image: %w", err)
 			}
 
 			if err := r.Apply(obj, cfg.forceConflicts); err != nil {
-				return err
+				return fmt.Errorf("applying: %w", err)
 			}
 
 			if err := r.Upload(ctx, obj, tarball); err != nil {
-				return err
+				return fmt.Errorf("uploading: %w", err)
 			}
 
 			return nil

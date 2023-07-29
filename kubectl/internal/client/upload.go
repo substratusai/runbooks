@@ -65,7 +65,42 @@ func PrepareImageTarball(buildPath string) (*Tarball, error) {
 }
 
 func SetUploadContainerSpec(obj Object, tb *Tarball) error {
-	return setContainerUpload(obj, tb.MD5Checksum)
+	type buildable interface {
+		GetBuild() *apiv1.Build
+		SetBuild(*apiv1.Build)
+	}
+
+	bObj, ok := obj.(buildable)
+	if !ok {
+		return fmt.Errorf("object not compatible")
+	}
+
+	b := bObj.GetBuild()
+	if b == nil {
+		b = &apiv1.Build{}
+	}
+	b.Git = nil
+	b.Upload = &apiv1.BuildUpload{
+		Md5Checksum: tb.MD5Checksum,
+	}
+	bObj.SetBuild(b)
+
+	return nil
+}
+
+func ClearImage(obj Object) error {
+	type clearable interface {
+		SetImage(string)
+	}
+
+	bObj, ok := obj.(clearable)
+	if !ok {
+		return fmt.Errorf("object not compatible")
+	}
+
+	bObj.SetImage("")
+
+	return nil
 }
 
 func (r *Resource) Apply(obj Object, force bool) error {
@@ -130,30 +165,6 @@ loop:
 	if err := uploadTarball(tb, uploadURL); err != nil {
 		return fmt.Errorf("uploading tarball: %w", err)
 	}
-
-	return nil
-}
-
-func setContainerUpload(obj Object, md5 string) error {
-	type buildable interface {
-		GetBuild() *apiv1.Build
-		SetBuild(*apiv1.Build)
-	}
-
-	bObj, ok := obj.(buildable)
-	if !ok {
-		return fmt.Errorf("object not compatible image uploads")
-	}
-
-	b := bObj.GetBuild()
-	if b == nil {
-		b = &apiv1.Build{}
-	}
-	b.Git = nil
-	b.Upload = &apiv1.BuildUpload{
-		Md5Checksum: md5,
-	}
-	bObj.SetBuild(b)
 
 	return nil
 }
