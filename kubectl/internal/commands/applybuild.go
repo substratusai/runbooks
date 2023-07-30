@@ -66,7 +66,7 @@ func ApplyBuild() *cobra.Command {
 				return fmt.Errorf("resource client: %w", err)
 			}
 
-			if err := client.SetUploadContainerSpec(obj, tarball); err != nil {
+			if err := client.SetUploadContainerSpec(obj, tarball, NewUUID()); err != nil {
 				return fmt.Errorf("setting upload in spec: %w", err)
 			}
 			if err := client.ClearImage(obj); err != nil {

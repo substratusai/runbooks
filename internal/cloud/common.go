@@ -32,7 +32,7 @@ func (c *Common) ObjectBuiltImageURL(obj BuildableObject) string {
 			tag = git.Branch
 		}
 	} else if upload := build.Upload; upload != nil {
-		tag = upload.Md5Checksum
+		tag = upload.MD5Checksum
 	}
 
 	return fmt.Sprintf("%s/%s-%s-%s-%s:%s", c.RegistryURL,

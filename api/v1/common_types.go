@@ -1,5 +1,9 @@
 package v1
 
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 // +structType=atomic
 type Build struct {
 	// Git is a reference to a git repository that will be built within the cluster.
@@ -11,11 +15,16 @@ type Build struct {
 
 // +structType=atomic
 type BuildUpload struct {
-	// Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
+	// MD5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
+	MD5Checksum string `json:"md5Checksum"`
+
+	// RequestID is the ID of the request to build the image.
+	// Changing this ID to a new value can be used to get a new signed URL
+	// (useful when a URL has expired).
+	RequestID string `json:"requestID"`
 }
 
 // +structType=atomic
@@ -33,13 +42,18 @@ type BuildGit struct {
 }
 
 type BuildStatus struct {
-	// the Signed upload URL
+	// UploadURL is a signed URL to upload the tar'd docker build context to.
 	UploadURL string `json:"uploadURL,omitempty"`
-	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
-	// +kubebuilder:validation:MaxLength=32
-	// +kubebuilder:validation:MinLength=32
-	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
+
+	// UploadExpiration is the time at which the UploadURL expires.
+	UploadExpiration metav1.Time `json:"uploadExpiration,omitempty"`
+
+	// UploadRequestID matches the request ID of the upload request
+	// when the upload URL was generated for that request.
+	UploadRequestID string `json:"uploadRequestID,omitempty"`
+
+	// Uploaded is set when the controller notices that the upload is present in storage.
+	Uploaded bool `json:"uploaded,omitempty"`
 }
 
 type ObjectRef struct {

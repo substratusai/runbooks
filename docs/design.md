@@ -221,6 +221,50 @@ NOTE: The `saved-model/` directory is the same as the container for the Model ob
 /content/saved-model/       # Mounted RO: from .spec.model
 ```
 
+### Naming
+
+Jobs, Deployments, and Pods have a 63 character .metadata.name limit.
+Datasets, Models, Servers, and Notebooks create these resources.
+It is nice to name child resources something that easily identifies them
+as belonging to a parent resource (i.e. similar name).
+In order to do this, we need to limit the length of the parent resource name.
+Suffixes should be short:
+
+```
+{parent.name}-{suffix}
+```
+
+Where suffix is a max of 13 characters.
+
+This sets a max character limit of 50 for all Substratus types.
+
+Examples:
+
+```
+Model:                    facebook-opt-125m
+- Container build Job:    facebook-opt-125m-model-bld
+- Training/importing Job: facebook-opt-125m-model
+```
+
+```
+Dataset:                  squad
+- Container build Job:    squad-dataset-bld
+- Training/importing Job: squad-dataset
+```
+
+```
+Notebook:                 my-fancy-experiment
+- Container build Job:    my-fancy-experiment-notebook-bld # 13
+- Notebook Pod:           my-fancy-experiment-notebook
+```
+
+```
+Server:                   facebook-opt-125m-b
+- Container build Job:    facebook-opt-125m-b-server-bld
+- Deployment:             facebook-opt-125m-b-server
+- Service:                facebook-opt-125m-b-server
+```
+
 ## Kind: Model
 
 A Model object represents a logical ML model.

@@ -201,7 +201,7 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 	// Test that a container builder Job gets created by the controller.
 	var builderJob batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-container-builder"}, &builderJob)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-bld"}, &builderJob)
 		assert.NoError(t, err, "getting the container builder job")
 	}, timeout, interval, "waiting for the container builder job to be created")
 	require.Equal(t, "builder", builderJob.Spec.Template.Spec.Containers[0].Name)

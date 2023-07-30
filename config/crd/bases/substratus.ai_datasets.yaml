@@ -83,13 +83,21 @@ spec:
                     description: Upload is a signal that a local tar of the directory
                       should be uploaded to be built as an image.
                     properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
                           repo root requested to be uploaded and built.
                         maxLength: 32
                         minLength: 32
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
                     type: object
                     x-kubernetes-map-type: atomic
                 type: object
@@ -154,16 +162,23 @@ spec:
               build:
                 description: Build contains the status of the image build.
                 properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
+                  uploadExpiration:
+                    description: UploadExpiration is the time at which the UploadURL
+                      expires.
+                    format: date-time
+                    type: string
+                  uploadRequestID:
+                    description: UploadRequestID matches the request ID of the upload
+                      request when the upload URL was generated for that request.
                     type: string
                   uploadURL:
-                    description: the Signed upload URL
+                    description: UploadURL is a signed URL to upload the tar'd docker
+                      build context to.
                     type: string
+                  uploaded:
+                    description: Uploaded is set when the controller notices that
+                      the upload is present in storage.
+                    type: boolean
                 type: object
               conditions:
                 description: Conditions is the list of conditions that describe the

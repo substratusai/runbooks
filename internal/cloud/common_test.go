@@ -64,7 +64,7 @@ func TestCommon(t *testing.T) {
 		Spec: apiv1.ModelSpec{
 			Build: &apiv1.Build{
 				Upload: &apiv1.BuildUpload{
-					Md5Checksum: "80355073480594a99470dcacccd8cf2c",
+					MD5Checksum: "80355073480594a99470dcacccd8cf2c",
 				},
 			},
 		},

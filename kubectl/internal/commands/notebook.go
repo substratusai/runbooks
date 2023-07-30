@@ -188,7 +188,7 @@ func Notebook() *cobra.Command {
 			nb.Spec.Suspend = ptr.To(false)
 
 			if cfg.build != "" {
-				if err := client.SetUploadContainerSpec(nb, tarball); err != nil {
+				if err := client.SetUploadContainerSpec(nb, tarball, NewUUID()); err != nil {
 					return err
 				}
 			}

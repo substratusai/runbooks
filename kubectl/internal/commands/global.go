@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/substratusai/substratus/kubectl/internal/client"
 )
 
@@ -12,3 +13,7 @@ var NewClient = client.NewClient
 
 // NotebookStdout is a dirty hack to allow stdout to be inspected in tests.
 var NotebookStdout io.Writer = os.Stdout
+
+var NewUUID = func() string {
+	return uuid.New().String()
+}

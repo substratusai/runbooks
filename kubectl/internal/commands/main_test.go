@@ -29,6 +29,7 @@ import (
 const (
 	timeout  = time.Second * 5
 	interval = time.Second / 10
+	testUUID = "c1d1eb65-75bd-48a5-9bad-802810fc9117"
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 func TestMain(m *testing.M) {
 	commands.NewClient = newClientWithMockPortForward
 	commands.NotebookStdout = &stdout
+	commands.NewUUID = func() string { return testUUID }
 
 	//var buf bytes.Buffer
 	logf.SetLogger(zap.New(

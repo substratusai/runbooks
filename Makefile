@@ -116,14 +116,48 @@ skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## R
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
-.PHONY: dev
-dev: manifests kustomize install-crds
-    # Take a look at ./hack/dev/example-gcp-env.sh
-	GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json go run ./cmd/gcpmanager & go run ./cmd/controllermanager/main.go --sci-address=localhost:10080
+.PHONY: dev-up
+dev-up:
+	docker build ./install -t substratus-installer && \
+	docker run -it \
+	  -v ${HOME}/.kube:/root/.kube \
+	  -e PROJECT=$(shell gcloud config get project) \
+	  -e TOKEN=$(shell gcloud auth print-access-token) \
+	  -e TF_VAR_attach_gpu_nodepools=false \
+	  -e INSTALL_OPERATOR=false \
+	  substratus-installer gcp-up.sh
+	mkdir -p secrets
+	gcloud iam service-accounts keys create --iam-account=substratus-gcp-manager@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/gcp-manager-key.json
+
+.PHONY: dev-down
+dev-down:
+	docker run -it \
+	  -v $HOME/.kube:/root/.kube \
+	  -e PROJECT=$(shell gcloud config get project) \
+	  -e TOKEN=$(shell gcloud auth print-access-token) \
+	  -e TF_VAR_attach_gpu_nodepools=false \
+	  substratus-installer gcp-up.sh
+	rm ./secrets/gcp-manager-key.json
+
+.PHONY: dev-run
+# Controller manager configuration #
+dev-run: export CLOUD=gcp
+dev-run: export GPU_TYPE=nvidia-l4
+dev-run: export PROJECT_ID=$(shell gcloud config get project)
+dev-run: export CLUSTER_NAME=substratus
+dev-run: export CLUSTER_LOCATION=us-central1
+# Cloud manager configuration #
+dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
+# Run the controller manager and the cloud manager.
+dev-run: manifests kustomize install-crds
+	go run ./cmd/gcpmanager & \
+	go run ./cmd/controllermanager/main.go \
+		--sci-address=localhost:10080 \
+		--config-dump-path=/tmp/substratus-config.yaml
 
 .PHONY: run
 run: ## Run a controller from your host.
-	go run ./cmd/controllermanager/main.go --config-dump-path=/tmp/substratus-config.yaml
+	go run ./cmd/controllermanager/main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.
@@ -186,26 +220,6 @@ install/kubernetes/system.yaml: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
-
-RUN_SUBSTRATUS_INSTALLER := docker run -it \
-	-v ${HOME}/.kube:/root/.kube \
-	-e PROJECT=$(shell gcloud config get project) \
-	-e TOKEN=$(shell gcloud auth print-access-token) \
-	substratus-installer
-
-DISABLE_CONTROLLER ?= false
-
-.PHONY: install
-install: build-installer ## invoke the GCP installer to build all infra.
-ifeq ($(DISABLE_CONTROLLER),true)
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh -e INSTALL_OPERATOR=no
-else
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-up.sh
-endif
-
-.PHONY: uninstall
-uninstall: build-installer ## invoke the GCP installer to destroy all infra.
-	@ ${RUN_SUBSTRATUS_INSTALLER} gcp-down.sh
 
 ##@ Build Dependencies
 

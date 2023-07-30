@@ -64,7 +64,7 @@ func PrepareImageTarball(buildPath string) (*Tarball, error) {
 	}, nil
 }
 
-func SetUploadContainerSpec(obj Object, tb *Tarball) error {
+func SetUploadContainerSpec(obj Object, tb *Tarball, requestID string) error {
 	type buildable interface {
 		GetBuild() *apiv1.Build
 		SetBuild(*apiv1.Build)
@@ -81,7 +81,8 @@ func SetUploadContainerSpec(obj Object, tb *Tarball) error {
 	}
 	b.Git = nil
 	b.Upload = &apiv1.BuildUpload{
-		Md5Checksum: tb.MD5Checksum,
+		MD5Checksum: tb.MD5Checksum,
+		RequestID:   requestID,
 	}
 	bObj.SetBuild(b)
 
@@ -141,9 +142,14 @@ loop:
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			imgStatus := event.Object.(interface{ GetStatusBuild() apiv1.BuildStatus }).GetStatusBuild()
-			if imgStatus.UploadURL != "" && imgStatus.Md5Checksum == tb.MD5Checksum {
-				uploadURL = imgStatus.UploadURL
+			o := event.Object.(interface {
+				GetStatusBuild() apiv1.BuildStatus
+				GetBuild() *apiv1.Build
+			})
+			status := o.GetStatusBuild()
+			spec := o.GetBuild().Upload
+			if status.UploadURL != "" && status.UploadRequestID == spec.RequestID {
+				uploadURL = status.UploadURL
 				watcher.Stop()
 				break loop
 			}

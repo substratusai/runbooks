@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/kubectl/internal/client"
 	"github.com/substratusai/substratus/kubectl/internal/commands"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,13 +60,9 @@ func TestNotebook(t *testing.T) {
 		assert.NoError(t, err, "getting notebook")
 	}, timeout, interval, "waiting for the notebook to be created")
 
-	// Need to figure out the md4 checksum of the tarball.
-	tarball, err := client.PrepareImageTarball("./test-notebook")
-	require.NoError(t, err)
-
 	nb.Status.Build = apiv1.BuildStatus{
-		UploadURL:   mockBucketServer.URL + "/some-signed-url",
-		Md5Checksum: tarball.MD5Checksum,
+		UploadURL:       mockBucketServer.URL + "/some-signed-url",
+		UploadRequestID: testUUID,
 	}
 	require.NoError(t, k8sClient.Status().Update(ctx, nb))
 
