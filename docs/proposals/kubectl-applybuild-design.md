@@ -8,4 +8,7 @@ kubectl applybuild -f MANIFEST_FILE  BUILD_CONTEXT
 
 ```bash
 kubectl applybuild -f ./notebook.yaml .
+kubectl applybuild -f ./dataset.yaml .
+kubectl applybuild -f ./model.yaml .
+kubectl applybuild -f ./server.yaml .
 ```

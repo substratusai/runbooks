@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +27,7 @@ import (
 
 func Notebook() *cobra.Command {
 	var cfg struct {
+		dir            string
 		build          string
 		kubeconfig     string
 		filename       string
@@ -38,10 +40,27 @@ func Notebook() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "notebook [flags] <name>",
+		Use:   "notebook [flags] NAME",
 		Short: "Start a Jupyter Notebook development environment",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(cmd.Context())
+
+			if cfg.dir != "" {
+				if cfg.build == "" {
+					cfg.build = cfg.dir
+				}
+				// If the user specified a directory, we assume they want to sync
+				// unless they explicitly set --sync themselves.
+				if !cmd.Flag("sync").Changed {
+					cfg.sync = true
+				}
+				// If the user specified a directory, we assume they have a notebook.yaml
+				// file in their directory unless they explicitly set --filename themselves.
+				if !cmd.Flag("filename").Changed {
+					cfg.filename = filepath.Join(cfg.dir, "notebook.yaml")
+				}
+			}
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -90,7 +109,13 @@ func Notebook() *cobra.Command {
 			}
 
 			var obj client.Object
-			if cfg.filename != "" {
+			if len(args) == 1 {
+				fetched, err := notebooks.Get(defaultNamespace(cfg.namespace), args[0])
+				if err != nil {
+					return fmt.Errorf("getting notebook: %w", err)
+				}
+				obj = fetched.(client.Object)
+			} else if cfg.filename != "" {
 				manifest, err := os.ReadFile(cfg.filename)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
@@ -103,12 +128,6 @@ func Notebook() *cobra.Command {
 					// TODO: Add -n flag to specify namespace.
 					obj.SetNamespace("default")
 				}
-			} else if len(args) == 1 {
-				fetched, err := notebooks.Get(defaultNamespace(cfg.namespace), args[0])
-				if err != nil {
-					return fmt.Errorf("getting notebook: %w", err)
-				}
-				obj = fetched.(client.Object)
 			} else {
 				return fmt.Errorf("must specify -f (--filename) or <name>")
 			}
@@ -282,11 +301,15 @@ func Notebook() *cobra.Command {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
 	cmd.Flags().StringVarP(&cfg.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
+
+	cmd.Flags().StringVarP(&cfg.dir, "dir", "d", "", "Directory to launch the Notebook for. Equivalent to -f <dir>/notebook.yaml -b <dir> -s")
 	cmd.Flags().StringVarP(&cfg.build, "build", "b", "", "Build the Notebook from this local directory")
 	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to develop against.")
-	cmd.Flags().StringVarP(&cfg.namespace, "namespace", "n", "default", "Namespace of Notebook")
-	cmd.Flags().BoolVar(&cfg.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
 	cmd.Flags().BoolVarP(&cfg.sync, "sync", "s", false, "Sync local directory with Notebook")
+
+	cmd.Flags().StringVarP(&cfg.namespace, "namespace", "n", "default", "Namespace of Notebook")
+
+	cmd.Flags().BoolVar(&cfg.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
 	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")

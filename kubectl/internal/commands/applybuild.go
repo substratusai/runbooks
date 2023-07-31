@@ -22,13 +22,15 @@ func ApplyBuild() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "applybuild [flags]",
+		Use:   "applybuild [flags] BUILD_CONTEXT",
+		Args:  cobra.ExactArgs(1),
 		Short: "Apply a Substratus object, upload and build container in-cluster from a local directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			if cfg.filename == "" {
 				return fmt.Errorf("-f (--filename) is required")
 			}
+			cfg.build = args[0]
 
 			tarball, err := client.PrepareImageTarball(cfg.build)
 			if err != nil {
@@ -91,7 +93,6 @@ func ApplyBuild() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cfg.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
 	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to apply and build.")
-	cmd.Flags().StringVarP(&cfg.build, "build", "b", ".", "Directory with Dockerfile.")
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", false, "If true, server-side apply will force the changes against conflicts.")
 
 	// Add standard kubectl logging flags (for example: -v=2).

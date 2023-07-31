@@ -1,5 +1,19 @@
 # Kubectl Notebook Design
 
+```bash
+kubectl notebook -f MANIFEST_FILE -d DIRECTORY
+```
+
+```
+-d (--dir)
+
+==
+
+-b (--build-context)
+-f default=DIR/notebook.yaml
+-s default=true
+```
+
 ## Manifests
 
 * Applys Notebook with .container.upload set
@@ -19,10 +33,11 @@ kubectl notebook -f server.yaml
 kubectl notebook -d .
 
 # Build local directory and open notebook.
-kubectl notebook -f notebook.yaml -d .
+kubectl notebook -f my-other-notebook.yaml -d .
 
-# Build local directory and open notebook, 
-kubectl notebook -f notebook.yaml -d . --sync=false
+# Build local directory and open notebook, but disable syncing 
+kubectl notebook --sync=false -d . --sync=false
+kubectl notebook -f notebook.yaml -d .
 ```
 
 ## Notebooks from Objects
@@ -48,6 +63,12 @@ kubectl notebook server/SERVER_NAME
 ## Local Configuration
 
 Perhaps it makes sense to keep track of what notebooks map to what directories locally.
+
+This might mean that a user could run the notebook command without options, and previous options could be looked up based on directory:
+
+```bash
+kubectl notebook
+```
 
 ```
 $HOME/.config/substratus/notebooks.yaml
