@@ -148,10 +148,10 @@ loop:
 			})
 			status := o.GetStatusUpload()
 			spec := o.GetBuild().Upload
-			if status.UploadedMD5Checksum == tb.MD5Checksum {
+			if status.StoredMD5Checksum == tb.MD5Checksum {
 				// This is an edge-case where the controller found a matching upload
 				// that already existed in storage.
-				klog.V(1).Infof("upload already exists in storage with md5 checksum: %s, skipping upload", status.UploadedMD5Checksum)
+				klog.V(1).Infof("upload already exists in storage with md5 checksum: %s, skipping upload", status.StoredMD5Checksum)
 				return nil
 			}
 			if status.SignedURL != "" && status.RequestID == spec.RequestID {

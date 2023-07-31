@@ -1,5 +1,7 @@
 # Mutability in Substratus
 
+This is a working design doc, not the current implementation.
+
 ## Models
 
 ## Datasets

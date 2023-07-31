@@ -57,7 +57,8 @@ spec:
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
-                          branch or tag.
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
                         type: string
                       path:
                         description: Path within the git repository referenced by
@@ -65,18 +66,21 @@ spec:
                         type: string
                       tag:
                         description: Tag is the git tag to use. Choose either tag
-                          or branch.
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
                         type: string
                     required:
                     - url
                     type: object
                     x-kubernetes-map-type: atomic
                   upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
                     properties:
                       md5Checksum:
                         description: MD5Checksum is the md5 checksum of the tar'd
@@ -171,6 +175,30 @@ spec:
           status:
             description: Status is the observed state of the Notebook.
             properties:
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Notebook.
@@ -246,26 +274,6 @@ spec:
                 description: Ready indicates that the Notebook is ready to serve.
                   See Conditions for more details.
                 type: boolean
-              upload:
-                description: Upload contains the status of the image upload.
-                properties:
-                  expiration:
-                    description: Expiration is the time at which the signed URL expires.
-                    format: date-time
-                    type: string
-                  requestID:
-                    description: RequestID is the request id that corresponds to this
-                      status.
-                    type: string
-                  signedURL:
-                    description: SignedURL is a HTTPS URL to upload the tar'd docker
-                      build context to.
-                    type: string
-                  uploadedMD5Checksum:
-                    description: UploadedMD5Checksum is the md5 checksum of the file
-                      that the controller observed in storage.
-                    type: string
-                type: object
             required:
             - ready
             type: object

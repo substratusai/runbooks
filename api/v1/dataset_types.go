@@ -58,11 +58,11 @@ func (d *Dataset) GetStatusArtifacts() ArtifactsStatus {
 }
 
 func (d *Dataset) SetStatusUpload(us UploadStatus) {
-	d.Status.Upload = us
+	d.Status.BuildUpload = us
 }
 
 func (d *Dataset) GetStatusUpload() UploadStatus {
-	return d.Status.Upload
+	return d.Status.BuildUpload
 }
 
 // DatasetStatus defines the observed state of Dataset.
@@ -77,8 +77,8 @@ type DatasetStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Upload contains the status of the image upload.
-	Upload UploadStatus `json:"upload,omitempty"`
+	// BuildUpload contains the status of the build context upload.
+	BuildUpload UploadStatus `json:"buildUpload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai,shortName=data

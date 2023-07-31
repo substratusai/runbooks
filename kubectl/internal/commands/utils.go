@@ -17,3 +17,10 @@ var NotebookStdout io.Writer = os.Stdout
 var NewUUID = func() string {
 	return uuid.New().String()
 }
+
+func defaultNamespace(ns string) string {
+	if ns == "" {
+		return "default"
+	}
+	return ns
+}

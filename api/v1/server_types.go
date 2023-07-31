@@ -31,8 +31,8 @@ type ServerStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Server.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Upload contains the status of the image build.
-	Upload UploadStatus `json:"upload,omitempty"`
+	// Upload contains the status of the build context upload.
+	Upload UploadStatus `json:"buildUpload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

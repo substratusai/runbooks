@@ -128,7 +128,7 @@ func Notebook() *cobra.Command {
 				var err error
 				tarball, err = client.PrepareImageTarball(cfg.build)
 				if err != nil {
-					return err
+					return fmt.Errorf("preparing tarball: %w", err)
 				}
 				defer os.Remove(tarball.TempDir)
 
@@ -138,12 +138,12 @@ func Notebook() *cobra.Command {
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("rest config: %w", err)
 			}
 
 			clientset, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("clientset: %w", err)
 			}
 
 			c := NewClient(clientset, restConfig)
@@ -154,18 +154,18 @@ func Notebook() *cobra.Command {
 				},
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("resource client: %w", err)
 			}
 
 			var obj client.Object
 			if cfg.filename != "" {
 				manifest, err := os.ReadFile(cfg.filename)
 				if err != nil {
-					return err
+					return fmt.Errorf("reading file: %w", err)
 				}
 				obj, err = client.Decode(manifest)
 				if err != nil {
-					return err
+					return fmt.Errorf("decoding: %w", err)
 				}
 				if obj.GetNamespace() == "" {
 					// TODO: Add -n flag to specify namespace.
@@ -188,20 +188,25 @@ func Notebook() *cobra.Command {
 			nb.Spec.Suspend = ptr.To(false)
 
 			if cfg.build != "" {
+				if err := client.ClearImage(obj); err != nil {
+					return fmt.Errorf("clearing image in spec: %w", err)
+				}
 				if err := client.SetUploadContainerSpec(nb, tarball, NewUUID()); err != nil {
-					return err
+					return fmt.Errorf("setting upload in spec: %w", err)
 				}
 			}
 
 			if err := notebooks.Apply(nb, cfg.forceConflicts); err != nil {
-				return err
+				return fmt.Errorf("applying: %w", err)
 			}
 
 			cleanup := func() {
 				// Use a new context to avoid using the cancelled one.
 				//ctx := context.Background()
 
-				if !cfg.noSuspend {
+				if cfg.noSuspend {
+					fmt.Fprintln(NotebookStdout, "Cleanup: Skipping notebook suspension, it will keep running.")
+				} else {
 					// Suspend notebook.
 					spin.Suffix = " Cleanup: Suspending notebook..."
 					spin.Start()
@@ -219,7 +224,7 @@ func Notebook() *cobra.Command {
 				spin.Start()
 
 				if err := notebooks.Upload(ctx, nb, tarball); err != nil {
-					return err
+					return fmt.Errorf("uploading: %w", err)
 				}
 
 				spin.Stop()
@@ -232,8 +237,7 @@ func Notebook() *cobra.Command {
 			waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, cfg.timeout)
 			defer cancelWaitReady() // Avoid context leak.
 			if err := notebooks.WaitReady(waitReadyCtx, nb); err != nil {
-				//cleanup()
-				return err
+				return fmt.Errorf("waiting for notebook to be ready: %w", err)
 			}
 
 			spin.Stop()
@@ -333,11 +337,4 @@ func Notebook() *cobra.Command {
 	cmd.Flags().AddGoFlagSet(goflags)
 
 	return cmd
-}
-
-func defaultNamespace(ns string) string {
-	if ns == "" {
-		return "default"
-	}
-	return ns
 }

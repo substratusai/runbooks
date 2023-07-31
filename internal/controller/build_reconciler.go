@@ -193,7 +193,7 @@ func (r *BuildReconciler) reconcileUploadFile(ctx context.Context, obj Buildable
 		existingUploadChecksum, _ := r.storageObjectMd5(obj, r.SCI)
 		if existingUploadChecksum == spec.MD5Checksum {
 			obj.SetStatusUpload(apiv1.UploadStatus{
-				UploadedMD5Checksum: spec.MD5Checksum,
+				StoredMD5Checksum: spec.MD5Checksum,
 			})
 			meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
 				Type:               apiv1.ConditionUploaded,
@@ -246,10 +246,10 @@ func (r *BuildReconciler) reconcileUploadFile(ctx context.Context, obj Buildable
 	}
 
 	obj.SetStatusUpload(apiv1.UploadStatus{
-		SignedURL:           "",
-		RequestID:           spec.RequestID,
-		Expiration:          metav1.Time{},
-		UploadedMD5Checksum: storageMD5,
+		SignedURL:         "",
+		RequestID:         spec.RequestID,
+		Expiration:        metav1.Time{},
+		StoredMD5Checksum: storageMD5,
 	})
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionUploaded,

@@ -13,6 +13,8 @@ spec:
     kind: Dataset
     listKind: DatasetList
     plural: datasets
+    shortNames:
+    - data
     singular: dataset
   scope: Namespaced
   versions:
@@ -59,7 +61,8 @@ spec:
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
-                          branch or tag.
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
                         type: string
                       path:
                         description: Path within the git repository referenced by
@@ -67,26 +70,37 @@ spec:
                         type: string
                       tag:
                         description: Tag is the git tag to use. Choose either tag
-                          or branch.
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
                         type: string
                     required:
                     - url
                     type: object
                     x-kubernetes-map-type: atomic
                   upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
                     properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
                           repo root requested to be uploaded and built.
                         maxLength: 32
                         minLength: 32
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
                     type: object
                     x-kubernetes-map-type: atomic
                 type: object
@@ -148,18 +162,28 @@ spec:
                   url:
                     type: string
                 type: object
-              build:
-                description: Build contains the status of the image build.
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
                 properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
                     type: string
-                  uploadURL:
-                    description: the Signed upload URL
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
                     type: string
                 type: object
               conditions:
@@ -311,7 +335,8 @@ spec:
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
-                          branch or tag.
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
                         type: string
                       path:
                         description: Path within the git repository referenced by
@@ -319,26 +344,37 @@ spec:
                         type: string
                       tag:
                         description: Tag is the git tag to use. Choose either tag
-                          or branch.
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
                         type: string
                     required:
                     - url
                     type: object
                     x-kubernetes-map-type: atomic
                   upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
                     properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
                           repo root requested to be uploaded and built.
                         maxLength: 32
                         minLength: 32
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
                     type: object
                     x-kubernetes-map-type: atomic
                 type: object
@@ -410,18 +446,28 @@ spec:
                   url:
                     type: string
                 type: object
-              build:
-                description: Build contains the status of the image build.
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
                 properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
                     type: string
-                  uploadURL:
-                    description: the Signed upload URL
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
                     type: string
                 type: object
               conditions:
@@ -523,6 +569,8 @@ spec:
     kind: Notebook
     listKind: NotebookList
     plural: notebooks
+    shortNames:
+    - nb
     singular: notebook
   scope: Namespaced
   versions:
@@ -564,7 +612,8 @@ spec:
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
-                          branch or tag.
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
                         type: string
                       path:
                         description: Path within the git repository referenced by
@@ -572,26 +621,37 @@ spec:
                         type: string
                       tag:
                         description: Tag is the git tag to use. Choose either tag
-                          or branch.
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
                         type: string
                     required:
                     - url
                     type: object
                     x-kubernetes-map-type: atomic
                   upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
                     properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
                           repo root requested to be uploaded and built.
                         maxLength: 32
                         minLength: 32
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
                     type: object
                     x-kubernetes-map-type: atomic
                 type: object
@@ -670,18 +730,28 @@ spec:
           status:
             description: Status is the observed state of the Notebook.
             properties:
-              build:
-                description: Build contains the status of the image build.
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
                 properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
                     type: string
-                  uploadURL:
-                    description: the Signed upload URL
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
                     type: string
                 type: object
               conditions:
@@ -821,7 +891,8 @@ spec:
                     properties:
                       branch:
                         description: Branch is the git branch to use. Choose either
-                          branch or tag.
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
                         type: string
                       path:
                         description: Path within the git repository referenced by
@@ -829,26 +900,37 @@ spec:
                         type: string
                       tag:
                         description: Tag is the git tag to use. Choose either tag
-                          or branch.
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
                         type: string
                       url:
-                        description: 'URL to the git repository. Example: https://github.com/my-username/my-repo'
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
                         type: string
                     required:
                     - url
                     type: object
                     x-kubernetes-map-type: atomic
                   upload:
-                    description: Upload is a signal that a local tar of the directory
-                      should be uploaded to be built as an image.
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
                     properties:
-                      md5checksum:
-                        description: Md5Checksum is the md5 checksum of the tar'd
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
                           repo root requested to be uploaded and built.
                         maxLength: 32
                         minLength: 32
                         pattern: ^[a-fA-F0-9]{32}$
                         type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
                     type: object
                     x-kubernetes-map-type: atomic
                 type: object
@@ -904,18 +986,27 @@ spec:
           status:
             description: Status is the observed state of the Server.
             properties:
-              build:
-                description: Build contains the status of the image build.
+              buildUpload:
+                description: Upload contains the status of the build context upload.
                 properties:
-                  md5checksum:
-                    description: Md5Checksum is the last md5 checksum that resulted
-                      in the successful creation of an UploadURL.
-                    maxLength: 32
-                    minLength: 32
-                    pattern: ^[a-fA-F0-9]{32}$
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
                     type: string
-                  uploadURL:
-                    description: the Signed upload URL
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
                     type: string
                 type: object
               conditions:

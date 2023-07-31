@@ -60,7 +60,7 @@ func TestNotebook(t *testing.T) {
 		assert.NoError(t, err, "getting notebook")
 	}, timeout, interval, "waiting for the notebook to be created")
 
-	nb.Status.Upload = apiv1.UploadStatus{
+	nb.Status.BuildUpload = apiv1.UploadStatus{
 		SignedURL: mockBucketServer.URL + "/some-signed-url",
 		RequestID: testUUID,
 	}
