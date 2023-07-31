@@ -66,12 +66,12 @@ func (m *Model) GetStatusArtifacts() ArtifactsStatus {
 	return m.Status.Artifacts
 }
 
-func (m *Model) SetStatusBuild(b BuildStatus) {
-	m.Status.Build = b
+func (m *Model) SetStatusUpload(b UploadStatus) {
+	m.Status.Upload = b
 }
 
-func (m *Model) GetStatusBuild() BuildStatus {
-	return m.Status.Build
+func (m *Model) GetStatusUpload() UploadStatus {
+	return m.Status.Upload
 }
 
 // ModelStatus defines the observed state of Model
@@ -86,8 +86,8 @@ type ModelStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Build contains the status of the image build.
-	Build BuildStatus `json:"build,omitempty"`
+	// Upload contains the status of the image upload.
+	Upload UploadStatus `json:"build,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai

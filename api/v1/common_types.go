@@ -41,19 +41,18 @@ type BuildGit struct {
 	Branch string `json:"branch,omitempty"`
 }
 
-type BuildStatus struct {
-	// UploadURL is a signed URL to upload the tar'd docker build context to.
-	UploadURL string `json:"uploadURL,omitempty"`
+type UploadStatus struct {
+	// SignedURL is a HTTPS URL to upload the tar'd docker build context to.
+	SignedURL string `json:"signedURL,omitempty"`
 
-	// UploadExpiration is the time at which the UploadURL expires.
-	UploadExpiration metav1.Time `json:"uploadExpiration,omitempty"`
+	// RequestID is the request id that corresponds to this status.
+	RequestID string `json:"requestID,omitempty"`
 
-	// UploadRequestID matches the request ID of the upload request
-	// when the upload URL was generated for that request.
-	UploadRequestID string `json:"uploadRequestID,omitempty"`
+	// Expiration is the time at which the signed URL expires.
+	Expiration metav1.Time `json:"expiration,omitempty"`
 
-	// Uploaded is set when the controller notices that the upload is present in storage.
-	Uploaded bool `json:"uploaded,omitempty"`
+	// UploadedMD5Checksum is the md5 checksum of the file that the controller observed in storage.
+	UploadedMD5Checksum string `json:"uploadedMD5Checksum,omitempty"`
 }
 
 type ObjectRef struct {

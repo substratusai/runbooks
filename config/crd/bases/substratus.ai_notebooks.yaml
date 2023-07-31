@@ -171,27 +171,6 @@ spec:
           status:
             description: Status is the observed state of the Notebook.
             properties:
-              build:
-                description: Build contains the status of the image build.
-                properties:
-                  uploadExpiration:
-                    description: UploadExpiration is the time at which the UploadURL
-                      expires.
-                    format: date-time
-                    type: string
-                  uploadRequestID:
-                    description: UploadRequestID matches the request ID of the upload
-                      request when the upload URL was generated for that request.
-                    type: string
-                  uploadURL:
-                    description: UploadURL is a signed URL to upload the tar'd docker
-                      build context to.
-                    type: string
-                  uploaded:
-                    description: Uploaded is set when the controller notices that
-                      the upload is present in storage.
-                    type: boolean
-                type: object
               conditions:
                 description: Conditions is the list of conditions that describe the
                   current state of the Notebook.
@@ -267,6 +246,26 @@ spec:
                 description: Ready indicates that the Notebook is ready to serve.
                   See Conditions for more details.
                 type: boolean
+              upload:
+                description: Upload contains the status of the image upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a HTTPS URL to upload the tar'd docker
+                      build context to.
+                    type: string
+                  uploadedMD5Checksum:
+                    description: UploadedMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
             required:
             - ready
             type: object

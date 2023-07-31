@@ -143,13 +143,19 @@ loop:
 		switch event.Type {
 		case watch.Added, watch.Modified:
 			o := event.Object.(interface {
-				GetStatusBuild() apiv1.BuildStatus
+				GetStatusUpload() apiv1.UploadStatus
 				GetBuild() *apiv1.Build
 			})
-			status := o.GetStatusBuild()
+			status := o.GetStatusUpload()
 			spec := o.GetBuild().Upload
-			if status.UploadURL != "" && status.UploadRequestID == spec.RequestID {
-				uploadURL = status.UploadURL
+			if status.UploadedMD5Checksum == tb.MD5Checksum {
+				// This is an edge-case where the controller found a matching upload
+				// that already existed in storage.
+				klog.V(1).Infof("upload already exists in storage with md5 checksum: %s, skipping upload", status.UploadedMD5Checksum)
+				return nil
+			}
+			if status.SignedURL != "" && status.RequestID == spec.RequestID {
+				uploadURL = status.SignedURL
 				watcher.Stop()
 				break loop
 			}

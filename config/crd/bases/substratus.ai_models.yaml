@@ -172,25 +172,24 @@ spec:
                     type: string
                 type: object
               build:
-                description: Build contains the status of the image build.
+                description: Upload contains the status of the image upload.
                 properties:
-                  uploadExpiration:
-                    description: UploadExpiration is the time at which the UploadURL
-                      expires.
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
                     format: date-time
                     type: string
-                  uploadRequestID:
-                    description: UploadRequestID matches the request ID of the upload
-                      request when the upload URL was generated for that request.
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status.
                     type: string
-                  uploadURL:
-                    description: UploadURL is a signed URL to upload the tar'd docker
+                  signedURL:
+                    description: SignedURL is a HTTPS URL to upload the tar'd docker
                       build context to.
                     type: string
-                  uploaded:
-                    description: Uploaded is set when the controller notices that
-                      the upload is present in storage.
-                    type: boolean
+                  uploadedMD5Checksum:
+                    description: UploadedMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
                 type: object
               conditions:
                 description: Conditions is the list of conditions that describe the

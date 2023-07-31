@@ -261,11 +261,26 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
-	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
+	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller"), client.ForceOwnership); err != nil {
+		// If attempt to change an immutable field will result in a Invalid
+		// error with some text like:
+		//
+		// failed to apply pod: Pod \"example-notebook\" is invalid: spec: Forbidden: pod updates may not change fields other than
+		// ...
+		if apierrors.IsInvalid(err) {
+			log.Error(err, "failed to apply pod, deleting pod")
+			if err := r.Delete(ctx, pod); err != nil {
+				return result{}, fmt.Errorf("failed to delete pod: %w", err)
+			}
+			// Allow requeue via Pod event.
+			return result{}, nil
+		}
 		return result{}, fmt.Errorf("failed to apply pod: %w", err)
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
-		return result{}, fmt.Errorf("failed to get pod: %w", err)
+		if !apierrors.IsNotFound(err) {
+			return result{}, fmt.Errorf("failed to get pod: %w", err)
+		}
 	}
 
 	if isPodReady(pod) {
@@ -296,8 +311,10 @@ func nbPodName(nb *apiv1.Notebook) string {
 	return nb.Name + "-notebook"
 }
 
+// notebookPod constructs a Pod for the given Notebook.
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
+
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -327,9 +344,11 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
+							Name:          "notebook",
 							ContainerPort: 8888,
 						},
 					},
+					Env: paramsToEnv(notebook.Spec.Params),
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{

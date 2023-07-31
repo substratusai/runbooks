@@ -1,8 +1,7 @@
 package v1
 
-// Substatus follows a convention of mapping 1:1 controller to condition type.
-
 const (
+	ConditionUploaded = "Uploaded"
 	ConditionBuilt    = "Built"
 	ConditionLoaded   = "Loaded"
 	ConditionModelled = "Modelled"
@@ -29,4 +28,5 @@ const (
 	ReasonSuspended = "Suspended"
 
 	ReasonAwaitingUpload = "AwaitingUpload"
+	ReasonUploadFound    = "UploadFound"
 )

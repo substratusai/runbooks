@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -61,9 +62,15 @@ func isPodReady(pod *corev1.Pod) bool {
 
 func paramsToEnv(params map[string]intstr.IntOrString) []corev1.EnvVar {
 	envs := []corev1.EnvVar{}
-	// TODO(nstogner): Order by key to avoid randomness.
-	for k, v := range params {
-		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v.String()})
+
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		p := params[k]
+		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: p.String()})
 	}
 	return envs
 }

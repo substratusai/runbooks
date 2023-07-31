@@ -36,8 +36,8 @@ type BuildableObject interface {
 
 	GetConditions() *[]metav1.Condition
 	SetStatusReady(bool)
-	GetStatusBuild() apiv1.BuildStatus
-	SetStatusBuild(apiv1.BuildStatus)
+	GetStatusUpload() apiv1.UploadStatus
+	SetStatusUpload(apiv1.UploadStatus)
 }
 
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
@@ -70,8 +70,8 @@ func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("Reconciling container")
-	defer log.Info("Done reconciling container")
+	log.Info("Reconciling build")
+	defer log.Info("Done reconciling build")
 
 	// Service account used for building and pushing the image.
 	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
@@ -183,56 +183,80 @@ func (r *BuildReconciler) reconcileUploadFile(ctx context.Context, obj Buildable
 	log := log.FromContext(ctx)
 
 	spec := obj.GetBuild().Upload
-	status := obj.GetStatusBuild()
+	status := obj.GetStatusUpload()
 
-	if spec.RequestID != status.UploadRequestID {
+	if spec.RequestID != status.RequestID {
+		// Account for the edge-case where an uploaded file matching the checksum
+		// ready exists in storage.
+		// For example: This can happen if a Notebook is deleted and recreated
+		// but the underlying storage was not cleared.
+		existingUploadChecksum, _ := r.storageObjectMd5(obj, r.SCI)
+		if existingUploadChecksum == spec.MD5Checksum {
+			obj.SetStatusUpload(apiv1.UploadStatus{
+				UploadedMD5Checksum: spec.MD5Checksum,
+			})
+			meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionUploaded,
+				Status:             metav1.ConditionTrue,
+				Reason:             apiv1.ReasonUploadFound,
+				ObservedGeneration: obj.GetGeneration(),
+				Message:            fmt.Sprintf("Existing upload found in storage with specified checksum: %s", spec.MD5Checksum),
+			})
+			if err := r.Client.Status().Update(ctx, obj); err != nil {
+				return result{}, fmt.Errorf("updating status: %w", err)
+			}
+			return result{success: true}, nil
+		}
+
 		url, expiration, err := r.generateSignedURL(obj)
 		if err != nil {
 			return result{}, fmt.Errorf("generating upload url: %w", err)
 		}
 
-		obj.SetStatusBuild(apiv1.BuildStatus{
-			UploadURL:        url,
-			UploadRequestID:  spec.RequestID,
-			UploadExpiration: metav1.Time{Time: expiration},
-			Uploaded:         false,
+		obj.SetStatusUpload(apiv1.UploadStatus{
+			SignedURL:  url,
+			RequestID:  spec.RequestID,
+			Expiration: metav1.Time{Time: expiration},
 		})
 		meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-			Type:               apiv1.ConditionBuilt,
+			Type:               apiv1.ConditionUploaded,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonAwaitingUpload,
 			ObservedGeneration: obj.GetGeneration(),
-			Message:            "Waiting for object upload to complete",
+			Message:            fmt.Sprintf("Waiting for upload with md5 checksum: %s", spec.MD5Checksum),
 		})
 		if err := r.Client.Status().Update(ctx, obj); err != nil {
 			return result{}, fmt.Errorf("updating status: %w", err)
 		}
+
+		// Client is expected to trigger a change to the object after uploading
+		// which will trigger this function again.
+		return result{}, nil
 	}
 
 	// Verify the object has been uploaded to storage.
-	storageMd5, err := r.storageObjectMd5(obj, r.SCI)
+	storageMD5, err := r.storageObjectMd5(obj, r.SCI)
 	if err != nil {
 		return result{}, fmt.Errorf("getting storage object md5: %w", err)
 	}
-	if storageMd5 != spec.MD5Checksum {
+	if storageMD5 != spec.MD5Checksum {
 		log.Info("The object's md5 does not match the spec md5. An upload may be in progress.")
 		// Allow the client to trigger a retry (they can update an annotation).
-		return result{Result: ctrl.Result{RequeueAfter: time.Second}}, nil
+		return result{}, nil
 	}
 
-	{
-		s := obj.GetStatusBuild()
-		s.Uploaded = true
-		s.UploadURL = ""
-		s.UploadExpiration = metav1.Time{}
-		obj.SetStatusBuild(s)
-	}
+	obj.SetStatusUpload(apiv1.UploadStatus{
+		SignedURL:           "",
+		RequestID:           spec.RequestID,
+		Expiration:          metav1.Time{},
+		UploadedMD5Checksum: storageMD5,
+	})
 	meta.SetStatusCondition(obj.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionBuilt,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
+		Type:               apiv1.ConditionUploaded,
+		Status:             metav1.ConditionTrue,
+		Reason:             apiv1.ReasonUploadFound,
 		ObservedGeneration: obj.GetGeneration(),
-		Message:            "Upload received, build Job to be created",
+		Message:            fmt.Sprintf("Upload received with matching md5 checksum: %s", spec.MD5Checksum),
 	})
 	if err := r.Client.Status().Update(ctx, obj); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)

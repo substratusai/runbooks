@@ -64,12 +64,12 @@ func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
 }
 
-func (n *Notebook) SetStatusBuild(b BuildStatus) {
-	n.Status.Build = b
+func (n *Notebook) SetStatusUpload(b UploadStatus) {
+	n.Status.Upload = b
 }
 
-func (n *Notebook) GetStatusBuild() BuildStatus {
-	return n.Status.Build
+func (n *Notebook) GetStatusUpload() UploadStatus {
+	return n.Status.Upload
 }
 
 func (n *Notebook) IsSuspended() bool {
@@ -85,8 +85,8 @@ type NotebookStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Build contains the status of the image build.
-	Build BuildStatus `json:"build,omitempty"`
+	// Upload contains the status of the image upload.
+	Upload UploadStatus `json:"upload,omitempty"`
 }
 
 //+kubebuilder:resource:categories=ai,shortName=nb

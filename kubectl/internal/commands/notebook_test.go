@@ -60,9 +60,9 @@ func TestNotebook(t *testing.T) {
 		assert.NoError(t, err, "getting notebook")
 	}, timeout, interval, "waiting for the notebook to be created")
 
-	nb.Status.Build = apiv1.BuildStatus{
-		UploadURL:       mockBucketServer.URL + "/some-signed-url",
-		UploadRequestID: testUUID,
+	nb.Status.Upload = apiv1.UploadStatus{
+		SignedURL: mockBucketServer.URL + "/some-signed-url",
+		RequestID: testUUID,
 	}
 	require.NoError(t, k8sClient.Status().Update(ctx, nb))
 
