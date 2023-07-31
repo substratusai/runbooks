@@ -5,26 +5,13 @@
 Create a GCP environment.
 
 ```sh
-make install
+make dev-up
 ```
 
-Setup controller for running locally.
+Run Substratus control plane locally.
 
 ```sh
-# Example only: use your own script.
-source ./hack/dev/example-gcp-env.sh
-```
-
-Turn off the controller in the cluster.
-
-```sh
-kubectl scale deployments -n substratus controller-manager --replicas 0
-```
-
-Run controller locally.
-
-```sh
-make dev
+make dev-run
 ```
 
 Create an example model and server.
@@ -58,7 +45,7 @@ kubectl apply -f examples/facebook-opt-125m/finetuned-model.yaml
 Cleanup.
 
 ```sh
-make uninstall
+make dev-down
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.

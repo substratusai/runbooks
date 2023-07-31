@@ -132,11 +132,11 @@ dev-up:
 .PHONY: dev-down
 dev-down:
 	docker run -it \
-	  -v $HOME/.kube:/root/.kube \
+	  -v ${HOME}/.kube:/root/.kube \
 	  -e PROJECT=$(shell gcloud config get project) \
 	  -e TOKEN=$(shell gcloud auth print-access-token) \
 	  -e TF_VAR_attach_gpu_nodepools=false \
-	  substratus-installer gcp-up.sh
+	  substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
 
 .PHONY: dev-run
