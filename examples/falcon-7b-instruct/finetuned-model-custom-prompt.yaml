@@ -11,7 +11,7 @@ spec:
     name: k8s-instructions
   params:
     num_train_epochs: 1
-    # Save to checkpoint every 5 steps
+    # Save to checkpoint every 5 steps for a dataset with ~70 steps total.
     save_steps: 5
     prompt_template: |
       You're a helpful assistant that helps with generating K8s YAML manifests. Your responses should only be YAML or multi YAML files
