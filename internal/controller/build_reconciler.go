@@ -187,7 +187,7 @@ func (r *BuildReconciler) reconcileUploadFile(ctx context.Context, obj Buildable
 
 	if spec.RequestID != status.RequestID {
 		// Account for the edge-case where an uploaded file matching the checksum
-		// ready exists in storage.
+		// already exists in storage.
 		// For example: This can happen if a Notebook is deleted and recreated
 		// but the underlying storage was not cleared.
 		existingUploadChecksum, _ := r.storageObjectMd5(obj, r.SCI)
