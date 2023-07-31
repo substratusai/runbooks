@@ -15,8 +15,9 @@ spec:
 
   params: {} # Change to field triggers redeploy.
 
-  image:
-    name: "" # Change to field triggers redeploy.
+  image: "" # Change to field triggers redeploy.
+
+  build:
     upload:
       md5Checksum: "" # Change to field triggers rebuild.
     git:
@@ -44,8 +45,9 @@ spec:
 
   params: {} # Change to field triggers redeploy.
 
-  image:
-    name: "" # Change to field triggers redeploy.
+  image: "" # Change to field triggers redeploy.
+
+  build:
     upload:
       md5Checksum: "" # Change to field triggers rebuild.
     git:
