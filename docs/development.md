@@ -1,6 +1,6 @@
 # Development
 
-## Remote Development
+## Control Plane
 
 Create a GCP environment.
 
@@ -49,3 +49,30 @@ make dev-down
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.
+
+## Kubectl Plugins
+
+### Install from source
+
+You can test out the latest kubectl plugin by building from source directly:
+```sh
+go build ./kubectl/cmd/notebook && sudo mv notebook /usr/local/bin/kubectl-notebook
+go build ./kubectl/cmd/applybuild && sudo mv applybuild /usr/local/bin/kubectl-applybuild
+```
+
+### Install using script
+
+Release binaries are created for most architectures when the repo is tagged.
+Be aware that moving the binary to your PATH might fail due to permissions
+(observed on mac). If it fails, the script will retry the `mv` with `sudo` and
+prompt you for your password:
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/substratusai/substratus/main/install/scripts/install_kubectl_plugin.sh)"
+```
+
+If the plugin installed correctly, you should see it listed as a `kubectl plugin`:
+
+```sh
+kubectl plugin list 2>/dev/null | grep kubectl-notebook
+```

@@ -54,7 +54,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if server.Spec.Image == "" {
+	if server.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
 	}
@@ -137,7 +137,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           server.Spec.Image,
+							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.

@@ -44,7 +44,7 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if notebook.Spec.Image == "" {
+	if notebook.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
 	}
@@ -337,7 +337,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			Containers: []corev1.Container{
 				{
 					Name:  containerName,
-					Image: notebook.Spec.Image,
+					Image: notebook.GetImage(),
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Command: notebook.Spec.Command,

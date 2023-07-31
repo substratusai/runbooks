@@ -49,7 +49,7 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if model.Spec.Image == "" {
+	if model.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
 	}
@@ -297,7 +297,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 					Containers: []corev1.Container{
 						{
 							Name:  containerName,
-							Image: model.Spec.Image,
+							Image: model.GetImage(),
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
 							Command: model.Spec.Command,

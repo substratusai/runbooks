@@ -3,6 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // NotebookSpec defines the desired state of Notebook
@@ -15,7 +16,7 @@ type NotebookSpec struct {
 	Suspend *bool `json:"suspend,omitempty"`
 
 	// Image that contains notebook and dependencies.
-	Image string `json:"image,omitempty"`
+	Image *string `json:"image,omitempty"`
 
 	// Build specifies how to build an image.
 	Build *Build `json:"build,omitempty"`
@@ -45,11 +46,14 @@ func (n *Notebook) SetBuild(b *Build) {
 }
 
 func (n *Notebook) GetImage() string {
-	return n.Spec.Image
+	if n.Spec.Image == nil {
+		return ""
+	}
+	return *n.Spec.Image
 }
 
 func (n *Notebook) SetImage(image string) {
-	n.Spec.Image = image
+	n.Spec.Image = ptr.To(image)
 }
 
 func (n *Notebook) GetConditions() *[]metav1.Condition {

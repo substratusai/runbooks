@@ -41,7 +41,7 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if dataset.Spec.Image == "" {
+	if dataset.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
 	}
@@ -153,7 +153,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					Containers: []corev1.Container{
 						{
 							Name:    containerName,
-							Image:   dataset.Spec.Image,
+							Image:   dataset.GetImage(),
 							Command: dataset.Spec.Command,
 							Env:     paramsToEnv(dataset.Spec.Params),
 						},

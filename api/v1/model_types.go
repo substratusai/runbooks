@@ -3,6 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // ModelSpec defines the desired state of Model
@@ -11,7 +12,7 @@ type ModelSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains model code and dependencies.
-	Image string `json:"image,omitempty"`
+	Image *string `json:"image,omitempty"`
 
 	// Build specifies how to build an image.
 	Build *Build `json:"build,omitempty"`
@@ -43,11 +44,14 @@ func (m *Model) SetBuild(b *Build) {
 }
 
 func (m *Model) SetImage(image string) {
-	m.Spec.Image = image
+	m.Spec.Image = ptr.To(image)
 }
 
 func (m *Model) GetImage() string {
-	return m.Spec.Image
+	if m.Spec.Image == nil {
+		return ""
+	}
+	return *m.Spec.Image
 }
 
 func (m *Model) GetConditions() *[]metav1.Condition {

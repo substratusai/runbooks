@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"k8s.io/utils/ptr"
 
@@ -176,6 +177,13 @@ loop:
 
 	if err := uploadTarball(tb, uploadURL); err != nil {
 		return fmt.Errorf("uploading tarball: %w", err)
+	}
+
+	// Trigger the controller to requeue the object.
+	// Nothing special about this annotation.
+	uploadTS := time.Now().UTC().Format(time.RFC3339)
+	if _, err := r.Patch(obj.GetNamespace(), obj.GetName(), types.MergePatchType, []byte(fmt.Sprintf(`{ "metadata": {"annotations": { "upload-timestamp": %q } } }`, uploadTS)), &metav1.PatchOptions{}); err != nil {
+		return fmt.Errorf("patching upload timestamp: %w", err)
 	}
 
 	return nil

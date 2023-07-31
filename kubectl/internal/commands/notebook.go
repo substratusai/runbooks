@@ -24,74 +24,6 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-/*
-# Declarative notebooks:
-
-```sh
-# Applies notebook to cluster. Opens notebook.
-kubectl notebook -f notebook.yaml
-```
-
-# Notebooks from other sources:
-
-```
-# Creates notebook from Dataset. Opens notebook.
-kubectl notebook -f dataset.yaml
-kubectl notebook dataset/<name-of-dataset>
-
-# Creates notebook from Model. Opens notebook.
-kubectl notebook -f model.yaml
-kubectl notebook -f model/<name-of-model>
-
-# Creates notebook from Server. Opens notebook.
-kubectl notebook -f server.yaml
-kubectl notebook -f server/<name-of-server>
-```
-
-# Notebooks that are built from local directory:
-
-New build flag: -b --build
-
-Note: .spec.container is overridden with .spec.container.upload
-
-```
-kubectl notebook -b -f notebook.yaml
-```
-
-If notebook does NOT exist:
-
-* Creates notebook with .container.upload set
-* Remote build flow.
-* Opens notebook.
-
-If notebook does exist:
-
-* Finds notebook.
-* Prompts user to ask if they want to recreate the notebook (warning: will wipe contents - applicable when we support notebook snapshots).
-* Updates .container.upload.md5checksum
-* Remote build flow.
-* Unsuspends notebook.
-* Opens notebook.
-
-# Existing (named) notebooks:
-
-kubectl notebook -n default my-nb-name
-
-* Finds notebook.
-* Unsuspends notebook.
-* Opens notebook.
-
-# Existing (named) notebooks with build:
-
-kubectl notebook -b -n default my-nb-name
-
-* Finds notebook.
-* Prompts user to ask if they want to recreate the notebook (warning: will wipe contents - applicable when we support notebook snapshots).
-* Builds notebook.
-* Unsuspends notebook.
-* Opens notebook.
-*/
-
 func Notebook() *cobra.Command {
 	var cfg struct {
 		build          string
@@ -122,7 +54,7 @@ func Notebook() *cobra.Command {
 
 			var tarball *client.Tarball
 			if cfg.build != "" {
-				spin.Suffix = " Building: Preparing tarball..."
+				spin.Suffix = " Preparing tarball..."
 				spin.Start()
 
 				var err error
@@ -133,7 +65,7 @@ func Notebook() *cobra.Command {
 				defer os.Remove(tarball.TempDir)
 
 				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Building: Prepared")
+				fmt.Fprintln(NotebookStdout, "Tarball prepared.")
 			}
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
@@ -188,7 +120,7 @@ func Notebook() *cobra.Command {
 			nb.Spec.Suspend = ptr.To(false)
 
 			if cfg.build != "" {
-				if err := client.ClearImage(obj); err != nil {
+				if err := client.ClearImage(nb); err != nil {
 					return fmt.Errorf("clearing image in spec: %w", err)
 				}
 				if err := client.SetUploadContainerSpec(nb, tarball, NewUUID()); err != nil {
@@ -202,25 +134,39 @@ func Notebook() *cobra.Command {
 
 			cleanup := func() {
 				// Use a new context to avoid using the cancelled one.
-				//ctx := context.Background()
+				ctx := context.Background()
 
-				if cfg.noSuspend {
-					fmt.Fprintln(NotebookStdout, "Cleanup: Skipping notebook suspension, it will keep running.")
-				} else {
-					// Suspend notebook.
-					spin.Suffix = " Cleanup: Suspending notebook..."
+				if cfg.sync {
+					spin.Suffix = " Syncing notebook to local directory..."
 					spin.Start()
-					if _, err := notebooks.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{}); err != nil {
-						fmt.Fprintf(NotebookStdout, "Cleanup: Error suspending notebook: %v\n", err)
+					baseDir := "."
+					if cfg.build != "" {
+						baseDir = cfg.build
+					}
+					if err := client.CopySrcFromNotebook(ctx, baseDir, nb); err != nil {
+						klog.Errorf("Error syncing notebook to local directory: %v", err)
 					}
 					spin.Stop()
-					fmt.Fprintln(NotebookStdout, "Cleanup: Suspended")
+					fmt.Fprintln(NotebookStdout, "Synced notebook src/ to local directory.")
+				}
+
+				if cfg.noSuspend {
+					fmt.Fprintln(NotebookStdout, "Skipping notebook suspension, it will keep running.")
+				} else {
+					// Suspend notebook.
+					spin.Suffix = " Suspending notebook..."
+					spin.Start()
+					if _, err := notebooks.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{}); err != nil {
+						klog.Errorf("Error suspending notebook: %v", err)
+					}
+					spin.Stop()
+					fmt.Fprintln(NotebookStdout, "Notebook suspended.")
 				}
 			}
 			defer cleanup()
 
 			if cfg.build != "" {
-				spin.Suffix = " Building: Uploading tarball..."
+				spin.Suffix = " Uploading tarball..."
 				spin.Start()
 
 				if err := notebooks.Upload(ctx, nb, tarball); err != nil {
@@ -228,7 +174,7 @@ func Notebook() *cobra.Command {
 				}
 
 				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Building: Uploaded")
+				fmt.Fprintln(NotebookStdout, "Tarball uploaded.")
 			}
 
 			spin.Suffix = " Waiting for Notebook to be ready..."
@@ -241,7 +187,21 @@ func Notebook() *cobra.Command {
 			}
 
 			spin.Stop()
-			fmt.Fprintln(NotebookStdout, "Notebook: Ready")
+			fmt.Fprintln(NotebookStdout, "Notebook ready.")
+
+			if cfg.sync {
+				spin.Suffix = " Syncing local directory with Notebook..."
+				spin.Start()
+				baseDir := "."
+				if cfg.build != "" {
+					baseDir = cfg.build
+				}
+				if err := client.CopySrcToNotebook(ctx, baseDir, nb); err != nil {
+					return fmt.Errorf("copying src to notebook: %w", err)
+				}
+				spin.Stop()
+				fmt.Fprintln(NotebookStdout, "Synced src/ to notebook.")
+			}
 
 			var wg sync.WaitGroup
 
@@ -298,15 +258,15 @@ func Notebook() *cobra.Command {
 				return fmt.Errorf("context done while waiting on connection to be ready: %w", ctx.Err())
 			}
 			spin.Stop()
-			fmt.Fprintln(NotebookStdout, "Connection: Ready")
+			fmt.Fprintln(NotebookStdout, "Connection ready.")
 
 			// TODO(nstogner): Grab token from Notebook status.
 			url := "http://localhost:8888?token=default"
 			if !cfg.noOpenBrowser {
-				fmt.Fprintf(NotebookStdout, "Browser: opening: %s\n", url)
+				fmt.Fprintf(NotebookStdout, "Opening browser to %s\n", url)
 				browser.OpenURL(url)
 			} else {
-				fmt.Fprintf(NotebookStdout, "Browser: open to: %s\n", url)
+				fmt.Fprintf(NotebookStdout, "Open browser to: %s\n", url)
 			}
 
 			klog.V(2).Info("Waiting for routines to complete before exiting")
@@ -326,7 +286,7 @@ func Notebook() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to develop against.")
 	cmd.Flags().StringVarP(&cfg.namespace, "namespace", "n", "default", "Namespace of Notebook")
 	cmd.Flags().BoolVar(&cfg.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
-	cmd.Flags().BoolVar(&cfg.sync, "sync", false, "Sync local directory with Notebook")
+	cmd.Flags().BoolVarP(&cfg.sync, "sync", "s", false, "Sync local directory with Notebook")
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
 	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")

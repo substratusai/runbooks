@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // ServerSpec defines the desired state of Server
@@ -10,7 +11,7 @@ type ServerSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains model serving application and dependencies.
-	Image string `json:"image,omitempty"`
+	Image *string `json:"image,omitempty"`
 
 	// Build specifies how to build an image.
 	Build *Build `json:"build,omitempty"`
@@ -60,11 +61,14 @@ func (s *Server) SetBuild(b *Build) {
 }
 
 func (s *Server) GetImage() string {
-	return s.Spec.Image
+	if s.Spec.Image == nil {
+		return ""
+	}
+	return *s.Spec.Image
 }
 
 func (s *Server) SetImage(image string) {
-	s.Spec.Image = image
+	s.Spec.Image = ptr.To(image)
 }
 
 func (s *Server) GetConditions() *[]metav1.Condition {

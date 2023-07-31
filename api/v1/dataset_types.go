@@ -3,6 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // DatasetSpec defines the desired state of Dataset.
@@ -11,7 +12,7 @@ type DatasetSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains dataset loading code and dependencies.
-	Image string `json:"image,omitempty"`
+	Image *string `json:"image,omitempty"`
 
 	// Build specifies how to build an image.
 	Build *Build `json:"build,omitempty"`
@@ -35,10 +36,13 @@ func (d *Dataset) SetBuild(b *Build) {
 }
 
 func (d *Dataset) SetImage(image string) {
-	d.Spec.Image = image
+	d.Spec.Image = ptr.To(image)
 }
 func (d *Dataset) GetImage() string {
-	return d.Spec.Image
+	if d.Spec.Image == nil {
+		return ""
+	}
+	return *d.Spec.Image
 }
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {
