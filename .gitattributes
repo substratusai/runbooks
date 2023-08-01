@@ -1,0 +1,9 @@
+ *.go linguist-language=Go diff=golang
+ *.md linguist-language=Markdown diff=markdown
+ Dockerfile linguist-language=Dockerfile diff=dockerfile
+ *.mod linguist-language=Go diff=golang
+ *.sum linguist-language=Go diff=golang
+ *.yaml linguist-language=YAML diff=yaml
+ *.json linguist-language=JSON diff=json
+ *.proto linguist-language=Protocol Buffer diff=protobuf
+ *.tf linguist-language=HCL diff=hcl
