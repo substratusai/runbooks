@@ -152,6 +152,11 @@ func (in *DatasetSpec) DeepCopyInto(out *DatasetSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(string)
+		**out = **in
+	}
 	if in.Build != nil {
 		in, out := &in.Build, &out.Build
 		*out = new(Build)
@@ -287,6 +292,11 @@ func (in *ModelSpec) DeepCopyInto(out *ModelSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(string)
+		**out = **in
+	}
 	if in.Build != nil {
 		in, out := &in.Build, &out.Build
 		*out = new(Build)
@@ -420,6 +430,11 @@ func (in *NotebookSpec) DeepCopyInto(out *NotebookSpec) {
 	if in.Suspend != nil {
 		in, out := &in.Suspend, &out.Suspend
 		*out = new(bool)
+		**out = **in
+	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(string)
 		**out = **in
 	}
 	if in.Build != nil {
@@ -585,6 +600,11 @@ func (in *ServerSpec) DeepCopyInto(out *ServerSpec) {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(string)
+		**out = **in
 	}
 	if in.Build != nil {
 		in, out := &in.Build, &out.Build

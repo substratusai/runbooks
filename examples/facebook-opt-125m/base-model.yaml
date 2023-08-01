@@ -4,10 +4,6 @@ metadata:
   namespace: default
   name: facebook-opt-125m
 spec:
-  command: ["load.sh"]
-  build:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-loader-huggingface
+  image: substratusai/model-loader-huggingface
   params:
     name: facebook/opt-125m

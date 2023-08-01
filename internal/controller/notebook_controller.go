@@ -169,6 +169,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 		model = &apiv1.Model{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
 			if apierrors.IsNotFound(err) {
+				log.Error(err, "Model not found")
 				// Update this Model's status.
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
@@ -211,12 +212,12 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 		dataset = &apiv1.Dataset{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Dataset.Name, Namespace: notebook.Namespace}, dataset); err != nil {
 			if apierrors.IsNotFound(err) {
-				// Update this Model's status.
+				log.Error(err, "Dataset not found")
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 					Type:               apiv1.ConditionDeployed,
 					Status:             metav1.ConditionFalse,
-					Reason:             apiv1.ReasonModelNotFound,
+					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: notebook.Generation,
 				})
 				if err := r.Status().Update(ctx, notebook); err != nil {
@@ -231,7 +232,6 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 
 		if !dataset.Status.Ready {
 			log.Info("Dataset not ready", "dataset", dataset.Name)
-
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 				Type:               apiv1.ConditionDeployed,

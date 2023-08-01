@@ -16,43 +16,57 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 		nb = obj
 
 	case *apiv1.Model:
-		nb = &apiv1.Notebook{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      obj.Name,
-				Namespace: obj.Namespace,
-			},
-			Spec: apiv1.NotebookSpec{
-				// TODO: How to map base model / saved model to notebook mounts?
-				Image:  obj.Spec.Image,
-				Params: obj.Spec.Params,
-			},
-		}
+		return nil, fmt.Errorf("notebooks for models are not yet supported")
+		/*
+			nb = &apiv1.Notebook{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      obj.Name,
+					Namespace: obj.Namespace,
+				},
+				Spec: apiv1.NotebookSpec{
+					// TODO: How to map base model / saved model to notebook mounts?
+					Image:  obj.Spec.Image,
+					Params: obj.Spec.Params,
+				},
+			}
+		*/
 
 	case *apiv1.Server:
-		nb = &apiv1.Notebook{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      obj.Name,
-				Namespace: obj.Namespace,
-			},
-			Spec: apiv1.NotebookSpec{
-				Image: obj.Spec.Image,
-				Model: &obj.Spec.Model,
-			},
-		}
-	case *apiv1.Dataset:
-		nb = &apiv1.Notebook{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      obj.Name,
-				Namespace: obj.Namespace,
-			},
-			Spec: apiv1.NotebookSpec{
-				Build: obj.Spec.Build,
-				Dataset: &apiv1.ObjectRef{
-					Name: obj.Name,
+		return nil, fmt.Errorf("notebooks for servers are not yet supported")
+		/*
+			nb = &apiv1.Notebook{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      obj.Name,
+					Namespace: obj.Namespace,
 				},
-				Params: obj.Spec.Params,
-			},
-		}
+				Spec: apiv1.NotebookSpec{
+					Image: obj.Spec.Image,
+					Model: &obj.Spec.Model,
+				},
+			}
+		*/
+
+	case *apiv1.Dataset:
+		return nil, fmt.Errorf("notebooks for datasets are not yet supported")
+		// NOTE: For this to work for Dataset development purposes, the Notebook
+		// controllers needs to mount a directory to receive the dataset.
+		// (/content/data).
+		/*
+			nb = &apiv1.Notebook{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      obj.Name,
+					Namespace: obj.Namespace,
+				},
+				Spec: apiv1.NotebookSpec{
+					Build: obj.Spec.Build,
+					//Dataset: &apiv1.ObjectRef{
+					//	Name: obj.Name,
+					//},
+					Params: obj.Spec.Params,
+				},
+			}
+		*/
+
 	default:
 		return nil, fmt.Errorf("unknown object type: %T", obj)
 	}
