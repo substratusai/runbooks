@@ -13,6 +13,8 @@ spec:
     # See HuggingFace transformers.TrainingArguments for all parameters
     # https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments
     num_train_epochs: 1
+    # Save to checkpoint every 5 steps for a dataset with ~70 steps total
+    save_steps: 5
   resources:
     gpu:
       count: 4
