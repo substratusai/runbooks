@@ -3,9 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
-	"math"
-	"net/url"
-	"path/filepath"
+	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -28,30 +26,6 @@ func nextPowOf2(n int64) int64 {
 		k = k << 1
 	}
 	return k
-}
-
-const (
-	thousand = 1000
-	million  = 1000 * 1000
-	billion  = 1000 * 1000 * 1000
-
-	gigabyte = int64(1024 * 1024 * 1024)
-)
-
-func roundUpGB(bytes int64) int64 {
-	return int64(math.Ceil(float64(bytes)/float64(gigabyte))) * gigabyte
-}
-
-func parseBucketURL(bucketURL string) (string, string, error) {
-	u, err := url.Parse(bucketURL)
-	if err != nil {
-		return "", "", fmt.Errorf("parsing bucket url: %w", err)
-	}
-
-	bucket := u.Host
-	subpath := strings.TrimPrefix(filepath.Dir(u.Path), "/")
-
-	return bucket, subpath, nil
 }
 
 func reconcileJob(ctx context.Context, c client.Client, job *batchv1.Job, condition string) (result, error) {
@@ -88,9 +62,15 @@ func isPodReady(pod *corev1.Pod) bool {
 
 func paramsToEnv(params map[string]intstr.IntOrString) []corev1.EnvVar {
 	envs := []corev1.EnvVar{}
-	// TODO(nstogner): Order by key to avoid randomness.
-	for k, v := range params {
-		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: v.String()})
+
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		p := params[k]
+		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: p.String()})
 	}
 	return envs
 }

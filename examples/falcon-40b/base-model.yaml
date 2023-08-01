@@ -3,7 +3,6 @@ kind: Model
 metadata:
   name: falcon-40b
 spec:
-  image:
-    name: substratusai/model-loader-huggingface
+  image: substratusai/model-loader-huggingface
   params:
     name: tiiuae/falcon-40b

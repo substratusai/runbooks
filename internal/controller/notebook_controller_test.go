@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -24,9 +25,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Name: "some-image",
-			},
+			Image: ptr.To("some-image"),
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, model), "create a model to be referenced by the notebook")
@@ -41,8 +40,8 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 		},
 		Spec: apiv1.NotebookSpec{
 			Command: []string{"notebook.sh"},
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					URL: "https://github.com/substratusai/notebook-test-test",
 				},
 			},

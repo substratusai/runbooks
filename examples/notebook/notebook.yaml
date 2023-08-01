@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: example
+spec:
+  image: substratusai/base:latest
+  params:
+    abc: xyz
+    x: 123

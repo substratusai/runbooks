@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: test-notebook
+spec:
+  image: substratusai/base:main
+  params:
+    foo: bar
+    x: 123

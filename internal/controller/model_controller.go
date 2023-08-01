@@ -11,14 +11,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
@@ -30,7 +29,6 @@ type ModelReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
 	*ParamsReconciler
 
 	Cloud cloud.Cloud
@@ -51,8 +49,9 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &model); !result.success {
-		return result.Result, err
+	if model.GetImage() == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.ReconcileParamsConfigMap(ctx, &model); !result.success {
@@ -181,7 +180,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		Status:             metav1.ConditionFalse,
 		Reason:             apiv1.ReasonJobNotComplete,
 		ObservedGeneration: model.Generation,
-		Message:            fmt.Sprintf("Waiting for modeller Job to complete"),
+		Message:            "Waiting for modeller Job to complete",
 	})
 	if err := r.Status().Update(ctx, model); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
@@ -217,17 +216,17 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 func (r *ModelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Model{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForBaseModel))).
-		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForDataset))).
+		Watches(&apiv1.Model{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForBaseModel))).
+		Watches(&apiv1.Dataset{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findModelsForDataset))).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
-func (r *ModelReconciler) findModelsForBaseModel(obj client.Object) []reconcile.Request {
+func (r *ModelReconciler) findModelsForBaseModel(ctx context.Context, obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
 	var models apiv1.ModelList
-	if err := r.List(context.Background(), &models,
+	if err := r.List(ctx, &models,
 		client.MatchingFields{modelBaseModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -247,11 +246,11 @@ func (r *ModelReconciler) findModelsForBaseModel(obj client.Object) []reconcile.
 	return reqs
 }
 
-func (r *ModelReconciler) findModelsForDataset(obj client.Object) []reconcile.Request {
+func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.Object) []reconcile.Request {
 	dataset := obj.(*apiv1.Dataset)
 
 	var models apiv1.ModelList
-	if err := r.List(context.Background(), &models,
+	if err := r.List(ctx, &models,
 		client.MatchingFields{modelTrainingDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -283,7 +282,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 			Namespace: model.Namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.Int32(1),
+			BackoffLimit: ptr.To(int32(1)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -292,13 +291,13 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: ptr.Int64(3003),
+						FSGroup: ptr.To(int64(3003)),
 					},
 					ServiceAccountName: modellerServiceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:  containerName,
-							Image: model.Spec.Image.Name,
+							Image: model.GetImage(),
 							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 							// to execute this script.
 							Command: model.Spec.Command,

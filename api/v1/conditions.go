@@ -1,6 +1,7 @@
 package v1
 
 const (
+	ConditionUploaded = "Uploaded"
 	ConditionBuilt    = "Built"
 	ConditionLoaded   = "Loaded"
 	ConditionModelled = "Modelled"
@@ -25,13 +26,7 @@ const (
 	ReasonPodNotReady        = "PodNotReady"
 
 	ReasonSuspended = "Suspended"
-)
 
-const (
-	ConditionUploaded = "Uploaded"
-)
-
-const (
-	ReasonUploadComplete   = "UploadComplete"
-	ReasonUploadIncomplete = "UploadIncomplete"
+	ReasonAwaitingUpload = "AwaitingUpload"
+	ReasonUploadFound    = "UploadFound"
 )

@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -25,7 +25,6 @@ type DatasetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
 	*ParamsReconciler
 
 	Cloud cloud.Cloud
@@ -42,8 +41,9 @@ func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &dataset); !result.success {
-		return result.Result, err
+	if dataset.GetImage() == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.ReconcileParamsConfigMap(ctx, &dataset); !result.success {
@@ -105,7 +105,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		Status:             metav1.ConditionFalse,
 		Reason:             apiv1.ReasonJobNotComplete,
 		ObservedGeneration: dataset.Generation,
-		Message:            fmt.Sprintf("Waiting for data loader Job to complete"),
+		Message:            "Waiting for data loader Job to complete",
 	})
 	if err := r.Status().Update(ctx, dataset); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
@@ -147,13 +147,13 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup: ptr.Int64(3003),
+						FSGroup: ptr.To(int64(3003)),
 					},
 					ServiceAccountName: dataLoaderServiceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:    containerName,
-							Image:   dataset.Spec.Image.Name,
+							Image:   dataset.GetImage(),
 							Command: dataset.Spec.Command,
 							Env:     paramsToEnv(dataset.Spec.Params),
 						},

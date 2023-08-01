@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,7 +38,6 @@ const (
 )
 
 var (
-	cfg       *rest.Config
 	k8sClient client.Client
 	testEnv   *envtest.Environment
 	ctx       context.Context
@@ -94,61 +90,70 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Model",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Model{} },
+		Kind:      "Model",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.ServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Server",
-		},
+		Cloud:  testCloud,
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Server{} },
+		Kind:      "Server",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.NotebookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Notebook",
-		},
+		Cloud:  testCloud,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
+	}).SetupWithManager(mgr)
+	requireNoError(err)
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Notebook{} },
+		Kind:      "Notebook",
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.DatasetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
-		ContainerImageReconciler: &controller.ContainerImageReconciler{
-			Scheme: mgr.GetScheme(),
-			Client: mgr.GetClient(),
-			Cloud:  testCloud,
-			Kind:   "Dataset",
-		},
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
 		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
-
+	err = (&controller.BuildReconciler{
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Cloud:     testCloud,
+		NewObject: func() controller.BuildableObject { return &apiv1.Dataset{} },
+		Kind:      "Dataset",
+	}).SetupWithManager(mgr)
+	requireNoError(err)
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
@@ -177,21 +182,12 @@ func requireNoError(err error) {
 	}
 }
 
-func slurpTestFile(t *testing.T, filename string) string {
-	_, testFilename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(testFilename)
-	contents, err := ioutil.ReadFile(filepath.Join(dir, "tests", filename))
-	require.NoError(t, err)
-
-	return string(contents)
-}
-
 type testObject interface {
 	client.Object
 	GetConditions() *[]metav1.Condition
 	GetStatusReady() bool
 	SetStatusReady(bool)
-	GetImage() *apiv1.Image
+	GetBuild() *apiv1.Build
 }
 
 func testContainerBuild(t *testing.T, obj testObject, kind string) {
@@ -205,7 +201,7 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 	// Test that a container builder Job gets created by the controller.
 	var builderJob batchv1.Job
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-container-builder"}, &builderJob)
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName() + "-" + strings.ToLower(kind) + "-bld"}, &builderJob)
 		assert.NoError(t, err, "getting the container builder job")
 	}, timeout, interval, "waiting for the container builder job to be created")
 	require.Equal(t, "builder", builderJob.Spec.Template.Spec.Containers[0].Name)

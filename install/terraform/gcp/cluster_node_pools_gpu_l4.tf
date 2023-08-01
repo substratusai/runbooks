@@ -15,7 +15,8 @@ locals {
 
 # The L4 GPU does not support node autoprovisioning so precreating 0 size nodepool
 resource "google_container_node_pool" "g2-standard-4" {
-  name = "g2-standard-4"
+  name  = "g2-standard-4"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -53,7 +54,8 @@ resource "google_container_node_pool" "g2-standard-4" {
 }
 
 resource "google_container_node_pool" "g2-standard-8" {
-  name = "g2-standard-8"
+  name  = "g2-standard-8"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -91,7 +93,8 @@ resource "google_container_node_pool" "g2-standard-8" {
 }
 
 resource "google_container_node_pool" "g2-standard-12" {
-  name = "g2-standard-12"
+  name  = "g2-standard-12"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -129,7 +132,8 @@ resource "google_container_node_pool" "g2-standard-12" {
 }
 
 resource "google_container_node_pool" "g2-standard-16" {
-  name = "g2-standard-16"
+  name  = "g2-standard-16"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -167,7 +171,8 @@ resource "google_container_node_pool" "g2-standard-16" {
 }
 
 resource "google_container_node_pool" "g2-standard-24" {
-  name = "g2-standard-24"
+  name  = "g2-standard-24"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -205,7 +210,8 @@ resource "google_container_node_pool" "g2-standard-24" {
 }
 
 resource "google_container_node_pool" "g2-standard-32" {
-  name = "g2-standard-32"
+  name  = "g2-standard-32"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -243,7 +249,8 @@ resource "google_container_node_pool" "g2-standard-32" {
 }
 
 resource "google_container_node_pool" "g2-standard-48" {
-  name = "g2-standard-48"
+  name  = "g2-standard-48"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -281,7 +288,8 @@ resource "google_container_node_pool" "g2-standard-48" {
 }
 
 resource "google_container_node_pool" "g2-standard-96" {
-  name = "g2-standard-96"
+  name  = "g2-standard-96"
+  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0

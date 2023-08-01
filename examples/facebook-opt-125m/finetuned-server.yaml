@@ -3,4 +3,8 @@ kind: Server
 metadata:
   name: fb-opt-125m-squad
 spec:
+  build:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-server-basaran
   modelName: fb-opt-125m-squad

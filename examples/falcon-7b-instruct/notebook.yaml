@@ -5,7 +5,7 @@ metadata:
 spec:
   command: ["notebook.sh"]
   suspend: false
-  image:
+  build:
     git:
       url: https://github.com/substratusai/images
       path: model-trainer-huggingface

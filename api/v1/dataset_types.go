@@ -3,6 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // DatasetSpec defines the desired state of Dataset.
@@ -11,7 +12,10 @@ type DatasetSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Image that contains dataset loading code and dependencies.
-	Image Image `json:"image"`
+	Image *string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -24,8 +28,21 @@ func (d *Dataset) GetParams() map[string]intstr.IntOrString {
 	return d.Spec.Params
 }
 
-func (d *Dataset) GetImage() *Image {
-	return &d.Spec.Image
+func (d *Dataset) GetBuild() *Build {
+	return d.Spec.Build
+}
+func (d *Dataset) SetBuild(b *Build) {
+	d.Spec.Build = b
+}
+
+func (d *Dataset) SetImage(image string) {
+	d.Spec.Image = ptr.To(image)
+}
+func (d *Dataset) GetImage() string {
+	if d.Spec.Image == nil {
+		return ""
+	}
+	return *d.Spec.Image
 }
 
 func (d *Dataset) GetConditions() *[]metav1.Condition {
@@ -44,12 +61,12 @@ func (d *Dataset) GetStatusArtifacts() ArtifactsStatus {
 	return d.Status.Artifacts
 }
 
-func (d *Dataset) SetStatusImage(us ImageStatus) {
-	d.Status.Image = us
+func (d *Dataset) SetStatusUpload(us UploadStatus) {
+	d.Status.BuildUpload = us
 }
 
-func (d *Dataset) GetStatusImage() ImageStatus {
-	return d.Status.Image
+func (d *Dataset) GetStatusUpload() UploadStatus {
+	return d.Status.BuildUpload
 }
 
 // DatasetStatus defines the observed state of Dataset.
@@ -64,11 +81,11 @@ type DatasetStatus struct {
 	// Artifacts status.
 	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// BuildUpload contains the status of the build context upload.
+	BuildUpload UploadStatus `json:"buildUpload,omitempty"`
 }
 
-//+kubebuilder:resource:categories=ai
+//+kubebuilder:resource:categories=ai,shortName=data
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"

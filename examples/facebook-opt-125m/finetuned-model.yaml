@@ -3,17 +3,15 @@ kind: Model
 metadata:
   name: fb-opt-125m-squad
 spec:
-  container:
+  build:
     git:
       url: https://github.com/substratusai/images
       path: model-trainer-huggingface
-  trainer:
-    model:
-      name: facebook-opt-125m
-    dataset:
-      name: squad
-    epochs: 1
+  trainingDataset:
+    name: squad
   resources:
     cpu:
       count: 4
       memory: 4
+  params:
+    epochs: 1

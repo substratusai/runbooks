@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
@@ -30,7 +28,8 @@ type NotebookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	*ContainerImageReconciler
+	Cloud cloud.Cloud
+
 	*ParamsReconciler
 }
 
@@ -45,8 +44,9 @@ func (r *NotebookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if result, err := r.ReconcileContainerImage(ctx, &notebook); !result.success {
-		return result.Result, err
+	if notebook.GetImage() == "" {
+		// Image must be building.
+		return ctrl.Result{}, nil
 	}
 
 	if result, err := r.ReconcileParamsConfigMap(ctx, &notebook); !result.success {
@@ -73,16 +73,16 @@ func (r *NotebookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&apiv1.Notebook{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.Pod{}).
-		Watches(&source.Kind{Type: &apiv1.Model{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForModel))).
-		Watches(&source.Kind{Type: &apiv1.Dataset{}}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForDataset))).
+		Watches(&apiv1.Model{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForModel))).
+		Watches(&apiv1.Dataset{}, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(r.findNotebooksForDataset))).
 		Complete(r)
 }
 
-func (r *NotebookReconciler) findNotebooksForModel(obj client.Object) []reconcile.Request {
+func (r *NotebookReconciler) findNotebooksForModel(ctx context.Context, obj client.Object) []reconcile.Request {
 	model := obj.(*apiv1.Model)
 
 	var notebooks apiv1.NotebookList
-	if err := r.List(context.Background(), &notebooks,
+	if err := r.List(ctx, &notebooks,
 		client.MatchingFields{notebookModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -102,11 +102,11 @@ func (r *NotebookReconciler) findNotebooksForModel(obj client.Object) []reconcil
 	return reqs
 }
 
-func (r *NotebookReconciler) findNotebooksForDataset(obj client.Object) []reconcile.Request {
+func (r *NotebookReconciler) findNotebooksForDataset(ctx context.Context, obj client.Object) []reconcile.Request {
 	dataset := obj.(*apiv1.Dataset)
 
 	var notebooks apiv1.NotebookList
-	if err := r.List(context.Background(), &notebooks,
+	if err := r.List(ctx, &notebooks,
 		client.MatchingFields{notebookDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
@@ -129,7 +129,7 @@ func (r *NotebookReconciler) findNotebooksForDataset(obj client.Object) []reconc
 func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *apiv1.Notebook) (result, error) {
 	log := log.FromContext(ctx)
 
-	if notebook.Spec.Suspend {
+	if notebook.IsSuspended() {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 			Type:               apiv1.ConditionDeployed,
@@ -169,6 +169,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 		model = &apiv1.Model{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
 			if apierrors.IsNotFound(err) {
+				log.Error(err, "Model not found")
 				// Update this Model's status.
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
@@ -211,12 +212,12 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 		dataset = &apiv1.Dataset{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Dataset.Name, Namespace: notebook.Namespace}, dataset); err != nil {
 			if apierrors.IsNotFound(err) {
-				// Update this Model's status.
+				log.Error(err, "Dataset not found")
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 					Type:               apiv1.ConditionDeployed,
 					Status:             metav1.ConditionFalse,
-					Reason:             apiv1.ReasonModelNotFound,
+					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: notebook.Generation,
 				})
 				if err := r.Status().Update(ctx, notebook); err != nil {
@@ -231,7 +232,6 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 
 		if !dataset.Status.Ready {
 			log.Info("Dataset not ready", "dataset", dataset.Name)
-
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
 				Type:               apiv1.ConditionDeployed,
@@ -261,11 +261,26 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
-	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller")); err != nil {
+	if err := r.Patch(ctx, pod, client.Apply, client.FieldOwner("notebook-controller"), client.ForceOwnership); err != nil {
+		// If attempt to change an immutable field will result in a Invalid
+		// error with some text like:
+		//
+		// failed to apply pod: Pod \"example-notebook\" is invalid: spec: Forbidden: pod updates may not change fields other than
+		// ...
+		if apierrors.IsInvalid(err) {
+			log.Error(err, "failed to apply pod, deleting pod")
+			if err := r.Delete(ctx, pod); err != nil {
+				return result{}, fmt.Errorf("failed to delete pod: %w", err)
+			}
+			// Allow requeue via Pod event.
+			return result{}, nil
+		}
 		return result{}, fmt.Errorf("failed to apply pod: %w", err)
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
-		return result{}, fmt.Errorf("failed to get pod: %w", err)
+		if !apierrors.IsNotFound(err) {
+			return result{}, fmt.Errorf("failed to get pod: %w", err)
+		}
 	}
 
 	if isPodReady(pod) {
@@ -296,8 +311,10 @@ func nbPodName(nb *apiv1.Notebook) string {
 	return nb.Name + "-notebook"
 }
 
+// notebookPod constructs a Pod for the given Notebook.
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
+
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -320,16 +337,18 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			Containers: []corev1.Container{
 				{
 					Name:  containerName,
-					Image: notebook.Spec.Image.Name,
+					Image: notebook.GetImage(),
 					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
 					// to execute this script.
 					Command: notebook.Spec.Command,
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
+							Name:          "notebook",
 							ContainerPort: 8888,
 						},
 					},
+					Env: paramsToEnv(notebook.Spec.Params),
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{
@@ -404,35 +423,35 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	return pod, nil
 }
 
-func notebookPVCName(nb *apiv1.Notebook) string {
-	return nb.Name + "-notebook"
-}
+//func notebookPVCName(nb *apiv1.Notebook) string {
+//	return nb.Name + "-notebook"
+//}
 
-func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.PersistentVolumeClaim, error) {
-	pvc := &corev1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      notebookPVCName(nb),
-			Namespace: nb.Namespace,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				"ReadWriteOnce",
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					"storage": resource.MustParse("10Gi"),
-				},
-			},
-		},
-	}
-
-	if err := ctrl.SetControllerReference(nb, pvc, r.Scheme); err != nil {
-		return nil, fmt.Errorf("failed to set controller reference: %w", err)
-	}
-
-	return pvc, nil
-}
+//func (r *NotebookReconciler) notebookPVC(nb *apiv1.Notebook) (*corev1.PersistentVolumeClaim, error) {
+//	pvc := &corev1.PersistentVolumeClaim{
+//		TypeMeta: metav1.TypeMeta{
+//			APIVersion: "v1",
+//			Kind:       "PersistentVolumeClaim",
+//		},
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      notebookPVCName(nb),
+//			Namespace: nb.Namespace,
+//		},
+//		Spec: corev1.PersistentVolumeClaimSpec{
+//			AccessModes: []corev1.PersistentVolumeAccessMode{
+//				"ReadWriteOnce",
+//			},
+//			Resources: corev1.ResourceRequirements{
+//				Requests: corev1.ResourceList{
+//					"storage": resource.MustParse("10Gi"),
+//				},
+//			},
+//		},
+//	}
+//
+//	if err := ctrl.SetControllerReference(nb, pvc, r.Scheme); err != nil {
+//		return nil, fmt.Errorf("failed to set controller reference: %w", err)
+//	}
+//
+//	return pvc, nil
+//}

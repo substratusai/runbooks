@@ -3,6 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // NotebookSpec defines the desired state of Notebook
@@ -11,10 +12,14 @@ type NotebookSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Suspend should be set to true to stop the notebook (Pod) from running.
-	Suspend bool `json:"suspend,omitempty"`
+	// This is a pointer to distinguish between explicit false and not specified.
+	Suspend *bool `json:"suspend,omitempty"`
 
 	// Image that contains notebook and dependencies.
-	Image Image `json:"image"`
+	Image *string `json:"image,omitempty"`
+
+	// Build specifies how to build an image.
+	Build *Build `json:"build,omitempty"`
 
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
@@ -33,8 +38,22 @@ func (n *Notebook) GetParams() map[string]intstr.IntOrString {
 	return n.Spec.Params
 }
 
-func (n *Notebook) GetImage() *Image {
-	return &n.Spec.Image
+func (n *Notebook) GetBuild() *Build {
+	return n.Spec.Build
+}
+func (n *Notebook) SetBuild(b *Build) {
+	n.Spec.Build = b
+}
+
+func (n *Notebook) GetImage() string {
+	if n.Spec.Image == nil {
+		return ""
+	}
+	return *n.Spec.Image
+}
+
+func (n *Notebook) SetImage(image string) {
+	n.Spec.Image = ptr.To(image)
 }
 
 func (n *Notebook) GetConditions() *[]metav1.Condition {
@@ -49,12 +68,16 @@ func (n *Notebook) SetStatusReady(r bool) {
 	n.Status.Ready = r
 }
 
-func (n *Notebook) SetStatusImage(us ImageStatus) {
-	n.Status.Image = us
+func (n *Notebook) SetStatusUpload(b UploadStatus) {
+	n.Status.BuildUpload = b
 }
 
-func (n *Notebook) GetStatusImage() ImageStatus {
-	return n.Status.Image
+func (n *Notebook) GetStatusUpload() UploadStatus {
+	return n.Status.BuildUpload
+}
+
+func (n *Notebook) IsSuspended() bool {
+	return n.Spec.Suspend != nil && *n.Spec.Suspend
 }
 
 // NotebookStatus defines the observed state of Notebook
@@ -66,11 +89,11 @@ type NotebookStatus struct {
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// Image contains the status of the image. Upload URL is reported here.
-	Image ImageStatus `json:"image,omitempty"`
+	// BuildUpload contains the status of the build context upload.
+	BuildUpload UploadStatus `json:"buildUpload,omitempty"`
 }
 
-//+kubebuilder:resource:categories=ai
+//+kubebuilder:resource:categories=ai,shortName=nb
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Ready",type="boolean",JSONPath=".status.ready"

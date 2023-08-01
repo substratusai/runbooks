@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 func TestModelLoaderFromGit(t *testing.T) {
@@ -24,8 +25,8 @@ func TestModelLoaderFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					URL: "https://test.internal/test/model-loader.git",
 				},
 			},
@@ -72,9 +73,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.ModelSpec{
-			Image: apiv1.Image{
-				Name: "some-test-image",
-			},
+			Image: ptr.To("some-test-image"),
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, baseModel), "create a model to be referenced by the trained model")
@@ -89,9 +88,7 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: apiv1.DatasetSpec{
-			Image: apiv1.Image{
-				Name: "some-image",
-			},
+			Image: ptr.To("some-image"),
 		},
 	}
 	require.NoError(t, k8sClient.Create(ctx, dataset), "create a dataset to be referenced by the trained model")
@@ -107,8 +104,8 @@ func TestModelTrainerFromGit(t *testing.T) {
 		},
 		Spec: apiv1.ModelSpec{
 			Command: []string{"model.sh"},
-			Image: apiv1.Image{
-				Git: &apiv1.ImageGit{
+			Build: &apiv1.Build{
+				Git: &apiv1.BuildGit{
 					URL: "https://test.com/test/test",
 				},
 			},

@@ -1,41 +1,69 @@
 package v1
 
-type Image struct {
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// +structType=atomic
+type Build struct {
 	// Git is a reference to a git repository that will be built within the cluster.
-	// Built image will be set in the Image field.
-	Git *ImageGit `json:"git,omitempty"`
-	// Name of container image (example: "docker.io/your-username/your-image").
-	Name string `json:"name,omitempty"`
-	// Upload is a signal that a local tar of the directory should be uploaded to be built as an image.
-	Upload *ImageUpload `json:"upload,omitempty"`
+	// Built image will be set in the .spec.image field.
+	Git *BuildGit `json:"git,omitempty"`
+	// Upload can be set to request to start an upload flow where the client is
+	// responsible for uploading a local directory that is to be built in the cluster.
+	Upload *BuildUpload `json:"upload,omitempty"`
 }
 
-type ImageUpload struct {
-	// Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
+// +structType=atomic
+type BuildUpload struct {
+	// MD5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built.
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:MinLength=32
 	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
+	MD5Checksum string `json:"md5Checksum"`
+
+	// RequestID is the ID of the request to build the image.
+	// Changing this ID to a new value can be used to get a new signed URL
+	// (useful when a URL has expired).
+	RequestID string `json:"requestID"`
 }
 
-type ImageStatus struct {
-	// the Signed upload URL
-	UploadURL string `json:"uploadURL,omitempty"`
-	// Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL.
-	// +kubebuilder:validation:MaxLength=32
-	// +kubebuilder:validation:MinLength=32
-	// +kubebuilder:validation:Pattern="^[a-fA-F0-9]{32}$"
-	Md5Checksum string `json:"md5checksum,omitempty"`
-}
-
-type ImageGit struct {
-	// URL to the git repository.
+// +structType=atomic
+type BuildGit struct {
+	// URL to the git repository to build.
 	// Example: https://github.com/my-username/my-repo
 	URL string `json:"url"`
 	// Path within the git repository referenced by url.
 	Path string `json:"path,omitempty"`
-	// Branch is the git branch to use.
+
+	// Tag is the git tag to use. Choose either tag or branch.
+	// This tag will be pulled only at build time and not monitored
+	// for changes.
+	Tag string `json:"tag,omitempty"`
+	// Branch is the git branch to use. Choose either branch or tag.
+	// This branch will be pulled only at build time and not monitored
+	// for changes.
 	Branch string `json:"branch,omitempty"`
+}
+
+type UploadStatus struct {
+	// SignedURL is a short lived HTTPS URL.
+	// The client is expected to send a PUT request to this URL
+	// containing a tar'd docker build context.
+	// Content-Type of "application/octet-stream" should be used.
+	SignedURL string `json:"signedURL,omitempty"`
+
+	// RequestID is the request id that corresponds to this status.
+	// Clients should check that this matches the request id that they
+	// set in the upload spec before uploading.
+	RequestID string `json:"requestID,omitempty"`
+
+	// Expiration is the time at which the signed URL expires.
+	Expiration metav1.Time `json:"expiration,omitempty"`
+
+	// StoredMD5Checksum is the md5 checksum of the file that the controller
+	// observed in storage.
+	StoredMD5Checksum string `json:"storedMD5Checksum,omitempty"`
 }
 
 type ObjectRef struct {

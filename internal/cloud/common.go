@@ -6,8 +6,6 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Common struct {
@@ -16,15 +14,31 @@ type Common struct {
 	RegistryURL       string     `env:"REGISTRY_URL" validate:"required"`
 }
 
-func (c *Common) ObjectBuiltImageURL(obj client.Object) string {
+func (c *Common) ObjectBuiltImageURL(obj BuildableObject) string {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if kind == "" {
 		// This can be empty if the Go object was not instantiated with the kind field set.
 		// Better to panic than hash the wrong thing silently.
 		panic("kind is empty")
 	}
-	return fmt.Sprintf("%s/%s-%s-%s-%s", c.RegistryURL,
-		c.ClusterName, strings.ToLower(kind), obj.GetNamespace(), obj.GetName())
+
+	build := obj.GetBuild()
+
+	tag := "latest"
+	if git := build.Git; git != nil {
+		if git.Tag != "" {
+			tag = git.Tag
+		} else if git.Branch != "" {
+			tag = git.Branch
+		}
+	} else if upload := build.Upload; upload != nil {
+		tag = upload.MD5Checksum
+	}
+
+	return fmt.Sprintf("%s/%s-%s-%s-%s:%s", c.RegistryURL,
+		c.ClusterName, strings.ToLower(kind), obj.GetNamespace(), obj.GetName(),
+		tag,
+	)
 }
 
 func (c *Common) ObjectArtifactURL(obj Object) *BucketURL {

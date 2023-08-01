@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const GCPName = "gcp"
@@ -85,7 +85,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 		VolumeSource: corev1.VolumeSource{
 			CSI: &corev1.CSIVolumeSource{
 				Driver:   "gcsfuse.csi.storage.gke.io",
-				ReadOnly: ptr.Bool(req.ReadOnly),
+				ReadOnly: ptr.To(req.ReadOnly),
 				VolumeAttributes: map[string]string{
 					"bucketName":   bktURL.Bucket,
 					"mountOptions": "implicit-dirs,uid=0,gid=3003",
