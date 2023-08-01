@@ -19,9 +19,9 @@ func TestApplyBuild(t *testing.T) {
 	cmd := commands.ApplyBuild()
 	cmd.SetArgs([]string{
 		"--filename", "./test-applybuild/notebook.yaml",
-		"--build", "./test-applybuild",
 		"--kubeconfig", kubectlKubeconfigPath,
 		//"-v=9",
+		"./test-applybuild",
 	})
 	var wg sync.WaitGroup
 

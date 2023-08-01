@@ -77,7 +77,7 @@ func TestNotebook(t *testing.T) {
 	require.NoError(t, k8sClient.Status().Update(ctx, nb))
 
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Contains(t, stdout.String(), "Browser:")
+		assert.Contains(t, stdout.String(), "Open browser to")
 	}, timeout, interval, "waiting for command to indicate a browser should be opened")
 
 	t.Logf("Killing command")
