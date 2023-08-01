@@ -129,7 +129,7 @@ func Notebook() *cobra.Command {
 					obj.SetNamespace("default")
 				}
 			} else {
-				return fmt.Errorf("must specify -f (--filename) or <name>")
+				return fmt.Errorf("must specify -f (--filename) flag or NAME argument")
 			}
 
 			nb, err := client.NotebookForObject(obj)
