@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,6 +15,11 @@ import (
 var Version = "development"
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "version" {
+		fmt.Printf("nbwatch %s\n", Version)
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}

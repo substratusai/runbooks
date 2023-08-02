@@ -38,7 +38,11 @@ type Tarball struct {
 }
 
 func PrepareImageTarball(buildPath string) (*Tarball, error) {
-	if !fileExists(filepath.Join(buildPath, "Dockerfile")) {
+	exists, err := fileExists(filepath.Join(buildPath, "Dockerfile"))
+	if err != nil {
+		return nil, fmt.Errorf("checking if Dockerfile exists: %w", err)
+	}
+	if !exists {
 		return nil, fmt.Errorf("path does not contain Dockerfile: %s", buildPath)
 	}
 
@@ -267,12 +271,15 @@ func tarGz(src, dst string) error {
 	})
 }
 
-func fileExists(filename string) bool {
+func fileExists(filename string) (bool, error) {
 	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
 	}
-	return !info.IsDir()
+	return !info.IsDir(), nil
 }
 
 func uploadTarball(tarball *Tarball, url string) error {

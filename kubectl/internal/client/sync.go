@@ -10,7 +10,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -28,9 +30,12 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
-		return fmt.Errorf("determining user cache dir: %w", err)
+		return fmt.Errorf("determining user cache directory: %w", err)
 	}
-	binPath := filepath.Join(cacheDir, "substratus", "container-tools", "nbwatch")
+	binPath := filepath.Join(cacheDir, "substratus", "container-tools")
+	if err := os.MkdirAll(filepath.Dir(binPath), 0755); err != nil {
+		return fmt.Errorf("creating cache directory: %w", err)
+	}
 
 	const (
 		// TODO: Detect OS and Arch:
@@ -38,7 +43,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 		targetArch = "x86_64"
 	)
 
-	if err := getNBWatch(binPath, targetOS, targetArch); err != nil {
+	if err := getContainerTools(binPath, targetOS, targetArch); err != nil {
 		return fmt.Errorf("getting nbwatch: %w", err)
 	}
 
@@ -154,12 +159,34 @@ type NBWatchEvent struct {
 	Op    string `json:"op"`
 }
 
-func getNBWatch(dir, targetOS, targetArch string) error {
-	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
+func getContainerTools(dir, targetOS, targetArch string) error {
+	// Check if file exists
+	nbwatchPath := filepath.Join(dir, "nbwatch")
+	exists, err := fileExists(nbwatchPath)
+	if err != nil {
+		return fmt.Errorf("checking if file exists: %w", err)
+	}
+	if exists {
+		// Check version matches.
+		out, err := exec.Command(nbwatchPath, "version").Output()
+		if err == nil {
+			if strings.TrimSpace(string(out)) == fmt.Sprintf("nbwatch %v", Version) {
+				klog.V(1).Infof("Version matches for nbwatch, skipping download: %s", Version)
+				return nil
+			}
+		} else {
+			klog.Errorf("Error executing nbwatch: %v", err)
+		}
+	}
+
+	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/v%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
 	klog.V(1).Infof("Downloading: %s", releaseURL)
 	resp, err := http.Get(releaseURL)
 	if err != nil {
 		return fmt.Errorf("downloading release: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("downloading release: %s", resp.Status)
 	}
 	defer resp.Body.Close()
 
