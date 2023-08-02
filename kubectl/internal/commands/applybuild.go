@@ -31,7 +31,7 @@ func ApplyBuild() *cobra.Command {
 
 			client.Version = Version
 			if cfg.version {
-				fmt.Println(Version)
+				fmt.Printf("kubectl-applybuild %v\n", Version)
 				return nil
 			}
 

@@ -50,7 +50,7 @@ func Notebook() *cobra.Command {
 
 			client.Version = Version
 			if cfg.version {
-				fmt.Fprintln(NotebookStdout, Version)
+				fmt.Fprintf(NotebookStdout, "kubectl-notebook %v\n", Version)
 				return nil
 			}
 

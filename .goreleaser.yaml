@@ -49,12 +49,12 @@ builds:
       - arm64
       - arm
 archives:
-  - id: containertools
+  - id: container-tools
     builds:
       - containertools-nbwatch
     format: tar.gz
     name_template: >-
-      containertools-
+      container-tools-
       {{- .Os }}-
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386

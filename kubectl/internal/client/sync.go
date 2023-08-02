@@ -30,7 +30,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	if err != nil {
 		return fmt.Errorf("determining user cache dir: %w", err)
 	}
-	binPath := filepath.Join(cacheDir, "substratus", "containertools", "nbwatch")
+	binPath := filepath.Join(cacheDir, "substratus", "container-tools", "nbwatch")
 
 	const (
 		// TODO: Detect OS and Arch:
@@ -155,7 +155,7 @@ type NBWatchEvent struct {
 }
 
 func getNBWatch(dir, targetOS, targetArch string) error {
-	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/%s/kubectl-applybuild_%s_%s.tar.gz", Version, targetOS, targetArch)
+	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
 	klog.V(1).Infof("Downloading: %s", releaseURL)
 	resp, err := http.Get(releaseURL)
 	if err != nil {
