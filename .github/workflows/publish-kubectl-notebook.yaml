@@ -15,18 +15,16 @@ jobs:
           fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v4
-      - id: build-build-remote
-        name: Run GoReleaser
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean -f kubectl/build-remote/.goreleaser.yaml
-      - id: upload-build-remote
-        name: Upload assets
+          args: release --clean -f kubectl/cmd/notebook/.goreleaser.yaml
+      - name: Upload assets
         uses: actions/upload-artifact@v3
         with:
-          name: kubectl-build-remote-plugin
+          name: kubectl-notebook-plugin
           path: |
             dist/*
             !dist/artifacts.json

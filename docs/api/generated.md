@@ -31,6 +31,56 @@ _Appears in:_
 | `url` _string_ |  |
 
 
+### Build
+
+
+
+
+
+_Appears in:_
+- [DatasetSpec](#datasetspec)
+- [ModelSpec](#modelspec)
+- [NotebookSpec](#notebookspec)
+- [ServerSpec](#serverspec)
+
+| Field | Description |
+| --- | --- |
+| `git` _[BuildGit](#buildgit)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the .spec.image field. |
+| `upload` _[BuildUpload](#buildupload)_ | Upload can be set to request to start an upload flow where the client is responsible for uploading a local directory that is to be built in the cluster. |
+
+
+### BuildGit
+
+
+
+
+
+_Appears in:_
+- [Build](#build)
+
+| Field | Description |
+| --- | --- |
+| `url` _string_ | URL to the git repository to build. Example: https://github.com/my-username/my-repo |
+| `path` _string_ | Path within the git repository referenced by url. |
+| `tag` _string_ | Tag is the git tag to use. Choose either tag or branch. This tag will be pulled only at build time and not monitored for changes. |
+| `branch` _string_ | Branch is the git branch to use. Choose either branch or tag. This branch will be pulled only at build time and not monitored for changes. |
+
+
+### BuildUpload
+
+
+
+
+
+_Appears in:_
+- [Build](#build)
+
+| Field | Description |
+| --- | --- |
+| `md5Checksum` _string_ | MD5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built. |
+| `requestID` _string_ | RequestID is the ID of the request to build the image. Changing this ID to a new value can be used to get a new signed URL (useful when a URL has expired). |
+
+
 ### Dataset
 
 
@@ -66,7 +116,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
-| `image` _[Image](#image)_ | Image that contains dataset loading code and dependencies. |
+| `image` _string_ | Image that contains dataset loading code and dependencies. |
+| `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `params` _object (keys:string, values:IntOrString)_ | Params will be passed into the loading process as environment variables. |
 
@@ -85,7 +136,7 @@ _Appears in:_
 | `ready` _boolean_ | Ready indicates that the Dataset is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Dataset. |
 | `artifacts` _[ArtifactsStatus](#artifactsstatus)_ | Artifacts status. |
-| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
+| `buildUpload` _[UploadStatus](#uploadstatus)_ | BuildUpload contains the status of the build context upload. |
 
 
 ### GPUResources
@@ -112,73 +163,6 @@ _Underlying type:_ `string`
 _Appears in:_
 - [GPUResources](#gpuresources)
 
-
-
-### Image
-
-
-
-
-
-_Appears in:_
-- [DatasetSpec](#datasetspec)
-- [ModelSpec](#modelspec)
-- [NotebookSpec](#notebookspec)
-- [ServerSpec](#serverspec)
-
-| Field | Description |
-| --- | --- |
-| `git` _[ImageGit](#imagegit)_ | Git is a reference to a git repository that will be built within the cluster. Built image will be set in the Image field. |
-| `name` _string_ | Name of container image (example: "docker.io/your-username/your-image"). |
-| `upload` _[ImageUpload](#imageupload)_ | Upload is a signal that a local tar of the directory should be uploaded to be built as an image. |
-
-
-### ImageGit
-
-
-
-
-
-_Appears in:_
-- [Image](#image)
-
-| Field | Description |
-| --- | --- |
-| `url` _string_ | URL to the git repository. Example: https://github.com/my-username/my-repo |
-| `path` _string_ | Path within the git repository referenced by url. |
-| `branch` _string_ | Branch is the git branch to use. |
-
-
-### ImageStatus
-
-
-
-
-
-_Appears in:_
-- [DatasetStatus](#datasetstatus)
-- [ModelStatus](#modelstatus)
-- [NotebookStatus](#notebookstatus)
-- [ServerStatus](#serverstatus)
-
-| Field | Description |
-| --- | --- |
-| `uploadURL` _string_ | the Signed upload URL |
-| `md5checksum` _string_ | Md5Checksum is the last md5 checksum that resulted in the successful creation of an UploadURL. |
-
-
-### ImageUpload
-
-
-
-
-
-_Appears in:_
-- [Image](#image)
-
-| Field | Description |
-| --- | --- |
-| `md5checksum` _string_ | Md5Checksum is the md5 checksum of the tar'd repo root requested to be uploaded and built. |
 
 
 ### Model
@@ -213,7 +197,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
-| `image` _[Image](#image)_ | Image that contains model code and dependencies. |
+| `image` _string_ | Image that contains model code and dependencies. |
+| `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
 | `trainingDataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
@@ -234,7 +219,7 @@ _Appears in:_
 | `ready` _boolean_ | Ready indicates that the Model is ready to use. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Model. |
 | `artifacts` _[ArtifactsStatus](#artifactsstatus)_ | Artifacts status. |
-| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
+| `buildUpload` _[UploadStatus](#uploadstatus)_ | BuildUpload contains the status of the build context upload. |
 
 
 ### Notebook
@@ -268,8 +253,9 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
-| `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. |
-| `image` _[Image](#image)_ | Image that contains notebook and dependencies. |
+| `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. This is a pointer to distinguish between explicit false and not specified. |
+| `image` _string_ | Image that contains notebook and dependencies. |
+| `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model to load into the notebook container. |
 | `dataset` _[ObjectRef](#objectref)_ | Dataset to load into the notebook container. |
@@ -289,7 +275,7 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates that the Notebook is ready to serve. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Notebook. |
-| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
+| `buildUpload` _[UploadStatus](#uploadstatus)_ | BuildUpload contains the status of the build context upload. |
 
 
 ### ObjectRef
@@ -357,7 +343,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
-| `image` _[Image](#image)_ | Image that contains model serving application and dependencies. |
+| `image` _string_ | Image that contains model serving application and dependencies. |
+| `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
 
@@ -375,6 +362,26 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates whether the Server is ready to serve traffic. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Server. |
-| `image` _[ImageStatus](#imagestatus)_ | Image contains the status of the image. Upload URL is reported here. |
+| `buildUpload` _[UploadStatus](#uploadstatus)_ | Upload contains the status of the build context upload. |
+
+
+### UploadStatus
+
+
+
+
+
+_Appears in:_
+- [DatasetStatus](#datasetstatus)
+- [ModelStatus](#modelstatus)
+- [NotebookStatus](#notebookstatus)
+- [ServerStatus](#serverstatus)
+
+| Field | Description |
+| --- | --- |
+| `signedURL` _string_ | SignedURL is a short lived HTTPS URL. The client is expected to send a PUT request to this URL containing a tar'd docker build context. Content-Type of "application/octet-stream" should be used. |
+| `requestID` _string_ | RequestID is the request id that corresponds to this status. Clients should check that this matches the request id that they set in the upload spec before uploading. |
+| `expiration` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#time-v1-meta)_ | Expiration is the time at which the signed URL expires. |
+| `storedMD5Checksum` _string_ | StoredMD5Checksum is the md5 checksum of the file that the controller observed in storage. |
 
 
