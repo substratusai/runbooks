@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-VERSION ?= v0.7.0-alpha
+VERSION ?= v0.8.0
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
 
@@ -145,7 +145,7 @@ dev-run: export CLOUD=gcp
 dev-run: export GPU_TYPE=nvidia-l4
 dev-run: export PROJECT_ID=$(shell gcloud config get project)
 dev-run: export CLUSTER_NAME=substratus
-dev-run: export CLUSTER_LOCATION=us-central1
+dev-run: export CLUSTER_LOCATION=us-east1
 # Cloud manager configuration #
 dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
 # Run the controller manager and the cloud manager.
@@ -216,10 +216,18 @@ install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified
 uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-install/kubernetes/system.yaml: manifests kustomize
+.PHONY: installation-scripts
+installation-scripts:
+	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
+
+.PHONY: installation-manifests
+installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
+
+.PHONY: prepare-release
+prepare-release: installation-scripts installation-manifests docs
 
 ##@ Build Dependencies
 

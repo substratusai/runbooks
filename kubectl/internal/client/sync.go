@@ -32,24 +32,24 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	if err != nil {
 		return fmt.Errorf("determining user cache directory: %w", err)
 	}
-	binPath := filepath.Join(cacheDir, "substratus", "container-tools")
-	if err := os.MkdirAll(filepath.Dir(binPath), 0755); err != nil {
+	toolsPath := filepath.Join(cacheDir, "substratus", "container-tools")
+	if err := os.MkdirAll(toolsPath, 0755); err != nil {
 		return fmt.Errorf("creating cache directory: %w", err)
 	}
 
 	const (
 		// TODO: Detect OS and Arch:
-		targetOS   = "Linux"
+		targetOS   = "linux"
 		targetArch = "x86_64"
 	)
 
-	if err := getContainerTools(binPath, targetOS, targetArch); err != nil {
-		return fmt.Errorf("getting nbwatch: %w", err)
+	if err := getContainerTools(toolsPath, targetOS, targetArch); err != nil {
+		return fmt.Errorf("getting container-tools: %w", err)
 	}
 
 	// TODO: Download nbwatch if it doesn't exist.
 
-	if err := cp.ToPod(ctx, binPath, "/tmp/nbwatch", podRef, containerName); err != nil {
+	if err := cp.ToPod(ctx, toolsPath, "/tmp/nbwatch", podRef, containerName); err != nil {
 		return fmt.Errorf("cp nbwatch to pod: %w", err)
 	}
 

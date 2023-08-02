@@ -37,7 +37,6 @@ func Notebook() *cobra.Command {
 		forceConflicts bool
 		noSuspend      bool
 		timeout        time.Duration
-		version        bool
 	}
 
 	var cmd = &cobra.Command{
@@ -47,12 +46,6 @@ func Notebook() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
-
-			client.Version = Version
-			if cfg.version {
-				fmt.Fprintf(NotebookStdout, "kubectl-notebook %v\n", Version)
-				return nil
-			}
 
 			// The -v flag is managed by klog, so we need to check it manually.
 			var verbose bool
@@ -215,7 +208,7 @@ func Notebook() *cobra.Command {
 				go func() {
 					defer func() {
 						wg.Done()
-						klog.V(2).Info("Syncing files form notebook: Done.")
+						klog.V(2).Info("Syncing files from notebook: Done.")
 
 					}()
 					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
@@ -317,8 +310,6 @@ func Notebook() *cobra.Command {
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
 	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
-
-	cmd.Flags().BoolVar(&cfg.version, "version", false, "Print version of tool")
 
 	// Add standard kubectl logging flags (for example: -v=2).
 	goflags := flag.NewFlagSet("", flag.PanicOnError)

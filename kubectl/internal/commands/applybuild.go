@@ -19,21 +19,15 @@ func ApplyBuild() *cobra.Command {
 		build          string
 		kubeconfig     string
 		forceConflicts bool
-		version        bool
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "applybuild [flags] BUILD_CONTEXT",
-		Args:  cobra.ExactArgs(1),
-		Short: "Apply a Substratus object, upload and build container in-cluster from a local directory",
+		Use:     "applybuild [flags] BUILD_CONTEXT",
+		Args:    cobra.ExactArgs(1),
+		Short:   "Apply a Substratus object, upload and build container in-cluster from a local directory",
+		Version: Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			client.Version = Version
-			if cfg.version {
-				fmt.Printf("kubectl-applybuild %v\n", Version)
-				return nil
-			}
 
 			if cfg.filename == "" {
 				return fmt.Errorf("-f (--filename) is required")
@@ -102,8 +96,6 @@ func ApplyBuild() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
 	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to apply and build.")
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", false, "If true, server-side apply will force the changes against conflicts.")
-
-	cmd.Flags().BoolVar(&cfg.version, "version", false, "Print version of tool")
 
 	// Add standard kubectl logging flags (for example: -v=2).
 	goflags := flag.NewFlagSet("", flag.PanicOnError)
