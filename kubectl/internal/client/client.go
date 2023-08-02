@@ -3,10 +3,12 @@ package client
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -31,6 +33,8 @@ var _ Interface = &Client{}
 type Interface interface {
 	PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
+	Exec(types.NamespacedName, string, io.Reader, io.Writer, io.Writer) error
+	SyncFilesFromNotebook(context.Context, *apiv1.Notebook) error
 }
 
 func NewClient(inf kubernetes.Interface, cfg *rest.Config) Interface {

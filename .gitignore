@@ -77,3 +77,4 @@ gcpmanager-dependencies.yaml
 skaffold-dependencies.sh
 
 .ipynb_checkpoints
+.vscode/

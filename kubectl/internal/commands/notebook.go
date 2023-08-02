@@ -153,21 +153,7 @@ func Notebook() *cobra.Command {
 
 			cleanup := func() {
 				// Use a new context to avoid using the cancelled one.
-				ctx := context.Background()
-
-				if cfg.sync {
-					spin.Suffix = " Syncing notebook to local directory..."
-					spin.Start()
-					baseDir := "."
-					if cfg.build != "" {
-						baseDir = cfg.build
-					}
-					if err := client.CopySrcFromNotebook(ctx, baseDir, nb); err != nil {
-						klog.Errorf("Error syncing notebook to local directory: %v", err)
-					}
-					spin.Stop()
-					fmt.Fprintln(NotebookStdout, "Synced notebook src/ to local directory.")
-				}
+				//ctx := context.Background()
 
 				if cfg.noSuspend {
 					fmt.Fprintln(NotebookStdout, "Skipping notebook suspension, it will keep running.")
@@ -208,21 +194,16 @@ func Notebook() *cobra.Command {
 			spin.Stop()
 			fmt.Fprintln(NotebookStdout, "Notebook ready.")
 
-			if cfg.sync {
-				spin.Suffix = " Syncing local directory with Notebook..."
-				spin.Start()
-				baseDir := "."
-				if cfg.build != "" {
-					baseDir = cfg.build
-				}
-				if err := client.CopySrcToNotebook(ctx, baseDir, nb); err != nil {
-					return fmt.Errorf("copying src to notebook: %w", err)
-				}
-				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Synced src/ to notebook.")
-			}
-
 			var wg sync.WaitGroup
+
+			if cfg.sync {
+				go func() {
+					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
+						klog.Errorf("Error syncing files from notebook: %v", err)
+						cancel()
+					}
+				}()
+			}
 
 			serveReady := make(chan struct{})
 			wg.Add(1)

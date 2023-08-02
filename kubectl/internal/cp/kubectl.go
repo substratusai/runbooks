@@ -12,14 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func ToPod(ctx context.Context, src, dst string, pod types.NamespacedName) error {
-	cmd := exec.CommandContext(ctx, "kubectl", "cp", "-n", pod.Namespace, "-c", "notebook", src, pod.Name+":"+dst)
+func ToPod(ctx context.Context, src, dst string, pod types.NamespacedName, container string) error {
+	cmd := exec.CommandContext(ctx, "kubectl", "cp", "-n", pod.Namespace, "-c", container, src, pod.Name+":"+dst)
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func FromPod(ctx context.Context, src, dst string, pod types.NamespacedName) error {
-	cmd := exec.CommandContext(ctx, "kubectl", "cp", "-n", pod.Namespace, "-c", "notebook", pod.Name+":"+src, dst)
+func FromPod(ctx context.Context, src, dst string, pod types.NamespacedName, container string) error {
+	cmd := exec.CommandContext(ctx, "kubectl", "cp", "-n", pod.Namespace, "-c", container, pod.Name+":"+src, dst)
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
