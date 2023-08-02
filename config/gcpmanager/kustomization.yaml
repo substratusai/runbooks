@@ -6,4 +6,4 @@ kind: Kustomization
 images:
 - name: gcp-manager
   newName: docker.io/substratusai/gcp-manager
-  newTag: v0.7.0-alpha
+  newTag: v0.8.0
