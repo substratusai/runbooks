@@ -1,13 +1,17 @@
 package client
 
 import (
+	"archive/tar"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/cp"
@@ -18,14 +22,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func CopySrcToNotebook(ctx context.Context, baseDir string, nb *apiv1.Notebook) error {
-	return cp.ToPod(ctx, filepath.Join(baseDir, "src"), "/content/", podForNotebook(nb), "notebook")
-}
-
-func CopySrcFromNotebook(ctx context.Context, baseDir string, nb *apiv1.Notebook) error {
-	return cp.FromPod(ctx, "/content/src", filepath.Join(baseDir, "src"), podForNotebook(nb), "notebook")
-}
-
 func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) error {
 	podRef := podForNotebook(nb)
 	const containerName = "notebook"
@@ -35,6 +31,16 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 		return fmt.Errorf("determining user cache dir: %w", err)
 	}
 	binPath := filepath.Join(cacheDir, "substratus", "containertools", "nbwatch")
+
+	const (
+		// TODO: Detect OS and Arch:
+		targetOS   = "Linux"
+		targetArch = "x86_64"
+	)
+
+	if err := getNBWatch(binPath, targetOS, targetArch); err != nil {
+		return fmt.Errorf("getting nbwatch: %w", err)
+	}
 
 	// TODO: Download nbwatch if it doesn't exist.
 
@@ -47,20 +53,27 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	// TODO: Instead of processing events line-by-line, decode them line-by-line
 	// immediately and append them to a channel with deduplication.
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		klog.V(1).Info("Reading events...")
+		defer func() {
+			wg.Done()
+			klog.V(2).Info("File sync loop: Done.")
+		}()
+
+		klog.V(2).Info("Reading events...")
 
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			eventLine := scanner.Bytes()
 			var event NBWatchEvent
 			if err := json.Unmarshal(eventLine, &event); err != nil {
-				klog.Error(err)
+				klog.Errorf("Failed to unmarshal nbevent: %w", err)
 			}
 
 			relPath, err := filepath.Rel("/content/src", event.Path)
 			if err != nil {
-				klog.Error(err)
+				klog.Errorf("Failed to determining relative path: %w", err)
 				continue
 			}
 
@@ -71,11 +84,11 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 			if event.Op == "WRITE" || event.Op == "CREATE" {
 				// NOTE: A long-running port-forward might be more performant here.
 				if err := cp.FromPod(ctx, event.Path, localPath, podRef, containerName); err != nil {
-					klog.Error(err)
+					klog.Errorf("Sync: failed to copy: %w", err)
 				}
 			} else if event.Op == "REMOVE" || event.Op == "RENAME" {
 				if err := os.Remove(localPath); err != nil {
-					klog.Error(err)
+					klog.Errorf("Sync: failed to remove: %w", err)
 				}
 			}
 		}
@@ -83,17 +96,20 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 			klog.Error("Error reading from buffer:", err)
 			return
 		}
-		klog.V(1).Info("Done reading events.")
+		klog.V(2).Info("Done reading events.")
 	}()
 
-	if err := c.Exec(podRef, "/tmp/nbwatch", nil, w, os.Stderr); err != nil {
+	if err := c.exec(ctx, podRef, "/tmp/nbwatch", nil, w, os.Stderr); err != nil {
 		return fmt.Errorf("exec: nbwatch: %w", err)
 	}
+
+	klog.V(2).Info("Waiting for file sync loop to finish...")
+	wg.Wait()
 
 	return nil
 }
 
-func (c *Client) Exec(podRef types.NamespacedName,
+func (c *Client) exec(ctx context.Context, podRef types.NamespacedName,
 	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	cmd := []string{
 		"sh",
@@ -120,7 +136,7 @@ func (c *Client) Exec(podRef types.NamespacedName,
 	if err != nil {
 		return err
 	}
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
@@ -136,4 +152,44 @@ type NBWatchEvent struct {
 	Index int64  `json:"index"`
 	Path  string `json:"path"`
 	Op    string `json:"op"`
+}
+
+func getNBWatch(dir, targetOS, targetArch string) error {
+	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/%s/kubectl-applybuild_%s_%s.tar.gz", Version, targetOS, targetArch)
+	klog.V(1).Infof("Downloading: %s", releaseURL)
+	resp, err := http.Get(releaseURL)
+	if err != nil {
+		return fmt.Errorf("downloading release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	gzr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return fmt.Errorf("creating gzip reader: %w", err)
+	}
+	tr := tar.NewReader(gzr)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return fmt.Errorf("reading tar: %w", err)
+		}
+
+		dest := filepath.Join(dir, hdr.Name)
+		klog.V(1).Infof("Writing %s", dest)
+		f, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode))
+		if err != nil {
+			return fmt.Errorf("creating file: %w", err)
+		}
+		if _, err := io.Copy(f, tr); err != nil {
+			return fmt.Errorf("writing file from tar: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("closing file: %w", err)
+		}
+	}
+
+	return nil
 }

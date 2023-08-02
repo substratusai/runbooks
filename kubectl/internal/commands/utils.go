@@ -8,6 +8,8 @@ import (
 	"github.com/substratusai/substratus/kubectl/internal/client"
 )
 
+var Version = "development"
+
 // NewClient is a dirty hack to allow the client to be mocked out in tests.
 var NewClient = client.NewClient
 

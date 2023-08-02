@@ -37,6 +37,7 @@ func Notebook() *cobra.Command {
 		forceConflicts bool
 		noSuspend      bool
 		timeout        time.Duration
+		version        bool
 	}
 
 	var cmd = &cobra.Command{
@@ -45,6 +46,19 @@ func Notebook() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel()
+
+			client.Version = Version
+			if cfg.version {
+				fmt.Fprintln(NotebookStdout, Version)
+				return nil
+			}
+
+			// The -v flag is managed by klog, so we need to check it manually.
+			var verbose bool
+			if cmd.Flag("v").Changed {
+				verbose = true
+			}
 
 			if cfg.dir != "" {
 				if cfg.build == "" {
@@ -197,7 +211,13 @@ func Notebook() *cobra.Command {
 			var wg sync.WaitGroup
 
 			if cfg.sync {
+				wg.Add(1)
 				go func() {
+					defer func() {
+						wg.Done()
+						klog.V(2).Info("Syncing files form notebook: Done.")
+
+					}()
 					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
 						klog.Errorf("Error syncing files from notebook: %v", err)
 						cancel()
@@ -208,7 +228,10 @@ func Notebook() *cobra.Command {
 			serveReady := make(chan struct{})
 			wg.Add(1)
 			go func() {
-				defer wg.Done()
+				defer func() {
+					wg.Done()
+					klog.V(2).Info("Port-forwarding: Done.")
+				}()
 
 				first := true
 				for {
@@ -232,7 +255,7 @@ func Notebook() *cobra.Command {
 						ready = make(chan struct{})
 					}
 
-					if err := c.PortForwardNotebook(portFwdCtx, true, nb, ready); err != nil {
+					if err := c.PortForwardNotebook(portFwdCtx, verbose, nb, ready); err != nil {
 						klog.Errorf("Port-forward returned an error: %v", err)
 						return
 					}
@@ -294,6 +317,8 @@ func Notebook() *cobra.Command {
 	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
 	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
 	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
+
+	cmd.Flags().BoolVar(&cfg.version, "version", false, "Print version of tool")
 
 	// Add standard kubectl logging flags (for example: -v=2).
 	goflags := flag.NewFlagSet("", flag.PanicOnError)
