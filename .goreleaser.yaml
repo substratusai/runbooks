@@ -34,7 +34,8 @@ builds:
       - amd64
       - arm64
       - arm
-  - main: ./containertools/cmd/nbwatch/
+  - id: containertools-nbwatch
+    main: ./containertools/cmd/nbwatch/
     binary: nbwatch
     ldflags: "-X 'main.Version={{.Version}}'"
     env:
@@ -53,8 +54,8 @@ archives:
       - containertools-nbwatch
     format: tar.gz
     name_template: >-
-      {{ .ProjectName }}_
-      {{- .Os }}_
+      containertools-
+      {{- .Os }}-
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
@@ -69,8 +70,8 @@ archives:
       - kubectl-notebook
     format: tar.gz
     name_template: >-
-      {{ .ProjectName }}_
-      {{- .Os }}_
+      kubectl-plugins-
+      {{- .Os }}-
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
