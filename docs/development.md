@@ -33,6 +33,21 @@ go build ./kubectl/cmd/notebook && sudo mv notebook /usr/local/bin/kubectl-noteb
 go build ./kubectl/cmd/applybuild && sudo mv applybuild /usr/local/bin/kubectl-applybuild
 ```
 
+The `kubectl notebook` command depends on container-tools for live-syncing. The plugin will try
+to download these tools from GitHub releases if they dont already exist with the right versions.
+
+You can build the container-tools for development purposes using the following. NOTE: This is the default cache directory on a mac, this will be different on other machine types.
+
+```sh
+export NODE_ARCH=amd64
+
+rm -rf /Users/$USER/Library/Caches/substratus
+mkdir -p /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH
+echo "development" > /Users/$USER/Library/Caches/substratus/container-tools/version.txt
+GOOS=linux GOARCH=$NODE_ARCH go build ./containertools/cmd/nbwatch
+mv nbwatch /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH/
+```
+
 ### Install from release
 
 Release binaries are created for most architectures when the repo is tagged.

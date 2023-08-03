@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -215,7 +216,9 @@ func Notebook() *cobra.Command {
 
 					}()
 					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
-						klog.Errorf("Error syncing files from notebook: %v", err)
+						if !errors.Is(err, context.Canceled) {
+							klog.Errorf("Error syncing files from notebook: %v", err)
+						}
 						cancel()
 					}
 				}()

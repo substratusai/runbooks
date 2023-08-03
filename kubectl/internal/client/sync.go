@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/kubectl/internal/cp"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
@@ -36,10 +38,14 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	}
 
 	const (
-		// TODO: Detect OS and Arch:
-		targetOS   = "linux"
-		targetArch = "amd64"
+		// Assuming linux Nodes.
+		targetOS = "linux"
 	)
+
+	nodeArch, err := c.getNodeArchForPod(ctx, podRef.Name, podRef.Namespace)
+	if err != nil {
+		return fmt.Errorf("getting node arch: %w", err)
+	}
 
 	if err := getContainerTools(toolsPath, targetOS); err != nil {
 		return fmt.Errorf("getting container-tools: %w", err)
@@ -47,7 +53,8 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 
 	// TODO: Download nbwatch if it doesn't exist.
 
-	if err := cp.ToPod(ctx, toolsPath, "/tmp/nbwatch", podRef, containerName); err != nil {
+	nbWatchPath := filepath.Join(toolsPath, nodeArch, "nbwatch")
+	if err := cp.ToPod(ctx, nbWatchPath, "/tmp/nbwatch", podRef, containerName); err != nil {
 		return fmt.Errorf("cp nbwatch to pod: %w", err)
 	}
 
@@ -158,7 +165,7 @@ type NBWatchEvent struct {
 }
 
 func getContainerTools(dir, targetOS string) error {
-	// Check if file exists
+	// Check to see if tools need to be downloaded.
 	versionPath := filepath.Join(dir, "version.txt")
 	exists, err := fileExists(versionPath)
 	if err != nil {
@@ -169,9 +176,12 @@ func getContainerTools(dir, targetOS string) error {
 		if err != nil {
 			return fmt.Errorf("reading version file: %w", err)
 		}
-		if string(version) == Version {
-			klog.V(1).Infof("Version (%s) matches for container-tools, skipping download.", Version)
+		versionStr := strings.TrimSpace(string(version))
+		if versionStr == Version {
+			klog.V(1).Infof("Version (%q) matches for container-tools, skipping download.", Version)
 			return nil
+		} else {
+			klog.V(1).Infof("Version (%q) does not match version.txt: %q", Version, versionStr)
 		}
 	}
 
@@ -238,4 +248,24 @@ func getContainerToolsRelease(dir, targetOS, targetArch string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) getNodeArchForPod(ctx context.Context, podName, podNamespace string) (string, error) {
+	pod, err := c.Interface.CoreV1().Pods(podNamespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("getting pod: %w", err)
+	}
+	nodeName := pod.Spec.NodeName
+
+	node, err := c.Interface.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("getting node: %w", err)
+	}
+
+	arch, ok := node.Labels["kubernetes.io/arch"]
+	if !ok {
+		return "", fmt.Errorf("node %s has no kubernetes.io/arch label", nodeName)
+	}
+
+	return arch, nil
 }
