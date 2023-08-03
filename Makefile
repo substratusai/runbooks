@@ -126,9 +126,6 @@ dev-up:
 	  -e TF_VAR_attach_gpu_nodepools=false \
 	  -e INSTALL_OPERATOR=false \
 	  substratus-installer gcp-up.sh
-	mkdir -p secrets
-	gcloud iam service-accounts keys create --iam-account=substratus-gcp-manager@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/gcp-manager-key.json
-
 .PHONY: dev-down
 dev-down:
 	docker run -it \
@@ -137,18 +134,13 @@ dev-down:
 	  -e TOKEN=$(shell gcloud auth print-access-token) \
 	  -e TF_VAR_attach_gpu_nodepools=false \
 	  substratus-installer gcp-down.sh
-	rm ./secrets/gcp-manager-key.json
 
 .PHONY: dev-run
 # Controller manager configuration #
 dev-run: export CLOUD=gcp
-dev-run: export GPU_TYPE=nvidia-l4
 dev-run: export PROJECT_ID=$(shell gcloud config get project)
 dev-run: export CLUSTER_NAME=substratus
 dev-run: export CLUSTER_LOCATION=us-central1
-# Cloud manager configuration #
-dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
-# Run the controller manager and the cloud manager.
 dev-run: manifests kustomize install-crds
 	go run ./cmd/gcpmanager & \
 	go run ./cmd/controllermanager/main.go \
