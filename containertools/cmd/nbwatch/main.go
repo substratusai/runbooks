@@ -34,8 +34,7 @@ func run() error {
 
 	w.Add("/content/src")
 
-	go watchLoop(w)
-	<-make(chan struct{}) // Block forever
+	watchLoop(w)
 
 	return nil
 }
@@ -56,11 +55,9 @@ func watchLoop(w *fsnotify.Watcher) {
 				return
 			}
 
-			// Just print the event nicely aligned, and keep track how many
-			// events we've seen.
 			i++
-
 			path := e.Name
+
 			//path, err := filepath.EvalSymlinks(e.Name)
 			//if err != nil {
 			//	klog.Error(err)

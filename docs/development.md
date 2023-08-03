@@ -43,9 +43,10 @@ export NODE_ARCH=amd64
 
 rm -rf /Users/$USER/Library/Caches/substratus
 mkdir -p /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH
-echo "development" > /Users/$USER/Library/Caches/substratus/container-tools/version.txt
 GOOS=linux GOARCH=$NODE_ARCH go build ./containertools/cmd/nbwatch
 mv nbwatch /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH/
+
+echo "development" > /Users/$USER/Library/Caches/substratus/container-tools/version.txt
 ```
 
 ### Install from release
