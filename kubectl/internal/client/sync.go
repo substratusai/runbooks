@@ -38,10 +38,10 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	const (
 		// TODO: Detect OS and Arch:
 		targetOS   = "linux"
-		targetArch = "x86_64"
+		targetArch = "amd64"
 	)
 
-	if err := getContainerTools(toolsPath, targetOS, targetArch); err != nil {
+	if err := getContainerTools(toolsPath, targetOS); err != nil {
 		return fmt.Errorf("getting container-tools: %w", err)
 	}
 
@@ -157,7 +157,7 @@ type NBWatchEvent struct {
 	Op    string `json:"op"`
 }
 
-func getContainerTools(dir, targetOS, targetArch string) error {
+func getContainerTools(dir, targetOS string) error {
 	// Check if file exists
 	versionPath := filepath.Join(dir, "version.txt")
 	exists, err := fileExists(versionPath)
@@ -173,16 +173,25 @@ func getContainerTools(dir, targetOS, targetArch string) error {
 			klog.V(1).Infof("Version (%s) matches for container-tools, skipping download.", Version)
 			return nil
 		}
-		// Check version matches.
-		//out, err := exec.Command(nbwatchPath, "version").Output()
-		//if err == nil {
-		//	if strings.TrimSpace(string(out)) == fmt.Sprintf("nbwatch %v", Version) {
-		//		klog.V(1).Infof("Version matches for nbwatch, skipping download: %s", Version)
-		//		return nil
-		//	}
-		//} else {
-		//	klog.Errorf("Error executing nbwatch: %v", err)
-		//}
+	}
+
+	// Remove existing files.
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("removing existing files: %w", err)
+	}
+
+	for _, arch := range []string{"amd64", "arm64"} {
+		archDir := filepath.Join(dir, arch)
+		if err := os.MkdirAll(archDir, 0755); err != nil {
+			return fmt.Errorf("recreating directory: %w", err)
+		}
+		if err := getContainerToolsRelease(archDir, targetOS, arch); err != nil {
+			return fmt.Errorf("getting container-tools: %w", err)
+		}
+	}
+
+	if err := os.WriteFile(versionPath, []byte(Version), 0644); err != nil {
+		return fmt.Errorf("writing version file: %w", err)
 	}
 
 	return nil

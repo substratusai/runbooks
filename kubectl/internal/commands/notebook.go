@@ -40,10 +40,13 @@ func Notebook() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "notebook [flags] NAME",
-		Short: "Start a Jupyter Notebook development environment",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "notebook [flags] NAME",
+		Short:   "Start a Jupyter Notebook development environment",
+		Args:    cobra.MaximumNArgs(1),
+		Version: Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client.Version = Version
+
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
 

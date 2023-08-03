@@ -27,6 +27,8 @@ func ApplyBuild() *cobra.Command {
 		Short:   "Apply a Substratus object, upload and build container in-cluster from a local directory",
 		Version: Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client.Version = Version
+
 			ctx := cmd.Context()
 
 			if cfg.filename == "" {
