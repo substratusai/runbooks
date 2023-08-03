@@ -1,0 +1,88 @@
+project_name: substratus
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+release:
+  prerelease: "true"
+builds:
+  - id: kubectl-applybuild
+    binary: kubectl-applybuild
+    main: ./kubectl/cmd/applybuild/
+    ldflags: "-X 'main.Version={{.Version}}'"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+  - id: kubectl-notebook
+    binary: kubectl-notebook
+    main: ./kubectl/cmd/notebook/
+    ldflags: "-X 'main.Version={{.Version}}'"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+  - id: containertools-nbwatch
+    main: ./containertools/cmd/nbwatch/
+    binary: nbwatch
+    ldflags: "-X 'main.Version={{.Version}}'"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+archives:
+  - id: container-tools
+    builds:
+      - containertools-nbwatch
+    format: tar.gz
+    name_template: >-
+      container-tools-
+      {{- .Os }}-
+      {{- .Arch }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+  - id: kubectl-plugins
+    builds:
+      - kubectl-applybuild
+      - kubectl-notebook
+    format: tar.gz
+    name_template: >-
+      kubectl-plugins-
+      {{- .Os }}-
+      {{- .Arch }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+checksum:
+  name_template: "{{ .ProjectName }}-checksums.txt"
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj

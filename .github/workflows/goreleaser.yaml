@@ -20,15 +20,6 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean -f kubectl/cmd/applybuild/.goreleaser.yaml
-      - name: Upload assets
-        uses: actions/upload-artifact@v3
-        with:
-          name: kubectl-applybuild-plugin
-          path: |
-            dist/*
-            !dist/artifacts.json
-            !dist/metadata.yaml
-            !dist/config.yaml
+          args: release --clean
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

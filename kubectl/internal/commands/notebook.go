@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -40,11 +41,21 @@ func Notebook() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "notebook [flags] NAME",
-		Short: "Start a Jupyter Notebook development environment",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "notebook [flags] NAME",
+		Short:   "Start a Jupyter Notebook development environment",
+		Args:    cobra.MaximumNArgs(1),
+		Version: Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client.Version = Version
+
 			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel()
+
+			// The -v flag is managed by klog, so we need to check it manually.
+			var verbose bool
+			if cmd.Flag("v").Changed {
+				verbose = true
+			}
 
 			if cfg.dir != "" {
 				if cfg.build == "" {
@@ -153,21 +164,7 @@ func Notebook() *cobra.Command {
 
 			cleanup := func() {
 				// Use a new context to avoid using the cancelled one.
-				ctx := context.Background()
-
-				if cfg.sync {
-					spin.Suffix = " Syncing notebook to local directory..."
-					spin.Start()
-					baseDir := "."
-					if cfg.build != "" {
-						baseDir = cfg.build
-					}
-					if err := client.CopySrcFromNotebook(ctx, baseDir, nb); err != nil {
-						klog.Errorf("Error syncing notebook to local directory: %v", err)
-					}
-					spin.Stop()
-					fmt.Fprintln(NotebookStdout, "Synced notebook src/ to local directory.")
-				}
+				//ctx := context.Background()
 
 				if cfg.noSuspend {
 					fmt.Fprintln(NotebookStdout, "Skipping notebook suspension, it will keep running.")
@@ -208,26 +205,32 @@ func Notebook() *cobra.Command {
 			spin.Stop()
 			fmt.Fprintln(NotebookStdout, "Notebook ready.")
 
-			if cfg.sync {
-				spin.Suffix = " Syncing local directory with Notebook..."
-				spin.Start()
-				baseDir := "."
-				if cfg.build != "" {
-					baseDir = cfg.build
-				}
-				if err := client.CopySrcToNotebook(ctx, baseDir, nb); err != nil {
-					return fmt.Errorf("copying src to notebook: %w", err)
-				}
-				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Synced src/ to notebook.")
-			}
-
 			var wg sync.WaitGroup
+
+			if cfg.sync {
+				wg.Add(1)
+				go func() {
+					defer func() {
+						wg.Done()
+						klog.V(2).Info("Syncing files from notebook: Done.")
+
+					}()
+					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
+						if !errors.Is(err, context.Canceled) {
+							klog.Errorf("Error syncing files from notebook: %v", err)
+						}
+						cancel()
+					}
+				}()
+			}
 
 			serveReady := make(chan struct{})
 			wg.Add(1)
 			go func() {
-				defer wg.Done()
+				defer func() {
+					wg.Done()
+					klog.V(2).Info("Port-forwarding: Done.")
+				}()
 
 				first := true
 				for {
@@ -251,7 +254,7 @@ func Notebook() *cobra.Command {
 						ready = make(chan struct{})
 					}
 
-					if err := c.PortForwardNotebook(portFwdCtx, true, nb, ready); err != nil {
+					if err := c.PortForwardNotebook(portFwdCtx, verbose, nb, ready); err != nil {
 						klog.Errorf("Port-forward returned an error: %v", err)
 						return
 					}
