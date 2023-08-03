@@ -94,8 +94,9 @@ type Resources struct {
 type GPUType string
 
 const (
-	GPUTypeNvidiaTeslaT4 = GPUType("nvidia-tesla-t4")
-	GPUTypeNvidiaL4      = GPUType("nvidia-l4")
+	GPUTypeNvidiaA100 = GPUType("nvidia-a100")
+	GPUTypeNvidiaT4   = GPUType("nvidia-t4")
+	GPUTypeNvidiaL4   = GPUType("nvidia-l4")
 )
 
 type GPUResources struct {
