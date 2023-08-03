@@ -56,10 +56,7 @@ archives:
     name_template: >-
       container-tools-
       {{- .Os }}-
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- .Arch }}
     # use zip for windows archives
     format_overrides:
       - goos: windows
@@ -72,10 +69,7 @@ archives:
     name_template: >-
       kubectl-plugins-
       {{- .Os }}-
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- .Arch }}
     # use zip for windows archives
     format_overrides:
       - goos: windows

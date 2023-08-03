@@ -10,9 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -161,24 +159,36 @@ type NBWatchEvent struct {
 
 func getContainerTools(dir, targetOS, targetArch string) error {
 	// Check if file exists
-	nbwatchPath := filepath.Join(dir, "nbwatch")
-	exists, err := fileExists(nbwatchPath)
+	versionPath := filepath.Join(dir, "version.txt")
+	exists, err := fileExists(versionPath)
 	if err != nil {
-		return fmt.Errorf("checking if file exists: %w", err)
+		return fmt.Errorf("checking if version file exists: %w", err)
 	}
 	if exists {
-		// Check version matches.
-		out, err := exec.Command(nbwatchPath, "version").Output()
-		if err == nil {
-			if strings.TrimSpace(string(out)) == fmt.Sprintf("nbwatch %v", Version) {
-				klog.V(1).Infof("Version matches for nbwatch, skipping download: %s", Version)
-				return nil
-			}
-		} else {
-			klog.Errorf("Error executing nbwatch: %v", err)
+		version, err := os.ReadFile(versionPath)
+		if err != nil {
+			return fmt.Errorf("reading version file: %w", err)
 		}
+		if string(version) == Version {
+			klog.V(1).Infof("Version (%s) matches for container-tools, skipping download.", Version)
+			return nil
+		}
+		// Check version matches.
+		//out, err := exec.Command(nbwatchPath, "version").Output()
+		//if err == nil {
+		//	if strings.TrimSpace(string(out)) == fmt.Sprintf("nbwatch %v", Version) {
+		//		klog.V(1).Infof("Version matches for nbwatch, skipping download: %s", Version)
+		//		return nil
+		//	}
+		//} else {
+		//	klog.Errorf("Error executing nbwatch: %v", err)
+		//}
 	}
 
+	return nil
+}
+
+func getContainerToolsRelease(dir, targetOS, targetArch string) error {
 	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/v%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
 	klog.V(1).Infof("Downloading: %s", releaseURL)
 	resp, err := http.Get(releaseURL)
