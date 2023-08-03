@@ -5,5 +5,5 @@ metadata:
 spec:
   image: substratusai/model-loader-huggingface
   params:
-    name: meta-llama/Llama-2-7b
-    hugging_face_hub_token: hf_supersecrettokenincleartext
+    name: meta-llama/Llama-2-7b-hf
+    hugging_face_hub_token: ${HUGGINGFACE_TOKEN}
