@@ -145,7 +145,7 @@ dev-run: export CLOUD=gcp
 dev-run: export GPU_TYPE=nvidia-l4
 dev-run: export PROJECT_ID=$(shell gcloud config get project)
 dev-run: export CLUSTER_NAME=substratus
-dev-run: export CLUSTER_LOCATION=us-east1
+dev-run: export CLUSTER_LOCATION=us-central1
 # Cloud manager configuration #
 dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
 # Run the controller manager and the cloud manager.
