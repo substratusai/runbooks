@@ -16,5 +16,5 @@ spec:
     save_steps: 5
   resources:
     gpu:
-      count: 1
-      type: nvidia-a100
+      count: 4
+      type: nvidia-l4

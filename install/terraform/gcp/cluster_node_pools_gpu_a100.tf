@@ -71,7 +71,7 @@ resource "google_container_node_pool" "a2-highgpu-2g" {
     spot         = true
     machine_type = "a2-highgpu-2g"
     ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
+      local_ssd_count = 4
     }
     gcfs_config {
       enabled = true
@@ -106,7 +106,7 @@ resource "google_container_node_pool" "a2-highgpu-4g" {
     spot         = true
     machine_type = "a2-highgpu-4g"
     ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
+      local_ssd_count = 4
     }
     gcfs_config {
       enabled = true
@@ -141,7 +141,7 @@ resource "google_container_node_pool" "a2-highgpu-8g" {
     spot         = true
     machine_type = "a2-highgpu-8g"
     ephemeral_storage_local_ssd_config {
-      local_ssd_count = 1
+      local_ssd_count = 8
     }
     gcfs_config {
       enabled = true

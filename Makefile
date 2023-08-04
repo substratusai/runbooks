@@ -4,6 +4,10 @@ VERSION ?= v0.8.0
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
 
+# Set to false if you don't want GPU nodepools created
+ATTACH_GPU_NODEPOOLS=true
+
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
@@ -123,7 +127,7 @@ dev-up:
 	  -v ${HOME}/.kube:/root/.kube \
 	  -e PROJECT=$(shell gcloud config get project) \
 	  -e TOKEN=$(shell gcloud auth print-access-token) \
-	  -e TF_VAR_attach_gpu_nodepools=false \
+	  -e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 	  -e INSTALL_OPERATOR=false \
 	  substratus-installer gcp-up.sh
 	mkdir -p secrets
@@ -135,7 +139,7 @@ dev-down:
 	  -v ${HOME}/.kube:/root/.kube \
 	  -e PROJECT=$(shell gcloud config get project) \
 	  -e TOKEN=$(shell gcloud auth print-access-token) \
-	  -e TF_VAR_attach_gpu_nodepools=false \
+	  -e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 	  substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
 
