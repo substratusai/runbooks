@@ -3,7 +3,7 @@ kind: Model
 metadata:
   name: llama-2-70b
 spec:
-  image: substratusai/model-loader-huggingface:pr-25
+  image: substratusai/model-loader-huggingface
   params:
     name: meta-llama/Llama-2-70b-hf
     hugging_face_hub_token: ${HUGGINGFACE_TOKEN}
