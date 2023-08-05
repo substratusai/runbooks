@@ -68,8 +68,21 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
 
-	if model.Status.Artifacts.URL != "" {
+	if model.Status.Ready {
 		return result{success: true}, nil
+	}
+
+	if model.Status.Artifacts.URL == "" {
+		model.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(model).String()
+		meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+			Type:               apiv1.ConditionReconciling,
+			Status:             metav1.ConditionTrue,
+			Reason:             apiv1.ReasonJobComplete,
+			ObservedGeneration: model.Generation,
+		})
+		if err := r.Status().Update(ctx, model); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
+		}
 	}
 
 	// ServiceAccount for the model Job.
@@ -191,7 +204,6 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	}
 
 	model.Status.Ready = true
-	model.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(model).String()
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionModelled,
 		Status:             metav1.ConditionTrue,
