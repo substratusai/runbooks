@@ -1,0 +1,12 @@
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: llama-2-70b
+spec:
+  image: substratusai/model-server-basaran
+  model:
+    name: llama-2-70b
+  resources:
+    gpu:
+      type: nvidia-l4
+      count: 4
