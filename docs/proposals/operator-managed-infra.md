@@ -2,7 +2,10 @@
 Design doc: Not a feature yet
 
 Instead of managing all the infrastructure through terraform, the
-operator itself should be responsible for managing the infra it requires.
+operator itself should be responsible for managing the infra it requires,
+such as buckets, K8s Sevice Account workload identity mappings and Container Image
+Registry.
+
 This will make it easier for users to adopt Substratus into existing
 environments without having to learn IaC tooling.
 
@@ -34,7 +37,7 @@ environments without having to learn IaC tooling.
 ### Implementation details
 * Object storage: Create bucket if the configured bucket does not exist
 * Image Registry: Create registry if the configured registry does not exist
-* Create K8s Service Accounts automatically in each namespace where Substratus is used and
+* New sub reconciler for namespace: Create K8s Service Accounts automatically in each namespace where Substratus is used and
   annotate the K8s Service Account with the correct GCP Service Account. Ensure that following
   gets called when a new Service Account is provisioned in a new namespace:
   ```
@@ -42,8 +45,11 @@ environments without having to learn IaC tooling.
    --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
+  Make sure this only happens whenever a new Substratus gets created in a new namespace.
+  The controller should be smart enough to not have to create KSAs in namespaces that
+  do not have any substratus resource.
 
-How should Substratus handle infra management?
+How should Substratus controller handle infra management?
 * Terraform
 * Native K8s controller that uses Golang SDK for AWS/GCP/..
 
@@ -51,6 +57,11 @@ The Native K8s controller would better fit within the existing Substratus code b
 It would also allow us to verify if a resource is already there and if not just create
 it. Terraform would still be used for creation of GKE/EKS cluster to provide a reference
 example for easy install.
+
+Open Questions:
+
+1. Where should the code to create Image Registry and Bucket live? Do we need a new
+   resource or can we reconcile based purely on configuration?
 
 ## User Impact / Docs
 
