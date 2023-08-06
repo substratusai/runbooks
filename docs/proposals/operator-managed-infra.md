@@ -60,12 +60,11 @@ it.
    ```
    gcloud iam service-accounts create substratus
    gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
-    --role roles/iam.workloadIdentityUser \
+    --role roles/iam.serviceAccountAdmin \
     --member "serviceAccount:myproject.svc.id.goog[substratus/substratus]"
    gcloud projects add-iam-policy-binding my-project \
     --member "serviceAccount:substratus@my-project.iam.gserviceaccount.com" \
-    --role "roles/storage.admin" --role "roles/artifactregistry.repoAdmin" \
-    --role "roles/iam.serviceAccountAdmin"
+    --role "roles/storage.admin" --role "roles/artifactregistry.repoAdmin"
    ```
 
    The role roles/iam.serviceAccountAdmin is needed to be able to use workload identity across multiple
