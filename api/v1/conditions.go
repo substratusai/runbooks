@@ -1,12 +1,11 @@
 package v1
 
 const (
-	ConditionReconciling = "Reconciling"
-	ConditionUploaded    = "Uploaded"
-	ConditionBuilt       = "Built"
-	ConditionLoaded      = "Loaded"
-	ConditionModelled    = "Modelled"
-	ConditionDeployed    = "Deployed"
+	ConditionUploaded = "Uploaded"
+	ConditionBuilt    = "Built"
+	ConditionLoaded   = "Loaded"
+	ConditionModelled = "Modelled"
+	ConditionDeployed = "Deployed"
 )
 
 const (
