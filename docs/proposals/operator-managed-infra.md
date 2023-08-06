@@ -1,4 +1,4 @@
-# Operator Managed Infra and ability to use existing infra
+# Operator Managed Infra and multi namespace
 Design doc: Not a feature yet
 
 Instead of managing all the infrastructure through terraform, the
@@ -16,21 +16,31 @@ environments without having to learn IaC tooling.
   clusters and manage nodepools
 * Allow Substratus to work in a multi namespace environment because right now default
   namespace is hardcoded in workload identity settings
-* Get closer to having a local Substratus with kind
+* Get closer to having a local Substratus with kind by making Object Storage optional
 
 ## How?
 * Make the Image Registry and Object Storage Bucket configurable as a setting of the operator itself
 * Object storage will be optional and if not provided then default PVC class will be used
-* Provide Substratus controller the permissions to manage registry, bucket and set IAM policy on the GCP SA
-* Make management of infra an optional part of the operator itself where you can either
-  provide a bucket and registry OR let the operator create the bucket and registry
 * Utilize a single service account that has enough permissions to do everything needed within Substratus
+* Simplify Substratus to use a single K8s SA. Simplicity is preferred here over the minor security benefits you get
+  for using a different SA for each kind of Substratus resource.
+* Provide Substratus controller the permissions to manage registry, bucket and set IAM policy on the GCP SA.
+  The following permissions will be required by the substratus Service Account on the project itself:
+  ```
+  roles/storage.admin, roles/artifactregistry.repoAdmin, roles/iam.serviceAccountAdmin
+  ```
 
 ### Implementation details
 * Object storage: Create bucket if the configured bucket does not exist
 * Image Registry: Create registry if the configured registry does not exist
-* Create K8s Service Accounts in each namespace where Substratus is used and
-  annotate the K8s Service Account with the correct GCP Service Account
+* Create K8s Service Accounts automatically in each namespace where Substratus is used and
+  annotate the K8s Service Account with the correct GCP Service Account. Ensure that following
+  gets called when a new Service Account is provisioned in a new namespace:
+  ```
+  gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
+  ```
 
 How should Substratus handle infra management?
 * Terraform
