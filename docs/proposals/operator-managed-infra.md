@@ -49,7 +49,8 @@ How should Substratus handle infra management?
 
 The Native K8s controller would better fit within the existing Substratus code base.
 It would also allow us to verify if a resource is already there and if not just create
-it.
+it. Terraform would still be used for creation of GKE/EKS cluster to provide a reference
+example for easy install.
 
 ## User Impact / Docs
 
