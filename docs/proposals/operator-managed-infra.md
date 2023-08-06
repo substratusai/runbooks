@@ -8,6 +8,7 @@ environments without having to learn IaC tooling.
 
 
 ## Why?
+* Simplified install: Allow install to use `gcloud` or `eksctl` to create initial K8s cluster + nodepools
 * Make install onto existing K8s cluster straight forward and remove
   complexity of using Terraform
 * Improved UX, all an end-user needs to do is install our manifests and ensure service account
