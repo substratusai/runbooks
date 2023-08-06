@@ -23,7 +23,7 @@ environments without having to learn IaC tooling.
 * Make the Image Registry and Object Storage Bucket configurable as a setting of the operator itself
 * Object storage will be optional and if not provided then default PVC class will be used
 * Utilize a single service account that has enough permissions to do everything needed within Substratus
-* Simplify Substratus to use a single K8s SA. Simplicity is preferred here over the minor security benefits you get
+* Simplify Substratus to use a single K8s SA per namespace. Simplicity is preferred here over the minor security benefits you get
   for using a different SA for each kind of Substratus resource.
 * Provide Substratus controller the permissions to manage registry, bucket and set IAM policy on the GCP SA.
   The following permissions will be required by the substratus Service Account on the project itself:
