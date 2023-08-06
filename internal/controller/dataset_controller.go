@@ -75,21 +75,8 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
 	log := log.FromContext(ctx)
 
-	if dataset.Status.Ready {
+	if dataset.Status.Artifacts.URL != "" {
 		return result{success: true}, nil
-	}
-
-	if dataset.Status.Artifacts.URL == "" {
-		dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
-		meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
-			Type:               apiv1.ConditionReconciling,
-			Status:             metav1.ConditionTrue,
-			Reason:             apiv1.ReasonJobComplete,
-			ObservedGeneration: dataset.Generation,
-		})
-		if err := r.Status().Update(ctx, dataset); err != nil {
-			return result{}, fmt.Errorf("updating status: %w", err)
-		}
 	}
 
 	// ServiceAccount for the loader job.
@@ -129,6 +116,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	}
 
 	dataset.Status.Ready = true
+	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionLoaded,
 		Status:             metav1.ConditionTrue,
