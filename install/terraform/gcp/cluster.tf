@@ -25,6 +25,16 @@ resource "google_container_cluster" "main" {
     machine_type = "e2-standard-2"
   }
 
+  node_pool_defaults {
+    node_config_defaults {
+      # enable image streaming by default for all nodepools
+      gcfs_config {
+        enabled = true
+      }
+    }
+  }
+
+
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
