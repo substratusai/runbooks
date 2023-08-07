@@ -41,7 +41,7 @@ environments without having to learn IaC tooling.
   gets called when a new Service Account is provisioned in a new namespace:
   ```
   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
-   --role roles/iam.workloadIdentityUser \
+   --role roles/iam. workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
   Make sure this only happens whenever a new Substratus gets created in a new namespace.
@@ -57,10 +57,16 @@ It would also allow us to verify if a resource is already there and if not just 
 it. Terraform would still be used for creation of GKE/EKS cluster to provide a reference
 example for easy install.
 
-Open Questions:
+### Open Questions
 
 1. Where should the code to create Image Registry and Bucket live? Do we need a new
    resource or can we reconcile based purely on configuration?
+2. Should Substratus install and manage Karpenter on AWS?
+3. Should we change the nodeSelectors based on whether Karpenter is or isn't installed?
+4. Should we install and manage the Nvidia DaemonSet?
+5. When should Substratus controller create the image registry? During initial startup? And retry?
+6. How to authenticate to registries?
+7. Should we only create registries if within same cloud provider? And should we make that a setting?
 
 ## User Impact / Docs
 
@@ -78,7 +84,7 @@ Open Questions:
     --role "roles/storage.admin" --role "roles/artifactregistry.repoAdmin"
    ```
 
-   The role roles/iam.serviceAccountAdmin is needed to be able to use workload identity across multiple
+   The role `iam.serviceAccountAdmin`` is needed to be able to use workload identity across multiple
    namespaces. The controller can now add IAM policy bindings to the substratus SA for other namespaces.
 
 3. Deploy Substratus operator using helm
@@ -89,6 +95,13 @@ image_registry:  us-central1-docker.pkg.dev/my-project/substratus-repo
 bucket:          gs://my-project-substratus
 # Ensures the K8s Service Accounts have the right annotations
 service_account: substratus@my-project.iam.gserviceaccount.com
+# future PRs
+default_service_type: LoadBalancer
+default_storage_class: premium-rwo
+# Override resources used by substratus controller
+resources:
+  request:
+    cpu: 2
 ```
 
 Install operator:
