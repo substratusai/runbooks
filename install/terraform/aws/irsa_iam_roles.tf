@@ -1,20 +1,34 @@
-# EKS specific IRSA Roles
+data "aws_iam_policy" "eks_cni_policy" {
+  name = "AmazonEKS_CNI_Policy"
+}
 
-# Note: these are currently not used but should be as we install the associated
-# add-ons (however we decide to do that)
-module "cluster_autoscaler_irsa_role" {
-  count   = local.create_cluster
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.28"
+data "aws_iam_policy" "iam_full_access" {
+  name = "IAMFullAccess"
+}
 
-  role_name_prefix                 = "cluster-autoscaler"
-  attach_cluster_autoscaler_policy = true
-  cluster_autoscaler_cluster_names = [local.eks_cluster.name]
+data "aws_iam_policy" "container_registry_full_access" {
+  name = "AmazonEC2ContainerRegistryFullAccess"
+}
+
+data "aws_iam_policy" "s3_full_access" {
+  name = "AmazonS3FullAccess"
+}
+
+module "substratus_irsa" {
+  count            = local.create_cluster
+  source           = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version          = "~> 5.28"
+  role_name_prefix = "${var.name_prefix}-substratus-"
+  role_policy_arns = {
+    IAMFullAccess                        = data.aws_iam_policy.iam_full_access.arn
+    AmazonEC2ContainerRegistryFullAccess = data.aws_iam_policy.container_registry_full_access.arn
+    AmazonS3FullAccess                   = data.aws_iam_policy.s3_full_access.arn
+  }
 
   oidc_providers = {
     main = {
       provider_arn               = local.eks_cluster.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:cluster-autoscaler"]
+      namespace_service_accounts = ["substratus:substratus"]
     }
   }
 

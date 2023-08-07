@@ -4,27 +4,6 @@ variable "cluster_version" {
   default     = "1.27"
 }
 
-variable "create_substratus_irsa_roles" {
-  description = "A boolean controlling the creation of substratus IRSA roles"
-  type        = bool
-  default     = true
-}
-
-variable "existing_artifacts_bucket" {
-  description = "An existing artifacts bucket to use for this substratus install."
-  type = object({
-    id  = string
-    arn = string
-  })
-  default = null
-}
-
-variable "existing_ecr_repository_arn" {
-  description = "The ARN of an existing ECR repository to use instead of creating a new one"
-  type        = string
-  default     = ""
-}
-
 variable "existing_eks_cluster" {
   description = "An existing EKS cluster to add substratus components to."
   type = object({
@@ -44,13 +23,7 @@ variable "existing_vpc" {
   default = null
 }
 
-variable "image_scan_on_push" {
-  type        = bool
-  default     = false
-  description = "Scan images for vulnerabilities on push to ECR ($0.09 per scan on push)"
-}
-
-variable "lables" {
+variable "labels" {
   type = map(string)
   default = {
     GithubRepo = "substratus"

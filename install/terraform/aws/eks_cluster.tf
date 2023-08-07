@@ -116,7 +116,7 @@ data "aws_ami" "deep_learning" {
 module "eks" {
   count                          = local.create_cluster
   source                         = "terraform-aws-modules/eks/aws"
-  version                        = "19.15.4"
+  version                        = "19.16.0"
   cluster_name                   = var.name_prefix
   cluster_version                = var.cluster_version
   cluster_endpoint_public_access = true
@@ -125,6 +125,17 @@ module "eks" {
   subnet_ids                     = local.vpc.private_subnet_ids
   control_plane_subnet_ids       = local.vpc.intra_subnet_ids
   manage_aws_auth_configmap      = true
+  aws_auth_roles = [
+    # We need to add in the Karpenter node IAM role for nodes launched by Karpenter
+    {
+      rolearn  = module.karpenter[0].role_arn
+      username = "system:node:{{EC2PrivateDNSName}}"
+      groups = [
+        "system:bootstrappers",
+        "system:nodes",
+      ]
+    },
+  ]
 
   eks_managed_node_group_defaults = {
     # We are using the IRSA created below for permissions
@@ -220,7 +231,10 @@ module "eks" {
       }
     }
   }
-  tags = var.tags
+  tags = merge(var.tags, {
+    # this same tag should exist on a single security group that karpenter will use
+    "karpenter.sh/discovery" = var.name_prefix
+  })
 }
 
 # ASG tags are needed for the cluster to work with the labels and taints of the
@@ -234,4 +248,15 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
     value               = each.value.value
     propagate_at_launch = false
   }
+}
+
+module "karpenter" {
+  count                  = local.create_cluster
+  source                 = "terraform-aws-modules/eks/aws//modules/karpenter"
+  cluster_name           = module.eks[0].cluster_name
+  irsa_oidc_provider_arn = module.eks[0].oidc_provider_arn
+  policies = {
+    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
+  tags = var.tags
 }
