@@ -14,13 +14,12 @@ environments without having to learn IaC tooling.
 * Simplified install: Allow install to use `gcloud` or `eksctl` to create initial K8s cluster + nodepools
 * Make install onto existing K8s cluster straight forward and remove
   complexity of using Terraform
-* Improved UX, all an end-user needs to do is install our manifests and ensure service account
+* Improved UX, all an end-user needs to do is install our manifests and ensure GCP service account
   has enough permissions
-* Enterprises generally have very specific way and their existing IaC tools to create
-  clusters and manage nodepools
-* Allow Substratus to work in a multi namespace environment because right now default
-  namespace is hardcoded in workload identity settings
-* Get closer to having a local Substratus with kind by making Object Storage optional
+* Enterprises generally have very specific requirements
+  about how they create their K8s Clusters and nodepools.
+* Allow Substratus to work in a multi namespace environment.
+  Currently namespace is hardcoded in workload identity settings in the terraform
 
 ## How?
 * Make the Image Registry and Object Storage Bucket configurable as a setting of the operator itself
