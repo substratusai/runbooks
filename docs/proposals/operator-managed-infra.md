@@ -44,9 +44,9 @@ environments without having to learn IaC tooling.
    --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
-  Make sure this only happens whenever a new Substratus gets created in a new namespace.
+  Make sure this only happens whenever a new Substratus resource is created in a new namespace.
   The controller should be smart enough to not have to create KSAs in namespaces that
-  do not have any substratus resource.
+  do not have any substratus resources.
 
 How should Substratus controller handle infra management?
 * Terraform
