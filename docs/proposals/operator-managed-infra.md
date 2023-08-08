@@ -41,7 +41,7 @@ environments without having to learn IaC tooling.
   gets called when a new Service Account is provisioned in a new namespace:
   ```
   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
-   --role roles/iam. workloadIdentityUser \
+   --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
   Make sure this only happens whenever a new Substratus gets created in a new namespace.
