@@ -84,7 +84,7 @@ example for easy install.
     --role "roles/storage.admin" --role "roles/artifactregistry.repoAdmin"
    ```
 
-   The role `iam.serviceAccountAdmin`` is needed to be able to use workload identity across multiple
+The role `iam.serviceAccountAdmin` is needed to be able to use workload identity across multiple
    namespaces. The controller can now add IAM policy bindings to the substratus SA for other namespaces.
 
 3. Deploy Substratus operator using helm
