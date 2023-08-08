@@ -1,3 +1,13 @@
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  securityGroupSelector:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+---
 # https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
@@ -5,11 +15,11 @@ metadata:
   name: gpu
 spec:
   provider:
-    instanceProfile: eksctl-KarpenterNodeInstanceProfile-substratus
+    instanceProfile: eksctl-KarpenterNodeInstanceProfile-${CLUSTER_NAME}
     subnetSelector:
-      karpenter.sh/discovery: substratus
+      karpenter.sh/discovery: ${CLUSTER_NAME}
     securityGroupSelector:
-      karpenter.sh/discovery: substratus
+      karpenter.sh/discovery: ${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
   consolidation:
     enabled: true

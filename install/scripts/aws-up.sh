@@ -51,6 +51,7 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --vers
   --set controller.resources.limits.memory=1Gi \
   --wait
 
+envsubst <../kubernetes/karpenter-provisioner.yaml.tpl >../kubernetes/karpenter-provisioner.yaml.yaml
 kubectl apply -f ../kubernetes/karpenter-provisioner.yaml
 
 # node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
