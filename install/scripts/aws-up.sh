@@ -8,7 +8,8 @@ set -u
 
 # # TODO(bjb): pass AWS creds into script
 # export CLOUDSDK_AUTH_ACCESS_TOKEN=${TOKEN}
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KUBERENTES_DIR=${SCRIPT_DIR}/../kubernetes
 # INSTALL_OPERATOR="${INSTALL_OPERATOR:-yes}"
 export EKSCTL_ENABLE_CREDENTIAL_CACHE=1
 export CLUSTER_NAME=substratus
@@ -17,9 +18,8 @@ export ARTIFACTS_REPO_NAME=substratus
 export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-substratus-artifacts
 
-aws s3 mb s3://${ARTIFACTS_BUCKET_NAME} --region ${REGION} || true
-aws ecr create-repository --repository-name ${ARTIFACTS_REPO_NAME} || true
-
+aws s3 mb s3://${ARTIFACTS_BUCKET_NAME} --region ${REGION} >/dev/null || true
+aws ecr create-repository --repository-name ${ARTIFACTS_REPO_NAME} --region ${REGION} >/dev/null || true
 # install karpenter: https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/
 export KARPENTER_VERSION=v0.29.2
 export AWS_PARTITION="aws"
@@ -29,10 +29,11 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}
     --stack-name "Karpenter-${CLUSTER_NAME}" \
     --template-file "${TEMPOUT}" \
     --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+    --parameter-overrides "ClusterName=${CLUSTER_NAME}" \
+    --region ${REGION}
 
-envsubst <../kubernetes/eks-cluster.yaml.tpl >../kubernetes/eks-cluster.yaml
-eksctl create cluster -f ../kubernetes/eks-cluster.yaml || eksctl upgrade cluster -f ../kubernetes/eks-cluster.yaml
+envsubst <${KUBERENTES_DIR}/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/eks-cluster.yaml
+eksctl create cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml || eksctl upgrade cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml
 
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
@@ -51,8 +52,8 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --vers
   --set controller.resources.limits.memory=1Gi \
   --wait
 
-envsubst <../kubernetes/karpenter-provisioner.yaml.tpl >../kubernetes/karpenter-provisioner.yaml.yaml
-kubectl apply -f ../kubernetes/karpenter-provisioner.yaml
+envsubst <${KUBERENTES_DIR}/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/karpenter-provisioner.yaml
+kubectl apply -f ${KUBERENTES_DIR}/karpenter-provisioner.yaml
 
 # node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
 helm repo add eks https://aws.github.io/eks-charts
