@@ -25,20 +25,17 @@ spec:
   taints:
     - key: nvidia.com/gpu
       value: "true"
-      effect: NoSchedule
+      effect: "NoSchedule"
   requirements:
     - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot"]
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values:
     - key: karpenter.k8s.aws/instance-category
-          operator: In
-          values: ["g", "p"]
+      operator: In
+      values: ["g", "p"]
     - key: karpenter.k8s.aws/instance-family
-          operator: NotIn
-          values: ["p5"]
+      operator: NotIn
+      values: ["p5"]
     - key: "kubernetes.io/arch"
-          operator: In
-          values: ["amd64"]
+      operator: In
+      values: ["amd64"]

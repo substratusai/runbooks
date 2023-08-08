@@ -21,11 +21,12 @@ managedNodeGroups:
     privateNetworking: true
     labels: { role: builders }
     instanceTypes:
-      - m6a.large
+      - t3a.small
+    #  - m6a.large
     volumeSize: 100
     minSize: 0
     maxSize: 3
-    desiredCapacity: 1
+    desiredCapacity: 2
     iam:
       withAddonPolicies:
         ebs: true

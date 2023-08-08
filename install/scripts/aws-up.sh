@@ -38,6 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}
     --region ${REGION}
 
 envsubst <${KUBERENTES_DIR}/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/eks-cluster.yaml
+cat ${KUBERENTES_DIR}/eks-cluster.yaml
 eksctl create cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml ||
   eksctl upgrade cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml
 
@@ -66,6 +67,7 @@ helm upgrade \
   --wait
 
 envsubst <${KUBERENTES_DIR}/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/karpenter-provisioner.yaml
+cat ${KUBERENTES_DIR}/karpenter-provisioner.yaml
 kubectl apply -f ${KUBERENTES_DIR}/karpenter-provisioner.yaml
 
 # node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
@@ -76,9 +78,17 @@ helm upgrade \
   --version 0.21.0 \
   eks/aws-node-termination-handler
 
+# nvidia-device-plugin: https://github.com/NVIDIA/k8s-device-plugin#deployment-via-helm
+helm repo add nvdp https://nvidia.github.io/k8s-device-plugin
+helm upgrade \
+  --install nvdp nvdp/nvidia-device-plugin \
+  --namespace nvidia-device-plugin \
+  --create-namespace \
+  --version 0.14.1
+
 # Install the substratus operator.
 if [ "${INSTALL_OPERATOR}" == "yes" ]; then
-  kubectl apply -f kubernetes/namespace.yaml
-  kubectl apply -f kubernetes/config.yaml
-  kubectl apply -f kubernetes/system.yaml
+  kubectl apply -f ${KUBERENTES_DIR}/namespace.yaml
+  kubectl apply -f ${KUBERENTES_DIR}/config.yaml
+  kubectl apply -f ${KUBERENTES_DIR}/system.yaml
 fi

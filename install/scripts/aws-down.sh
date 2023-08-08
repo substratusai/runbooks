@@ -14,11 +14,11 @@ export REGION=us-west-2
 export ARTIFACTS_REPO_NAME=${CLUSTER_NAME}
 export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-${CLUSTER_NAME}-artifacts
 
-aws eks update-kubeconfig \
+(aws eks update-kubeconfig \
   --region ${REGION} \
   --name ${CLUSTER_NAME} &&
-  kubectl delete deployments --namespace=karpenter --all &&
-  kubectl delete deployments --namespace=kube-system --all ||
+  kubectl delete deployments --namespace=karpenter --all ||
+  kubectl delete deployments --namespace=kube-system --all) ||
   true
 
 aws iam delete-policy \
@@ -30,6 +30,7 @@ aws cloudformation delete-stack \
   --region ${REGION} || true
 
 envsubst <${KUBERENTES_DIR}/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/eks-cluster.yaml
+cat ${KUBERENTES_DIR}/eks-cluster.yaml
 eksctl delete cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml || true
 
 aws ecr delete-repository \
