@@ -1,21 +1,20 @@
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
-  name: substratus
-  region: us-west-2
+  name: ${CLUSTER_NAME}
+  region: ${REGION}
   version: "1.27"
   tags:
     createdBy: eksctl
     environment: dev
-    karpenter.sh/discovery: substratus
+    karpenter.sh/discovery: ${CLUSTER_NAME}
 
 karpenter:
   createServiceAccount: true
   withSpotInterruptionQueue: true
-  defaultInstanceProfile: "KarpenterNodeInstanceProfile-substratus"
+  defaultInstanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
   version: "v0.29.0"
 
-# TODO(bjb): do we need mngs with karpenter?
 # if karpenter doesn't suffice: https://github.com/eksctl-io/eksctl/blob/main/examples/23-kubeflow-spot-instance.yaml
 managedNodeGroups:
   - name: builder-ng
@@ -26,7 +25,7 @@ managedNodeGroups:
     volumeSize: 100
     minSize: 0
     maxSize: 3
-    desiredCapacity: 2
+    desiredCapacity: 1
     iam:
       withAddonPolicies:
         ebs: true
@@ -64,8 +63,8 @@ iam:
       wellKnownPolicies:
         ebsCSIController: true
     - metadata:
-        name: substratus
-        namespace: substratus
+        name: ${CLUSTER_NAME}
+        namespace: ${CLUSTER_NAME}
       attachPolicy:
         Version: "2012-10-17"
         Statement:
@@ -83,7 +82,7 @@ iam:
               - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}"
     - metadata:
         name: aws-manager
-        namespace: substratus
+        namespace: ${CLUSTER_NAME}
       attachPolicy:
         # https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
         Version: "2012-10-17"

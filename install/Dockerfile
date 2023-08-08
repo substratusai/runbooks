@@ -32,6 +32,7 @@ RUN DEBIAN_FRONTEND="noninteractive" \
   curl \
   git \
   tzdata \
+  gettext-base \
   keyboard-configuration
 
 # AWS CLI
