@@ -2,73 +2,56 @@
 Design doc: Not a feature yet
 
 Instead of managing all the infrastructure through terraform, the
-operator itself should be responsible for managing the infra it requires,
-such as buckets, K8s Sevice Account workload identity mappings and Container Image
-Registry.
+operator itself should be responsible for managing the Workload Identity
+bindings between the K8s Service Account and the Cloud Service Account/IAM role.
 
-This will make it easier for users to adopt Substratus into existing
-environments without having to learn IaC tooling.
+Doing this, will make it possible to use Substratus resources in multiple
+namespaces without having to use another tool to configure Cloud identity/role mappings.
+
+Out of scope:
+* Managing the bucket, image registry or other any other resources
 
 
 ## Why?
-* Simplified install: Allow install to use `gcloud` or `eksctl` to create initial K8s cluster + nodepools
+* Simplified install: Allow install to use `gcloud/aws` or `eksctl` to create initial K8s cluster + nodepools
 * Make install onto existing K8s cluster straight forward and remove
   complexity of using Terraform
-* Improved UX, all an end-user needs to do is install our manifests and ensure GCP service account
-  has enough permissions
-* Enterprises generally have very specific requirements
-  about how they create their K8s Clusters and nodepools.
-* Allow Substratus to work in a multi namespace environment.
-  Currently namespace is hardcoded in workload identity settings in the terraform
+* Improved UX, all an end-user needs to do is install our manifests and ensure GCP service account has enough permissions
+* Enterprises generally have very specific requirements about how they create their K8s Clusters and nodepools.
+* Allow Substratus to work in a multi namespace environment. Currently namespace is hardcoded in workload identity settings in the terraform
 
 ## How?
-* Make the Image Registry and Object Storage Bucket configurable as a setting of the operator itself
-* Object storage will be optional and if not provided then default PVC class will be used
-* Utilize a single service account that has enough permissions to do everything needed within Substratus
-* Simplify Substratus to use a single K8s SA per namespace. Simplicity is preferred here over the minor security benefits you get
-  for using a different SA for each kind of Substratus resource.
-* Provide Substratus controller the permissions to manage registry, bucket and set IAM policy on the GCP SA.
-  The following permissions will be required by the substratus Service Account on the project itself:
-  ```
-  roles/storage.admin, roles/artifactregistry.repoAdmin, roles/iam.serviceAccountAdmin
-  ```
 
-### Implementation details
-* Object storage: Create bucket if the configured bucket does not exist
-* Image Registry: Create registry if the configured registry does not exist
-* New sub reconciler for namespace: Create K8s Service Accounts automatically in each namespace where Substratus is used and
-  annotate the K8s Service Account with the correct GCP Service Account. Ensure that following
-  gets called when a new Service Account is provisioned in a new namespace:
+<img src="./diagrams/operator-managed-infra.md" width="80%"></img>
+
+### Installation
+**Installation Flow** will be responsible for the following:
+* Create a K8s cluster with nodes/GPUs, this step is optional if end-user already has a K8s cluster (eksctl or gcloud)
+* Create Bucket, this step is optional if end-user already has a bucket
+* Create Image Registry, this step is optional if end-user already has an image registry
+* REQUIRED: Create Google Service Account or AWS IAM Role that has resource level permissions to:
+  * read and write a specific bucket
+  * pull and push to a specific Image Registry (GAR/ECR)
+  * (GCP) set IAM policy on the service Account itself to be able to manage workload identity bindings to KSAs. This can be done by assigning the service account to be a ServiceAccountAdmin to itself
+  * (AWS) UpdateAssumeRolePolicy on the AWS Role used by Substratus (required for multi namespace support)
+* REQUIRED: Apply Subsubstratus manifests and configure them to use correct bucket and image registry
+
+### Controller
+Controller will be responsible for the following:
+* Creating the K8s ServiceAccount and related binding by calling `enforceServiceAccount` whenever a Substratus resource gets reconciled
+* (GCP only) example set annotation for Google Service Account AND update IAM policy ton the Service Account so it can use the Google Service Account. For example:
   ```
   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
    --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
-  Make sure this only happens whenever a new Substratus resource is created in a new namespace.
-  The controller should be smart enough to not have to create KSAs in namespaces that
-  do not have any substratus resources.
+* (AWS Only) Annotate the service account with ARN of IAM role AND (awsmanager) call UpdateAssumeRolePolicy
+* The annotations to service accounts happen inside the controller itself
+* Any API calls made to clouds should go through a cloud manager e.g. `gcpmanager` or `awsmanager`
 
-How should Substratus controller handle infra management?
-* Terraform
-* Native K8s controller that uses Golang SDK for AWS/GCP/..
-
-The Native K8s controller would better fit within the existing Substratus code base.
-It would also allow us to verify if a resource is already there and if not just create
-it. Terraform would still be used for creation of GKE/EKS cluster to provide a reference
-example for easy install.
-
-### Open Questions
-
-1. Where should the code to create Image Registry and Bucket live? Do we need a new
-   resource or can we reconcile based purely on configuration?
-2. Should Substratus install and manage Karpenter on AWS?
-3. Should we change the nodeSelectors based on whether Karpenter is or isn't installed?
-4. Should we install and manage the Nvidia DaemonSet?
-5. When should Substratus controller create the image registry? During initial startup? And retry?
-6. How to authenticate to registries?
-7. Should we only create registries if within same cloud provider? And should we make that a setting?
 
 ## User Impact / Docs
+TODO: Update this with actual proposed install steps for GCP
 
 1. (Optional) Create your GKE cluster `gcloud container clusters create` and create nodepools
 
@@ -86,31 +69,3 @@ example for easy install.
 
 The role `iam.serviceAccountAdmin` is needed to be able to use workload identity across multiple
    namespaces. The controller can now add IAM policy bindings to the substratus SA for other namespaces.
-
-3. Deploy Substratus operator using helm
-
-The following values.yaml would be provided (or configmap):
-```
-image_registry:  us-central1-docker.pkg.dev/my-project/substratus-repo
-bucket:          gs://my-project-substratus
-# Ensures the K8s Service Accounts have the right annotations
-service_account: substratus@my-project.iam.gserviceaccount.com
-# future PRs
-default_service_type: LoadBalancer
-default_storage_class: premium-rwo
-# Override resources used by substratus controller
-resources:
-  request:
-    cpu: 2
-```
-
-Install operator:
-```
-helm repo add substratusai https://substratusai.github.io/substratusai-helm
-helm install substratusai/substratus
-```
-
-## TODO
-* Understand how this would work in AWS
-* Provide pseudocode of how Bucket controller might work in AWS and GCP
-* Provide install steps for AWS
