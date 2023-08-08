@@ -47,7 +47,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 		return fmt.Errorf("getting node arch: %w", err)
 	}
 
-	if err := getContainerTools(toolsPath, targetOS); err != nil {
+	if err := getContainerTools(ctx, toolsPath, targetOS); err != nil {
 		return fmt.Errorf("getting container-tools: %w", err)
 	}
 
@@ -83,7 +83,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 
 			relPath, err := filepath.Rel("/content/src", event.Path)
 			if err != nil {
-				klog.Errorf("Failed to determining relative path: %w", err)
+				klog.Errorf("Failed to determine relative path: %w", err)
 				continue
 			}
 
@@ -110,6 +110,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 	}()
 
 	if err := c.exec(ctx, podRef, "/tmp/nbwatch", nil, w, os.Stderr); err != nil {
+		w.Close()
 		return fmt.Errorf("exec: nbwatch: %w", err)
 	}
 
@@ -164,7 +165,7 @@ type NBWatchEvent struct {
 	Op    string `json:"op"`
 }
 
-func getContainerTools(dir, targetOS string) error {
+func getContainerTools(ctx context.Context, dir, targetOS string) error {
 	// Check to see if tools need to be downloaded.
 	versionPath := filepath.Join(dir, "version.txt")
 	exists, err := fileExists(versionPath)
@@ -195,7 +196,7 @@ func getContainerTools(dir, targetOS string) error {
 		if err := os.MkdirAll(archDir, 0755); err != nil {
 			return fmt.Errorf("recreating directory: %w", err)
 		}
-		if err := getContainerToolsRelease(archDir, targetOS, arch); err != nil {
+		if err := getContainerToolsRelease(ctx, archDir, targetOS, arch); err != nil {
 			return fmt.Errorf("getting container-tools: %w", err)
 		}
 	}
@@ -207,10 +208,15 @@ func getContainerTools(dir, targetOS string) error {
 	return nil
 }
 
-func getContainerToolsRelease(dir, targetOS, targetArch string) error {
+func getContainerToolsRelease(ctx context.Context, dir, targetOS, targetArch string) error {
 	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/v%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
 	klog.V(1).Infof("Downloading: %s", releaseURL)
-	resp, err := http.Get(releaseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, nil)
+	if err != nil {
+		return fmt.Errorf("new request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("downloading release: %w", err)
 	}

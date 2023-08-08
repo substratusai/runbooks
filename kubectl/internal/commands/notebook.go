@@ -213,13 +213,12 @@ func Notebook() *cobra.Command {
 					defer func() {
 						wg.Done()
 						klog.V(2).Info("Syncing files from notebook: Done.")
-
+						cancel()
 					}()
 					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
 						if !errors.Is(err, context.Canceled) {
 							klog.Errorf("Error syncing files from notebook: %v", err)
 						}
-						cancel()
 					}
 				}()
 			}
@@ -230,6 +229,7 @@ func Notebook() *cobra.Command {
 				defer func() {
 					wg.Done()
 					klog.V(2).Info("Port-forwarding: Done.")
+					cancel()
 				}()
 
 				first := true

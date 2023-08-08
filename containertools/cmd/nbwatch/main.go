@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"k8s.io/klog/v2"
 
@@ -58,14 +59,9 @@ func watchLoop(w *fsnotify.Watcher) {
 			i++
 			path := e.Name
 
-			//path, err := filepath.EvalSymlinks(e.Name)
-			//if err != nil {
-			//	klog.Error(err)
-			//	continue
-			//}
-
-			switch filepath.Base(path) {
-			case ".git", ".gitignore", ".gitmodules", ".gitattributes", ".ipynb_checkpoints":
+			// Covers ".git", ".gitignore", ".gitmodules", ".gitattributes", ".ipynb_checkpoints"
+			// and also temporary files that Jupyter writes on save like: ".~hello.py"
+			if strings.HasPrefix(filepath.Base(path), ".") {
 				continue
 			}
 
