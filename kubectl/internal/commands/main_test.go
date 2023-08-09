@@ -128,7 +128,12 @@ type mockClient struct {
 
 func (c *mockClient) PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error {
 	log.Println("mockClient.PortForwardNotebook called")
-	ready <- struct{}{}
+	select {
+	case ready <- struct{}{}:
+		fmt.Println("sent ready")
+	default:
+		fmt.Println("no ready sent")
+	}
 	ctx.Done()
 	return fmt.Errorf("mock PortForwardNotebook exiting because of ctx.Done()")
 }
