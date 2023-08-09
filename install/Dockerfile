@@ -31,9 +31,7 @@ RUN DEBIAN_FRONTEND="noninteractive" \
   wget \
   curl \
   git \
-  tzdata \
-  gettext-base \
-  keyboard-configuration
+  gettext-base
 
 # AWS CLI
 RUN source /etc/environment && \

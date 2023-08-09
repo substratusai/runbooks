@@ -65,34 +65,37 @@ iam:
       wellKnownPolicies:
         ebsCSIController: true
     - metadata:
-        name: ${CLUSTER_NAME}
-        namespace: ${CLUSTER_NAME}
-      attachPolicy:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - "ecr:*"
-            Resource:
-              - "arn:aws:ecr:::${ARTIFACTS_REPO_NAME}"
-          - Effect: Allow
-            Action:
-              - "s3:*"
-              - "s3-object-lambda:*"
-            Resource:
-              - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}/*"
-              - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}"
-    - metadata:
         name: aws-manager
-        namespace: ${CLUSTER_NAME}
+        namespace: substratus
       attachPolicy:
         # https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
         Version: "2012-10-17"
         Statement:
-          - Effect: Allow
+          - Sid: "AllowUrlPreSigning"
+            Effect: Allow
             Action:
               - "s3:PutObject"
               - "s3:GetObject"
             Resource:
               - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}/*"
               - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}"
+          - Sid: "FullSubstratusEcrRepoAccess"
+            Effect: Allow
+            Action:
+              - "ecr:*"
+            Resource:
+              - "arn:aws:ecr:::${ARTIFACTS_REPO_NAME}"
+          - Sid: "S3AdminSubstratusBucketAccess"
+            Effect: Allow
+            Action:
+              - "s3:*"
+              - "s3-object-lambda:*"
+            Resource:
+              - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}/*"
+              - "arn:aws:s3:::${ARTIFACTS_BUCKET_NAME}"
+          - Sid: "ModifyOwnTrustPolicy"
+            Effect: Allow
+            Action:
+              - "iam:UpdateAssumeRolePolicy"
+            Resource:
+              - "arn:aws:iam::${AWS_ACCOUNT_ID}:role/$${aws:userid}"

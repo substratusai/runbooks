@@ -3,5 +3,6 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: aws.amazon.com/eks-accelerator
-              operator: Exists
+            - key: karpenter.k8s.aws/instance-gpu-manufacturer
+              operator: In
+              values: ["nvidia"]
