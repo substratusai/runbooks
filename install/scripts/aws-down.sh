@@ -5,8 +5,8 @@ set -u
 
 # Required env variables:
 : "$AWS_ACCOUNT_ID $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBERENTES_DIR=${SCRIPT_DIR}/../kubernetes
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+kubernetes_dir=${script_dir}/../kubernetes
 
 EKSCTL_ENABLE_CREDENTIAL_CACHE=1
 export CLUSTER_NAME=substratus
@@ -21,8 +21,8 @@ export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-${CLUSTER_NAME}-artifacts
   kubectl delete deployments --namespace=kube-system --all) ||
   true
 
-envsubst <${KUBERENTES_DIR}/aws/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/aws/eks-cluster.yaml
-eksctl delete cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml || true
+envsubst <${kubernetes_dir}/aws/eks-cluster.yaml.tpl >${kubernetes_dir}/aws/eks-cluster.yaml
+eksctl delete cluster -f ${kubernetes_dir}/aws/eks-cluster.yaml || true
 
 aws cloudformation delete-stack \
   --stack-name "Karpenter-${CLUSTER_NAME}" \

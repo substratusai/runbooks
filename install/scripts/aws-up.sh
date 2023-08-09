@@ -6,20 +6,19 @@ set -u
 # Required env variables:
 : "$AWS_ACCOUNT_ID $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY"
 
-INSTALL_OPERATOR="${INSTALL_OPERATOR:-yes}"
+install_operator="${INSTALL_OPERATOR:-yes}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBERENTES_DIR=${SCRIPT_DIR}/../kubernetes
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+kubernetes_dir=${script_dir}/../kubernetes
 
-EKSCTL_ENABLE_CREDENTIAL_CACHE=1
+eksctl_enable_credential_cache=1
 export CLUSTER_NAME=substratus
 export REGION=us-west-2
 export ARTIFACTS_REPO_NAME=${CLUSTER_NAME}
 export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-${CLUSTER_NAME}-artifacts
-export KARPENTER_VERSION=v0.29.2
-export AWS_PARTITION="aws"
-export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
-TEMPOUT=$(mktemp)
+export karpenter_version=v0.29.2
+export karpenter_iam_role_arn="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
+tempout=$(mktemp)
 
 aws s3 mb s3://${ARTIFACTS_BUCKET_NAME} \
   --region ${REGION} >/dev/null || true
@@ -29,17 +28,17 @@ aws ecr create-repository \
   --region ${REGION} >/dev/null || true
 
 # install karpenter: https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/
-curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml >$TEMPOUT &&
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${karpenter_version}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml >$tempout &&
   aws cloudformation deploy \
     --stack-name "Karpenter-${CLUSTER_NAME}" \
-    --template-file "${TEMPOUT}" \
+    --template-file "${tempout}" \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides "ClusterName=${CLUSTER_NAME}" \
     --region ${REGION}
 
-envsubst <${KUBERENTES_DIR}/aws/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/aws/eks-cluster.yaml
-eksctl create cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml ||
-  eksctl upgrade cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml
+envsubst <${kubernetes_dir}/aws/eks-cluster.yaml.tpl >${kubernetes_dir}/aws/eks-cluster.yaml
+eksctl create cluster -f ${kubernetes_dir}/aws/eks-cluster.yaml ||
+  eksctl upgrade cluster -f ${kubernetes_dir}/aws/eks-cluster.yaml
 
 aws iam create-service-linked-role \
   --aws-service-name spot.amazonaws.com || true
@@ -53,9 +52,9 @@ helm registry logout public.ecr.aws || true
 helm upgrade \
   --create-namespace \
   --install karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version ${KARPENTER_VERSION} \
+  --version ${karpenter_version} \
   --namespace karpenter \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${karpenter_iam_role_arn} \
   --set settings.aws.clusterName=${CLUSTER_NAME} \
   --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
   --set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
@@ -65,16 +64,8 @@ helm upgrade \
   --set controller.resources.limits.memory=1Gi \
   --wait
 
-envsubst <${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml
-kubectl apply -f ${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml
-
-# node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
-helm repo add eks https://aws.github.io/eks-charts
-helm upgrade \
-  --install aws-node-termination-handler \
-  --namespace kube-system \
-  --version 0.21.0 \
-  eks/aws-node-termination-handler
+envsubst <${kubernetes_dir}/aws/karpenter-provisioner.yaml.tpl >${kubernetes_dir}/aws/karpenter-provisioner.yaml
+kubectl apply -f ${kubernetes_dir}/aws/karpenter-provisioner.yaml
 
 # nvidia-device-plugin: https://github.com/NVIDIA/k8s-device-plugin#deployment-via-helm
 helm repo add nvdp https://nvidia.github.io/k8s-device-plugin
@@ -82,12 +73,12 @@ helm upgrade \
   --install nvdp nvdp/nvidia-device-plugin \
   --namespace nvidia-device-plugin \
   --create-namespace \
-  --values ${KUBERENTES_DIR}/aws/nvidia-eks-device-plugin.yaml \
+  --values ${kubernetes_dir}/aws/nvidia-eks-device-plugin.yaml \
   --version 0.14.1
 
 # Install the substratus operator.
-if [ "${INSTALL_OPERATOR}" == "yes" ]; then
-  kubectl apply -f ${KUBERENTES_DIR}/namespace.yaml
-  kubectl apply -f ${KUBERENTES_DIR}/config.yaml
-  kubectl apply -f ${KUBERENTES_DIR}/system.yaml
+if [ "${install_operator}" == "yes" ]; then
+  kubectl apply -f ${kubernetes_dir}/namespace.yaml
+  kubectl apply -f ${kubernetes_dir}/config.yaml
+  kubectl apply -f ${kubernetes_dir}/system.yaml
 fi
