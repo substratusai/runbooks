@@ -24,6 +24,9 @@ export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-${CLUSTER_NAME}-artifacts
 envsubst <${KUBERENTES_DIR}/aws/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/aws/eks-cluster.yaml
 eksctl delete cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml || true
 
+aws sqs delete-queue \
+  --queue-url https://sqs.${REGION}.amazonaws.com/${AWS_ACCOUNT_ID}/substratus \
+  --region ${REGION} || true
 aws cloudformation delete-stack \
   --stack-name "Karpenter-${CLUSTER_NAME}" \
   --region ${REGION} || true
