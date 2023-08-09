@@ -6,11 +6,6 @@ option go_package = "github.com/substratusai/substratus/internal/sci";
 service Controller {
   rpc CreateSignedURL(CreateSignedURLRequest) returns (CreateSignedURLResponse) {}
   rpc GetObjectMd5(GetObjectMd5Request) returns (GetObjectMd5Response) {}
-  rpc UpdateIamPrincipal(UpdateIamPrincipalRequest) returns (UpdateIamPrincipalResponse) {}
-}
-
-message UpdateIamPrincipalRequest {
-  string principalId = 1; // the email address, IAM role name or
 }
 
 message CreateSignedURLRequest {
@@ -27,14 +22,6 @@ message CreateSignedURLResponse {
 message GetObjectMd5Request {
   string bucketName = 1;
   string objectName = 2;
-}
-
-message GetObjectMd5Response {
-  string md5checksum = 1;
-}
-
-message Put {
-  string  = 1;
 }
 
 message GetObjectMd5Response {
