@@ -57,6 +57,7 @@ iam:
         namespace: karpenter
       roleName: ${CLUSTER_NAME}-karpenter
       attachPolicyARNs:
+        # this is used as spec.instanceProfile in the karpenter AWSNodeTemplate
         - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
       roleOnly: true
     - metadata:
