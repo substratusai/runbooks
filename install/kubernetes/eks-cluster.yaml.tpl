@@ -21,8 +21,7 @@ managedNodeGroups:
     privateNetworking: true
     labels: { role: builders }
     instanceTypes:
-      - t3a.small
-    #  - m6a.large
+      - m6a.large
     volumeSize: 100
     minSize: 0
     maxSize: 3

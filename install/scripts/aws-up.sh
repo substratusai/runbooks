@@ -38,7 +38,6 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}
     --region ${REGION}
 
 envsubst <${KUBERENTES_DIR}/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/eks-cluster.yaml
-cat ${KUBERENTES_DIR}/eks-cluster.yaml
 eksctl create cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml ||
   eksctl upgrade cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml
 
@@ -67,7 +66,6 @@ helm upgrade \
   --wait
 
 envsubst <${KUBERENTES_DIR}/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/karpenter-provisioner.yaml
-cat ${KUBERENTES_DIR}/karpenter-provisioner.yaml
 kubectl apply -f ${KUBERENTES_DIR}/karpenter-provisioner.yaml
 
 # node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
