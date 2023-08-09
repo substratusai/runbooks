@@ -163,17 +163,17 @@ aws-dev-down: build-installer
 		-e AWS_SESSION_TOKEN=$(shell aws configure get aws_session_token) \
 		substratus-installer aws-down.sh
 
-.PHONY: gcp-dev-run
+.PHONY: dev-run-gcp
 # Controller manager configuration #
-gcp-dev-run: export CLOUD=gcp
-gcp-dev-run: export GPU_TYPE=nvidia-l4
-gcp-dev-run: export PROJECT_ID=$(shell gcloud config get project)
-gcp-dev-run: export CLUSTER_NAME=substratus
-gcp-dev-run: export CLUSTER_LOCATION=us-central1
+dev-run-gcp: export CLOUD=gcp
+dev-run-gcp: export GPU_TYPE=nvidia-l4
+dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
+dev-run-gcp: export CLUSTER_NAME=substratus
+dev-run-gcp: export CLUSTER_LOCATION=us-central1
 # Cloud manager configuration #
-gcp-dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
+dev-run-gcp: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
 # Run the controller manager and the cloud manager.
-gcp-dev-run: manifests kustomize install-crds
+dev-run-gcp: manifests kustomize install-crds
 	go run ./cmd/gcpmanager & \
 	go run ./cmd/controllermanager/main.go \
 		--sci-address=localhost:10080 \

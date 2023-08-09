@@ -11,7 +11,7 @@ make gcp-dev-up
 Run Substratus control plane locally.
 
 ```sh
-make gcp-dev-run
+make dev-run-gcp
 ```
 
 Delete GCP infra.
