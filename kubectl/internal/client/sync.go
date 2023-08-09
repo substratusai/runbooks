@@ -79,6 +79,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 			var event NBWatchEvent
 			if err := json.Unmarshal(eventLine, &event); err != nil {
 				klog.Errorf("Failed to unmarshal nbevent: %w", err)
+				continue
 			}
 
 			relPath, err := filepath.Rel("/content/src", event.Path)
@@ -95,10 +96,12 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 				// NOTE: A long-running port-forward might be more performant here.
 				if err := cp.FromPod(ctx, event.Path, localPath, podRef, containerName); err != nil {
 					klog.Errorf("Sync: failed to copy: %w", err)
+					continue
 				}
 			} else if event.Op == "REMOVE" || event.Op == "RENAME" {
 				if err := os.Remove(localPath); err != nil {
 					klog.Errorf("Sync: failed to remove: %w", err)
+					continue
 				}
 			}
 		}
@@ -116,6 +119,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 
 	klog.V(2).Info("Waiting for file sync loop to finish...")
 	wg.Wait()
+	klog.V(2).Info("Done waiting for file sync loop to finish.")
 
 	return nil
 }

@@ -36,7 +36,7 @@ func ApplyBuild() *cobra.Command {
 			}
 			cfg.build = args[0]
 
-			tarball, err := client.PrepareImageTarball(cfg.build)
+			tarball, err := client.PrepareImageTarball(ctx, cfg.build)
 			if err != nil {
 				return fmt.Errorf("preparing tarball: %w", err)
 			}
