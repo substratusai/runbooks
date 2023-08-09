@@ -5,13 +5,12 @@ set -u
 
 # Required env variables:
 : "$AWS_ACCOUNT_ID $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY"
-
 install_operator="${INSTALL_OPERATOR:-yes}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 kubernetes_dir=${script_dir}/../kubernetes
 
-eksctl_enable_credential_cache=1
+EKSCTL_ENABLE_CREDENTIAL_CACHE=1
 export CLUSTER_NAME=substratus
 export REGION=us-west-2
 export ARTIFACTS_REPO_NAME=${CLUSTER_NAME}

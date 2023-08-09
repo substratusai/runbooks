@@ -1,3 +1,4 @@
+# https://eksctl.io/usage/schema/
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
@@ -10,12 +11,9 @@ metadata:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 
 karpenter:
-  createServiceAccount: true
   withSpotInterruptionQueue: true
-  defaultInstanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
   version: "v0.29.0"
 
-# if karpenter doesn't suffice: https://github.com/eksctl-io/eksctl/blob/main/examples/23-kubeflow-spot-instance.yaml
 managedNodeGroups:
   - name: builder-ng
     privateNetworking: true

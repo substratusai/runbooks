@@ -5,6 +5,7 @@ set -u
 
 # Required env variables:
 : "$AWS_ACCOUNT_ID $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY"
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 kubernetes_dir=${script_dir}/../kubernetes
 

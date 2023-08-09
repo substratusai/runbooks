@@ -3,7 +3,7 @@ kind: AWSNodeTemplate
 metadata:
   name: default
 spec:
-  instanceProfile: KarpenterControllerPolicy-${CLUSTER_NAME}
+  instanceProfile: eksctl-KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   subnetSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
   securityGroupSelector:
