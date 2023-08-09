@@ -5,7 +5,7 @@
 Create a GCP environment.
 
 ```sh
-make gcp-dev-up
+make dev-up-gcp
 ```
 
 Run Substratus control plane locally.
@@ -17,7 +17,7 @@ make dev-run-gcp
 Delete GCP infra.
 
 ```sh
-make gcp-dev-down
+make dev-down-gcp
 ```
 
 TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for now.

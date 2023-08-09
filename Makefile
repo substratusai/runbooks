@@ -120,8 +120,8 @@ skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## R
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
-.PHONY: gcp-dev-up
-gcp-dev-up: build-installer
+.PHONY: dev-up-gcp
+dev-up-gcp: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
 		-e PROJECT=$(shell gcloud config get project) \
@@ -132,8 +132,8 @@ gcp-dev-up: build-installer
 	mkdir -p secrets
 	gcloud iam service-accounts keys create --iam-account=substratus-gcp-manager@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/gcp-manager-key.json
 
-.PHONY: gcp-dev-down
-gcp-dev-down: build-installer
+.PHONY: dev-down-gcp
+dev-down-gcp: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
 		-e PROJECT=$(shell gcloud config get project) \
@@ -142,8 +142,8 @@ gcp-dev-down: build-installer
 		substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
 
-.PHONY: aws-dev-up
-aws-dev-up: build-installer
+.PHONY: dev-up-aws
+dev-up-aws: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
 		-e AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)" \
@@ -153,8 +153,8 @@ aws-dev-up: build-installer
 		-e INSTALL_OPERATOR=false \
 		substratus-installer aws-up.sh
 
-.PHONY: aws-dev-down
-aws-dev-down: build-installer
+.PHONY: dev-down-aws
+dev-down-aws: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
 		-e AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)" \
