@@ -37,9 +37,9 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}
     --parameter-overrides "ClusterName=${CLUSTER_NAME}" \
     --region ${REGION}
 
-envsubst <${KUBERENTES_DIR}/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/eks-cluster.yaml
-eksctl create cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml ||
-  eksctl upgrade cluster -f ${KUBERENTES_DIR}/eks-cluster.yaml
+envsubst <${KUBERENTES_DIR}/aws/eks-cluster.yaml.tpl >${KUBERENTES_DIR}/aws/eks-cluster.yaml
+eksctl create cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml ||
+  eksctl upgrade cluster -f ${KUBERENTES_DIR}/aws/eks-cluster.yaml
 
 aws iam create-service-linked-role \
   --aws-service-name spot.amazonaws.com || true
@@ -65,8 +65,8 @@ helm upgrade \
   --set controller.resources.limits.memory=1Gi \
   --wait
 
-envsubst <${KUBERENTES_DIR}/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/karpenter-provisioner.yaml
-kubectl apply -f ${KUBERENTES_DIR}/karpenter-provisioner.yaml
+envsubst <${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml.tpl >${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml
+kubectl apply -f ${KUBERENTES_DIR}/aws/karpenter-provisioner.yaml
 
 # node-termination-handler: https://artifacthub.io/packages/helm/aws/aws-node-termination-handler
 helm repo add eks https://aws.github.io/eks-charts
@@ -82,6 +82,7 @@ helm upgrade \
   --install nvdp nvdp/nvidia-device-plugin \
   --namespace nvidia-device-plugin \
   --create-namespace \
+  --values ${KUBERENTES_DIR}/aws/nvidia-eks-device-plugin.yaml \
   --version 0.14.1
 
 # Install the substratus operator.

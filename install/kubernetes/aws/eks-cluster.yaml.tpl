@@ -20,16 +20,18 @@ managedNodeGroups:
   - name: builder-ng
     privateNetworking: true
     labels: { role: builders }
+    amiFamily: Ubuntu2004
     instanceTypes:
       - m6a.large
     volumeSize: 100
     minSize: 0
     maxSize: 3
-    desiredCapacity: 2
+    desiredCapacity: 1
     iam:
       withAddonPolicies:
         ebs: true
         imageBuilder: true
+
 addons:
   - name: vpc-cni
     attachPolicyARNs:

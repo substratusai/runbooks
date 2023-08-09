@@ -1,0 +1,9 @@
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: aws.amazon.com/eks-accelerator
+              operator: Exists
+            - key: aws.amazon.com/eks-gpu-driver-version
+              operator: DoesNotExist
