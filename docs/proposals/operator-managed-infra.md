@@ -1,5 +1,5 @@
 # Operator Managed Infra and multi namespace
-Design doc: Not a feature yet
+Design doc: Not a feature yet, actual implementation will be different.
 
 Instead of managing all the infrastructure through terraform, the
 operator itself should be responsible for managing the Workload Identity
@@ -55,7 +55,7 @@ The SCI will have a generic function `BindKSAToIAMPrincipal` that takes the foll
 Namespace: The K8s namespace
 KubernetesServiceAccount: The name of K8s Service Account
 IAMPrincipal: The GCP service account or IAM role
-Params Map[string]string: Any additional parameters that might be required by a specific cloud provider
+.. might require more input for AWS and Azure
 ```
 
 
