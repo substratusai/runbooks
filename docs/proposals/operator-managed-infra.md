@@ -9,7 +9,7 @@ Doing this, will make it possible to use Substratus resources in multiple
 namespaces without having to use another tool to configure Cloud identity/role mappings.
 
 Out of scope:
-* Managing the bucket, image registry or other any other resources
+* Managing the cluster configuration, node pools, dependent workpads/daemonsets, the bucket, image registry, the `sci-${provider}` principal, and its permissions.
 
 
 ## Why?
