@@ -9,12 +9,23 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 )
+
+func RetryOnConflictError(operation func() error) error {
+	backoff := retry.DefaultBackoff
+	backoff.Steps = 5
+
+	return retry.OnError(backoff, func(err error) bool {
+		return errors.IsConflict(err)
+	}, operation)
+}
 
 func TestModelLoaderFromGit(t *testing.T) {
 	name := strings.ToLower(t.Name())
@@ -76,8 +87,10 @@ func TestModelTrainerFromGit(t *testing.T) {
 			Image: ptr.To("some-test-image"),
 		},
 	}
-	require.NoError(t, k8sClient.Create(ctx, baseModel), "create a model to be referenced by the trained model")
-
+	err := RetryOnConflictError(func() error {
+		return k8sClient.Create(ctx, baseModel)
+	})
+	require.NoError(t, err, "create a model to be referenced by the trained model")
 	t.Cleanup(debugObject(t, baseModel))
 
 	testModelLoad(t, baseModel)
@@ -117,7 +130,10 @@ func TestModelTrainerFromGit(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, k8sClient.Create(ctx, trainedModel), "creating a model that references another model for training")
+	err = RetryOnConflictError(func() error {
+		return k8sClient.Create(ctx, trainedModel)
+	})
+	require.NoError(t, err, "creating a model that references another model for training")
 
 	t.Cleanup(debugObject(t, trainedModel))
 
