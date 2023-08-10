@@ -45,7 +45,7 @@ Controller will be responsible for the following:
    --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
-* (AWS Only) Annotate the service account with ARN of IAM role AND (awsmanager) use CSI to call UpdateAssumeRolePolicy
+* (AWS Only) Annotate the Kubernetes service account with ARN of IAM role AND (sci-aws) use CSI to call `UpdateAssumeRolePolicy` to update the role's trust policy.
 * Any API calls made to clouds should go through a cloud manager e.g. `gcpmanager` or `awsmanager`
 
 
