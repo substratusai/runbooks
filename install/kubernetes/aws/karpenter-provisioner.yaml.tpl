@@ -6,6 +6,7 @@ spec:
   instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   subnetSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
+    Name: "*Private*"
   securityGroupSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 ---
