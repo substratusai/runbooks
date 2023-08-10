@@ -10,10 +10,6 @@ metadata:
     environment: dev
     karpenter.sh/discovery: ${CLUSTER_NAME}
 
-karpenter:
-  withSpotInterruptionQueue: true
-  version: "v0.29.0"
-
 managedNodeGroups:
   - name: builder-ng
     privateNetworking: true
@@ -41,7 +37,7 @@ addons:
   - name: coredns
 
 iamIdentityMappings:
-  - arn: "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}"
+  - arn: "arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}"
     username: system:node:{{EC2PrivateDNSName}}
     groups:
       - system:bootstrappers
@@ -56,7 +52,7 @@ iam:
       roleName: ${CLUSTER_NAME}-karpenter
       attachPolicyARNs:
         # this is used as spec.instanceProfile in the karpenter AWSNodeTemplate
-        - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
+        - arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
       roleOnly: true
     - metadata:
         name: ebs-csi-controller-sa
