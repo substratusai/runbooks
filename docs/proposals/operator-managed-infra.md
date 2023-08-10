@@ -52,11 +52,11 @@ Controller will be responsible for the following:
 ### Substratus Cloud Interface
 The SCI will have a generic function `BindKSAToIAMPrincipal` that takes the following input:
 ```
-namespace: The K8s namespace
-kubernetesServiceAccount: The name of K8s Service Account
+Namespace: The K8s namespace
+KubernetesServiceAccount: The name of K8s Service Account
 IAMPrincipal: The GCP service account or IAM role
+Params Map[string]string: Any additional parameters that might be required by a specific cloud provider
 ```
-
 
 
 ## User Impact / Docs
