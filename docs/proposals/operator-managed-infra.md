@@ -121,7 +121,7 @@ New install docs:
    data:
      bucket: gs://$PROJECT_ID-substratus
      registry: us-docker.pkg.dev/$PROJECT_ID-substratus
-     serviceAccount: substratus@$PROJECT_ID.account.com
+     iamPrincipal: substratus@$PROJECT_ID.account.com # arn of AWS IAM role for AWS
    EOF
 
    kubectl apply -f system.yaml
