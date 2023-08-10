@@ -13,11 +13,14 @@ service Controller {
 message BindKSAToIAMPrincipalRequest {
   string namespace = 1;
   string kubernetesServiceAccount = 2;
-  string iamPrincipal = 3;
-  google.protobuf.Struct params = 4;
+  string principal = 3;
+  google.protobuf.Struct additionalParams = 4;
 }
 
-message BindKSAToIAMPrincipalResponse {}
+message BindKSAToIAMPrincipalResponse {
+  bool success = 1; // Indicate whether the binding was successful
+  string message = 2; // Optional success or error message
+}
 
 message CreateSignedURLRequest {
   string bucketName = 1;
