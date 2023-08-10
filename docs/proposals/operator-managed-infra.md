@@ -38,7 +38,8 @@ Out of scope:
 
 ### Controller
 Controller will be responsible for the following:
-* Creating the K8s ServiceAccount (already done today) and related binding by calling `enforceServiceAccount` whenever a Substratus resource gets reconciled
+* Creating the K8s ServiceAccount (already done today in `enforceServiceAccount`), in addition should now also call `sci-${CLOUD}:UpdateIamPrincipal` to ensure the new KSA has access to the AWS IAM Role/GCP Service Account
+
 * (GCP only) example set annotation for Google Service Account (already done today) AND call SCI to update IAM policy on the Service Account so it can use the Google Service Account. For example:
   ```
   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
