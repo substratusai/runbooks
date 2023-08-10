@@ -34,38 +34,66 @@ Out of scope:
   * pull and push to a specific Image Registry (GAR/ECR)
   * (GCP) set IAM policy on the service Account itself to be able to manage workload identity bindings to KSAs. This can be done by assigning the service account to be a ServiceAccountAdmin to itself
   * (AWS) UpdateAssumeRolePolicy on the AWS Role used by Substratus (required for multi namespace support)
-* REQUIRED: Apply Subsubstratus manifests and configure them to use correct bucket and image registry
+* REQUIRED: Apply Substratus manifests and configure them to use correct bucket and image registry
 
 ### Controller
 Controller will be responsible for the following:
-* Creating the K8s ServiceAccount and related binding by calling `enforceServiceAccount` whenever a Substratus resource gets reconciled
-* (GCP only) example set annotation for Google Service Account AND update IAM policy on the Service Account so it can use the Google Service Account. For example:
+* Creating the K8s ServiceAccount (already done today) and related binding by calling `enforceServiceAccount` whenever a Substratus resource gets reconciled
+* (GCP only) example set annotation for Google Service Account (already done today) AND call CSI to update IAM policy on the Service Account so it can use the Google Service Account. For example:
   ```
   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
    --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:myproject.svc.id.goog[new-namespace/substratus]"
   ```
-* (AWS Only) Annotate the service account with ARN of IAM role AND (awsmanager) call UpdateAssumeRolePolicy
-* The annotations to service accounts happen inside the controller itself
+* (AWS Only) Annotate the service account with ARN of IAM role AND (awsmanager) use CSI to call UpdateAssumeRolePolicy
 * Any API calls made to clouds should go through a cloud manager e.g. `gcpmanager` or `awsmanager`
 
 
 ## User Impact / Docs
-TODO: Update this with actual proposed install steps for GCP
+New install docs:
 
-1. (Optional) Create your GKE cluster `gcloud container clusters create` and create nodepools
+1. (Optional) Create your GKE cluster and nodepools:
+   ```
+   gcloud container clusters create substratus 
+   gcloud container node-pools create a100 \
+     --machine-type a2-highpu-1g \
+     --region us-central1 --cluster substratus \
+     --node-locations us-central1-a,us-central1-c \
+     --num-nodes 0 \
+     --enable-autoscaling \
+      --min-nodes 0 \
+      --max-nodes 3
+   ```
 
-2. Create service account and assign permissions needed
+2. (Optional) Create a bucket that will be used for storing datasets and models:
+
+   ```
+   gcloud storage buckets create gs://$PROJECT_ID-substratus
+   ```
+
+3. (Optional) Create an Image Registry
+
+   ```
+   gcloud artifacts repositories create substratus \
+     --repository-format=docker --location=us-central1 \
+     --description="Docker repository"
+   ```
+
+4. Create a Google Service Account that has permissions to manage workload identity mappings and access bucket and registry
 
    ```
    gcloud iam service-accounts create substratus
-   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
-    --role roles/iam.serviceAccountAdmin \
-    --member "serviceAccount:myproject.svc.id.goog[substratus/substratus]"
-   gcloud projects add-iam-policy-binding my-project \
-    --member "serviceAccount:substratus@my-project.iam.gserviceaccount.com" \
-    --role "roles/storage.admin" --role "roles/artifactregistry.repoAdmin"
-   ```
 
-The role `iam.serviceAccountAdmin` is needed to be able to use workload identity across multiple
-   namespaces. The controller can now add IAM policy bindings to the substratus SA for other namespaces.
+   gcloud storage buckets add-iam-policy-binding \
+     gs://$MYPROJECT-substratus --member=substratus-SA \
+     --role=storage.admin
+  
+   gcloud artifacts repositories add-iam-policy-binding substratus \
+     --location us-central1 \
+     --member=substratus-SA \
+     --role=registry admin
+
+   gcloud iam service-accounts add-iam-policy-binding substratus@my-project.iam.gserviceaccount.com \
+      --role roles/iam.serviceAccountAdmin \
+      --member "serviceAccount:myproject.svc.id.goog[substratus/substratus]"
+   ```
