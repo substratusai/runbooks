@@ -97,3 +97,22 @@ New install docs:
       --role roles/iam.serviceAccountAdmin \
       --member "serviceAccount:myproject.svc.id.goog[substratus/substratus]"
    ```
+
+5. Install Substratus Operator(Create configmap and then apply all else)
+
+   ```
+   kubectl create ns substratus
+   kubectl apply -f - <<EOF
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: system
+     namespace: substratus
+   data:
+     bucket: gs://$PROJECT_ID-substratus
+     registry: us-docker.pkg.dev/$PROJECT_ID-substratus
+     serviceAccount: substratus@$PROJECT_ID.account.com
+   EOF
+
+   kubectl apply -f system.yaml
+   ```
