@@ -53,8 +53,8 @@ Controller will be responsible for the following:
 The SCI will have a generic function `BindKSAToIAMPrincipal` that takes the following input:
 ```
 namespace: The K8s namespace
-serviceAccount: The name of K8s Service Account
-IAMPrinciple: The GCP service account or IAM role
+kubernetesServiceAccount: The name of K8s Service Account
+IAMPrincipal: The GCP service account or IAM role
 ```
 
 
