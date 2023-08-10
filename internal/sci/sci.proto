@@ -1,12 +1,23 @@
 syntax = "proto3";
 
 package sci.v1;
+import "google/protobuf/struct.proto";
 option go_package = "github.com/substratusai/substratus/internal/sci";
 
 service Controller {
   rpc CreateSignedURL(CreateSignedURLRequest) returns (CreateSignedURLResponse) {}
   rpc GetObjectMd5(GetObjectMd5Request) returns (GetObjectMd5Response) {}
+  rpc BindKSAToIAMPrincipal(BindKSAToIAMPrincipalRequest) returns (BindKSAToIAMPrincipalResponse) {} // strictly adds a permission for an IAM principal to a KSA
 }
+
+message BindKSAToIAMPrincipalRequest {
+  string namespace = 1;
+  string kubernetesServiceAccount = 2;
+  string iamPrincipal = 3;
+  google.protobuf.Struct params = 4;
+}
+
+message BindKSAToIAMPrincipalResponse {}
 
 message CreateSignedURLRequest {
   string bucketName = 1;

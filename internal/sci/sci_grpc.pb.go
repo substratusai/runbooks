@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ControllerClient interface {
 	CreateSignedURL(ctx context.Context, in *CreateSignedURLRequest, opts ...grpc.CallOption) (*CreateSignedURLResponse, error)
 	GetObjectMd5(ctx context.Context, in *GetObjectMd5Request, opts ...grpc.CallOption) (*GetObjectMd5Response, error)
+	BindKSAToIAMPrincipal(ctx context.Context, in *BindKSAToIAMPrincipalRequest, opts ...grpc.CallOption) (*BindKSAToIAMPrincipalResponse, error)
 }
 
 type controllerClient struct {
@@ -48,12 +49,22 @@ func (c *controllerClient) GetObjectMd5(ctx context.Context, in *GetObjectMd5Req
 	return out, nil
 }
 
+func (c *controllerClient) BindKSAToIAMPrincipal(ctx context.Context, in *BindKSAToIAMPrincipalRequest, opts ...grpc.CallOption) (*BindKSAToIAMPrincipalResponse, error) {
+	out := new(BindKSAToIAMPrincipalResponse)
+	err := c.cc.Invoke(ctx, "/sci.v1.Controller/BindKSAToIAMPrincipal", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControllerServer is the server API for Controller service.
 // All implementations must embed UnimplementedControllerServer
 // for forward compatibility
 type ControllerServer interface {
 	CreateSignedURL(context.Context, *CreateSignedURLRequest) (*CreateSignedURLResponse, error)
 	GetObjectMd5(context.Context, *GetObjectMd5Request) (*GetObjectMd5Response, error)
+	BindKSAToIAMPrincipal(context.Context, *BindKSAToIAMPrincipalRequest) (*BindKSAToIAMPrincipalResponse, error)
 	mustEmbedUnimplementedControllerServer()
 }
 
@@ -66,6 +77,9 @@ func (UnimplementedControllerServer) CreateSignedURL(context.Context, *CreateSig
 }
 func (UnimplementedControllerServer) GetObjectMd5(context.Context, *GetObjectMd5Request) (*GetObjectMd5Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetObjectMd5 not implemented")
+}
+func (UnimplementedControllerServer) BindKSAToIAMPrincipal(context.Context, *BindKSAToIAMPrincipalRequest) (*BindKSAToIAMPrincipalResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BindKSAToIAMPrincipal not implemented")
 }
 func (UnimplementedControllerServer) mustEmbedUnimplementedControllerServer() {}
 
@@ -116,6 +130,24 @@ func _Controller_GetObjectMd5_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Controller_BindKSAToIAMPrincipal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BindKSAToIAMPrincipalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControllerServer).BindKSAToIAMPrincipal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sci.v1.Controller/BindKSAToIAMPrincipal",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControllerServer).BindKSAToIAMPrincipal(ctx, req.(*BindKSAToIAMPrincipalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Controller_ServiceDesc is the grpc.ServiceDesc for Controller service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -130,6 +162,10 @@ var Controller_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetObjectMd5",
 			Handler:    _Controller_GetObjectMd5_Handler,
+		},
+		{
+			MethodName: "BindKSAToIAMPrincipal",
+			Handler:    _Controller_BindKSAToIAMPrincipal_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
