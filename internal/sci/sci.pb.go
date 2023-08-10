@@ -25,10 +25,10 @@ type BindIdentityRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Principal                string `protobuf:"bytes,1,opt,name=principal,proto3" json:"principal,omitempty"` // the cloud identity (e.g. IAM principal) to bind
+	Principal                string `protobuf:"bytes,1,opt,name=principal,proto3" json:"principal,omitempty"` // the target cloud identity (e.g., an AWS IAM role or GSA)
 	KubernetesServiceAccount string `protobuf:"bytes,2,opt,name=kubernetes_service_account,json=kubernetesServiceAccount,proto3" json:"kubernetes_service_account,omitempty"`
 	KubernetesNamespace      string `protobuf:"bytes,3,opt,name=kubernetes_namespace,json=kubernetesNamespace,proto3" json:"kubernetes_namespace,omitempty"`
-	FederatedOidcProvider    string `protobuf:"bytes,4,opt,name=federated_oidc_provider,json=federatedOidcProvider,proto3" json:"federated_oidc_provider,omitempty"` // this is a URL that identifies the trusted OIDC provider for the originating identity (KSA)
+	FederatedOidcProvider    string `protobuf:"bytes,4,opt,name=federated_oidc_provider,json=federatedOidcProvider,proto3" json:"federated_oidc_provider,omitempty"` // a URL that identifies the trusted OIDC provider for the originating identity (KSA)
 }
 
 func (x *BindIdentityRequest) Reset() {
