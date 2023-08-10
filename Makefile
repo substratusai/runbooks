@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-VERSION ?= v0.8.0
+VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
 

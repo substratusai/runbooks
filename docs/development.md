@@ -29,8 +29,12 @@ TODO: Automate the cleanup of PVs... Don't forget to manually clean them up for 
 You can test out the latest kubectl plugin by building from source directly:
 
 ```sh
-go build ./kubectl/cmd/notebook && sudo mv notebook /usr/local/bin/kubectl-notebook
-go build ./kubectl/cmd/applybuild && sudo mv applybuild /usr/local/bin/kubectl-applybuild
+go build ./kubectl/cmd/notebook &&
+    mv notebook /usr/local/bin/kubectl-notebook ||
+    sudo mv notebook /usr/local/bin/kubectl-notebook
+go build ./kubectl/cmd/applybuild &&
+    mv applybuild /usr/local/bin/kubectl-applybuild ||
+    sudo mv applybuild /usr/local/bin/kubectl-applybuild
 ```
 
 The `kubectl notebook` command depends on container-tools for live-syncing. The plugin will try

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -48,7 +49,11 @@ func Notebook() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client.Version = Version
 
-			ctx, cancel := context.WithCancel(cmd.Context())
+			ctx, ctxCancel := context.WithCancel(cmd.Context())
+			cancel := func() {
+				klog.V(1).Info("Context cancelled")
+				ctxCancel()
+			}
 			defer cancel()
 
 			// The -v flag is managed by klog, so we need to check it manually.
@@ -81,22 +86,6 @@ func Notebook() *cobra.Command {
 			}()
 
 			spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-
-			var tarball *client.Tarball
-			if cfg.build != "" {
-				spin.Suffix = " Preparing tarball..."
-				spin.Start()
-
-				var err error
-				tarball, err = client.PrepareImageTarball(cfg.build)
-				if err != nil {
-					return fmt.Errorf("preparing tarball: %w", err)
-				}
-				defer os.Remove(tarball.TempDir)
-
-				spin.Stop()
-				fmt.Fprintln(NotebookStdout, "Tarball prepared.")
-			}
 
 			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
 			if err != nil {
@@ -149,7 +138,21 @@ func Notebook() *cobra.Command {
 			}
 			nb.Spec.Suspend = ptr.To(false)
 
+			var tarball *client.Tarball
 			if cfg.build != "" {
+				spin.Suffix = " Preparing tarball..."
+				spin.Start()
+
+				var err error
+				tarball, err = client.PrepareImageTarball(ctx, cfg.build)
+				if err != nil {
+					return fmt.Errorf("preparing tarball: %w", err)
+				}
+				defer os.Remove(tarball.TempDir)
+
+				spin.Stop()
+				fmt.Fprintln(NotebookStdout, "Tarball prepared.")
+
 				if err := client.ClearImage(nb); err != nil {
 					return fmt.Errorf("clearing image in spec: %w", err)
 				}
@@ -172,11 +175,13 @@ func Notebook() *cobra.Command {
 					// Suspend notebook.
 					spin.Suffix = " Suspending notebook..."
 					spin.Start()
-					if _, err := notebooks.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{}); err != nil {
-						klog.Errorf("Error suspending notebook: %v", err)
-					}
+					_, err := notebooks.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{})
 					spin.Stop()
-					fmt.Fprintln(NotebookStdout, "Notebook suspended.")
+					if err != nil {
+						klog.Errorf("Error suspending notebook: %v", err)
+					} else {
+						fmt.Fprintln(NotebookStdout, "Notebook suspended.")
+					}
 				}
 			}
 			defer cleanup()
@@ -213,13 +218,13 @@ func Notebook() *cobra.Command {
 					defer func() {
 						wg.Done()
 						klog.V(2).Info("Syncing files from notebook: Done.")
-
+						// Stop other goroutines.
+						cancel()
 					}()
 					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
 						if !errors.Is(err, context.Canceled) {
 							klog.Errorf("Error syncing files from notebook: %v", err)
 						}
-						cancel()
 					}
 				}()
 			}
@@ -230,10 +235,12 @@ func Notebook() *cobra.Command {
 				defer func() {
 					wg.Done()
 					klog.V(2).Info("Port-forwarding: Done.")
+					// Stop other goroutines.
+					cancel()
 				}()
 
-				first := true
-				for {
+				const maxRetries = 3
+				for i := 0; i < maxRetries; i++ {
 					portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
 					defer cancelPortFwd() // Avoid a context leak
 					runtime.ErrorHandlers = []func(err error){
@@ -248,7 +255,7 @@ func Notebook() *cobra.Command {
 					// so we only use the outer ready channel once. On restart of the portForward,
 					// we use a new channel.
 					var ready chan struct{}
-					if first {
+					if i == 0 {
 						ready = serveReady
 					} else {
 						ready = make(chan struct{})
@@ -256,7 +263,6 @@ func Notebook() *cobra.Command {
 
 					if err := c.PortForwardNotebook(portFwdCtx, verbose, nb, ready); err != nil {
 						klog.Errorf("Port-forward returned an error: %v", err)
-						return
 					}
 
 					// Check if the command's context is cancelled, if so,
@@ -267,9 +273,11 @@ func Notebook() *cobra.Command {
 					}
 
 					cancelPortFwd() // Avoid a build up of contexts before returning.
-					klog.V(1).Info("Restarting port forward")
-					first = false
+					backoff := time.Duration(math.Pow(2, float64(i))) * time.Second
+					klog.V(1).Infof("Restarting port forward (index = %v), after backoff: %s", i, backoff)
+					time.Sleep(backoff)
 				}
+				klog.V(1).Info("Done trying to port-forward")
 			}()
 
 			spin.Suffix = " Waiting for connection to be ready to serve..."
