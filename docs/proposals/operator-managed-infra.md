@@ -22,7 +22,7 @@ Out of scope:
 
 ## How?
 
-<img src="./diagrams/operator-managed-infra.md" width="80%"></img>
+<img src="../diagrams/identity-global.excalidraw.png"></img>
 
 ### Installation
 **Installation Flow** will be responsible for the following:
