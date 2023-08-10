@@ -10,10 +10,9 @@ service Controller {
 }
 
 message BindIdentityRequest {
-  string principal = 1; // the target cloud identity (e.g., an AWS IAM role or GSA)
-  string kubernetes_service_account = 2;
-  string kubernetes_namespace = 3;
-  string federated_oidc_provider = 4; // a URL that identifies the trusted OIDC provider for the originating identity (KSA)
+  string kubernetes_service_account = 1;
+  string kubernetes_namespace = 2;
+  string principal = 3; // the target cloud identity (e.g., an AWS IAM role or GSA)
 }
 
 message BindIdentityResponse {}
