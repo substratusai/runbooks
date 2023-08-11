@@ -1587,7 +1587,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.6.5-alpha
+        image: docker.io/substratusai/controller-manager:v0.8.1
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1634,7 +1634,7 @@ spec:
         app: gcp-manager
     spec:
       containers:
-      - image: docker.io/substratusai/gcp-manager:v0.6.5-alpha
+      - image: docker.io/substratusai/gcp-manager:v0.8.1
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3

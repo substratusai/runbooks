@@ -77,3 +77,6 @@ gcpmanager-dependencies.yaml
 skaffold-dependencies.sh
 
 .ipynb_checkpoints
+.vscode/
+eks-cluster.yaml
+karpenter-provisioner.yaml

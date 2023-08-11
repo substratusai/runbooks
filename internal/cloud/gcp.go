@@ -68,6 +68,9 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 		podMetadata.Annotations = map[string]string{}
 	}
 	podMetadata.Annotations["gke-gcsfuse/volumes"] = "true"
+	podMetadata.Annotations["gke-gcsfuse/cpu-limit"] = "2"
+	podMetadata.Annotations["gke-gcsfuse/memory-limit"] = "800Mi"
+	podMetadata.Annotations["gke-gcsfuse/ephemeral-storage-limit"] = "100Gi"
 
 	var bktURL *BucketURL
 	if statusURL := obj.GetStatusArtifacts().URL; statusURL != "" {

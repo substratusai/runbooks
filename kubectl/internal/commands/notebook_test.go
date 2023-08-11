@@ -25,7 +25,7 @@ func TestNotebook(t *testing.T) {
 		"--build", "./test-notebook",
 		"--kubeconfig", kubectlKubeconfigPath,
 		"--no-open-browser",
-		//"-v=9",
+		"-v=4",
 	})
 	cmd.SetContext(ctx)
 	var wg sync.WaitGroup

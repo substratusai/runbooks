@@ -1,0 +1,13 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: llama-2-7b
+spec:
+  image: substratusai/model-loader-huggingface
+  params:
+    name: meta-llama/Llama-2-7b-hf
+    # Make sure to replace ${HUGGINGFACE_TOKEN} with your token
+    # for example run this to use your own token:
+    # export HUGGINGFACE_TOKEN=replace-me-with-your-token
+    # cat base-model.yaml | envsubst | kubectl apply -f -
+    hugging_face_hub_token: ${HUGGINGFACE_TOKEN}

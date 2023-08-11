@@ -18,6 +18,8 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
+var Version = "development"
+
 type Object = client.Object
 
 var FieldManager = "kubectl"
@@ -31,6 +33,7 @@ var _ Interface = &Client{}
 type Interface interface {
 	PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
+	SyncFilesFromNotebook(context.Context, *apiv1.Notebook) error
 }
 
 func NewClient(inf kubernetes.Interface, cfg *rest.Config) Interface {

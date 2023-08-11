@@ -1,0 +1,8 @@
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.k8s.aws/instance-gpu-manufacturer
+              operator: In
+              values: ["nvidia"]

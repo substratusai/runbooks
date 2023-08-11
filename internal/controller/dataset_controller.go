@@ -75,9 +75,11 @@ func (r *DatasetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Dataset) (result, error) {
 	log := log.FromContext(ctx)
 
-	if dataset.Status.Artifacts.URL != "" {
+	if dataset.Status.Ready {
 		return result{success: true}, nil
 	}
+
+	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
 
 	// ServiceAccount for the loader job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
@@ -116,7 +118,6 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	}
 
 	dataset.Status.Ready = true
-	dataset.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(dataset).String()
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionLoaded,
 		Status:             metav1.ConditionTrue,

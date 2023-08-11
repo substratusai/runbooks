@@ -22,17 +22,21 @@ func ApplyBuild() *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:   "applybuild [flags] BUILD_CONTEXT",
-		Args:  cobra.ExactArgs(1),
-		Short: "Apply a Substratus object, upload and build container in-cluster from a local directory",
+		Use:     "applybuild [flags] BUILD_CONTEXT",
+		Args:    cobra.ExactArgs(1),
+		Short:   "Apply a Substratus object, upload and build container in-cluster from a local directory",
+		Version: Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client.Version = Version
+
 			ctx := cmd.Context()
+
 			if cfg.filename == "" {
 				return fmt.Errorf("-f (--filename) is required")
 			}
 			cfg.build = args[0]
 
-			tarball, err := client.PrepareImageTarball(cfg.build)
+			tarball, err := client.PrepareImageTarball(ctx, cfg.build)
 			if err != nil {
 				return fmt.Errorf("preparing tarball: %w", err)
 			}

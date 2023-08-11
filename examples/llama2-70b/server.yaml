@@ -1,8 +1,12 @@
 apiVersion: substratus.ai/v1
 kind: Server
 metadata:
-  name: facebook-opt-125m
+  name: llama-2-70b
 spec:
   image: substratusai/model-server-basaran
   model:
-    name: facebook-opt-125m
+    name: llama-2-70b
+  resources:
+    gpu:
+      type: nvidia-a100
+      count: 2

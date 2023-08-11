@@ -68,9 +68,11 @@ func (r *ModelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model) (result, error) {
 	log := log.FromContext(ctx)
 
-	if model.Status.Artifacts.URL != "" {
+	if model.Status.Ready {
 		return result{success: true}, nil
 	}
+
+	model.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(model).String()
 
 	// ServiceAccount for the model Job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
@@ -191,7 +193,6 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	}
 
 	model.Status.Ready = true
-	model.Status.Artifacts.URL = r.Cloud.ObjectArtifactURL(model).String()
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
 		Type:               apiv1.ConditionModelled,
 		Status:             metav1.ConditionTrue,
@@ -296,10 +297,8 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 					ServiceAccountName: modellerServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  containerName,
-							Image: model.GetImage(),
-							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
-							// to execute this script.
+							Name:    containerName,
+							Image:   model.GetImage(),
 							Command: model.Spec.Command,
 							Env:     paramsToEnv(model.Spec.Params),
 						},

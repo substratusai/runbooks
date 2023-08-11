@@ -37,8 +37,12 @@ type Tarball struct {
 	MD5Checksum string
 }
 
-func PrepareImageTarball(buildPath string) (*Tarball, error) {
-	if !fileExists(filepath.Join(buildPath, "Dockerfile")) {
+func PrepareImageTarball(ctx context.Context, buildPath string) (*Tarball, error) {
+	exists, err := fileExists(filepath.Join(buildPath, "Dockerfile"))
+	if err != nil {
+		return nil, fmt.Errorf("checking if Dockerfile exists: %w", err)
+	}
+	if !exists {
 		return nil, fmt.Errorf("path does not contain Dockerfile: %s", buildPath)
 	}
 
@@ -48,7 +52,7 @@ func PrepareImageTarball(buildPath string) (*Tarball, error) {
 	}
 
 	tarPath := filepath.Join(tmpDir, "/archive.tar.gz")
-	err = tarGz(buildPath, tarPath)
+	err = tarGz(ctx, buildPath, tarPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a tar.gz of the directory: %w", err)
 	}
@@ -204,7 +208,7 @@ func calculateMD5(path string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func tarGz(src, dst string) error {
+func tarGz(ctx context.Context, src, dst string) error {
 	tarFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create tarFile: %w", err)
@@ -219,6 +223,11 @@ func tarGz(src, dst string) error {
 
 	// TODO(bjb): #121 read .dockerignore if it exists, exclude those files
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		klog.V(4).Infof("Tarring: %v", path)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if err != nil {
 			return fmt.Errorf("failed to walk the tempdir path: %w", err)
 		}
@@ -267,12 +276,15 @@ func tarGz(src, dst string) error {
 	})
 }
 
-func fileExists(filename string) bool {
+func fileExists(filename string) (bool, error) {
 	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
 	}
-	return !info.IsDir()
+	return !info.IsDir(), nil
 }
 
 func uploadTarball(tarball *Tarball, url string) error {

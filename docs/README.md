@@ -41,7 +41,7 @@ See the [development docs](../docs/development.md) to get started. Our
 ## Architecture
 
 Want to learn more about how Substratus works? Our
-[architecture](https://www.substratus.ai/docs/architecture) documentation is a
+[overview](https://www.substratus.ai/docs/overview) page is a
 great place to dive in. We've got diagrams to spare!
 
 ---

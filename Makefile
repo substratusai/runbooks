@@ -1,8 +1,12 @@
 
 # Image URL to use all building/pushing image targets
-VERSION ?= v0.6.5-alpha
+VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
+
+# Set to false if you don't want GPU nodepools created
+ATTACH_GPU_NODEPOOLS=true
+
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
@@ -69,7 +73,7 @@ all: build
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf " \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development
 
@@ -116,40 +120,60 @@ skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## R
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
-.PHONY: dev-up
-dev-up:
-	docker build ./install -t substratus-installer && \
+.PHONY: dev-up-gcp
+dev-up-gcp: build-installer
 	docker run -it \
-	  -v ${HOME}/.kube:/root/.kube \
-	  -e PROJECT=$(shell gcloud config get project) \
-	  -e TOKEN=$(shell gcloud auth print-access-token) \
-	  -e TF_VAR_attach_gpu_nodepools=false \
-	  -e INSTALL_OPERATOR=false \
-	  substratus-installer gcp-up.sh
+		-v ${HOME}/.kube:/root/.kube \
+		-e PROJECT=$(shell gcloud config get project) \
+		-e TOKEN=$(shell gcloud auth print-access-token) \
+		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
+		-e INSTALL_OPERATOR=false \
+		substratus-installer gcp-up.sh
 	mkdir -p secrets
 	gcloud iam service-accounts keys create --iam-account=substratus-gcp-manager@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/gcp-manager-key.json
 
-.PHONY: dev-down
-dev-down:
+.PHONY: dev-down-gcp
+dev-down-gcp: build-installer
 	docker run -it \
-	  -v ${HOME}/.kube:/root/.kube \
-	  -e PROJECT=$(shell gcloud config get project) \
-	  -e TOKEN=$(shell gcloud auth print-access-token) \
-	  -e TF_VAR_attach_gpu_nodepools=false \
-	  substratus-installer gcp-down.sh
+		-v ${HOME}/.kube:/root/.kube \
+		-e PROJECT=$(shell gcloud config get project) \
+		-e TOKEN=$(shell gcloud auth print-access-token) \
+		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
+		substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
 
-.PHONY: dev-run
+.PHONY: dev-up-aws
+dev-up-aws: build-installer
+	docker run -it \
+		-v ${HOME}/.kube:/root/.kube \
+		-e AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)" \
+		-e AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id) \
+		-e AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key) \
+		-e AWS_SESSION_TOKEN=$(shell aws configure get aws_session_token) \
+		-e INSTALL_OPERATOR=false \
+		substratus-installer aws-up.sh
+
+.PHONY: dev-down-aws
+dev-down-aws: build-installer
+	docker run -it \
+		-v ${HOME}/.kube:/root/.kube \
+		-e AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)" \
+		-e AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id) \
+		-e AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key) \
+		-e AWS_SESSION_TOKEN=$(shell aws configure get aws_session_token) \
+		substratus-installer aws-down.sh
+
+.PHONY: dev-run-gcp
 # Controller manager configuration #
-dev-run: export CLOUD=gcp
-dev-run: export GPU_TYPE=nvidia-l4
-dev-run: export PROJECT_ID=$(shell gcloud config get project)
-dev-run: export CLUSTER_NAME=substratus
-dev-run: export CLUSTER_LOCATION=us-central1
+dev-run-gcp: export CLOUD=gcp
+dev-run-gcp: export GPU_TYPE=nvidia-l4
+dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
+dev-run-gcp: export CLUSTER_NAME=substratus
+dev-run-gcp: export CLUSTER_LOCATION=us-central1
 # Cloud manager configuration #
-dev-run: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
+dev-run-gcp: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
 # Run the controller manager and the cloud manager.
-dev-run: manifests kustomize install-crds
+dev-run-gcp: manifests kustomize install-crds
 	go run ./cmd/gcpmanager & \
 	go run ./cmd/controllermanager/main.go \
 		--sci-address=localhost:10080 \
@@ -172,16 +196,17 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: docs
 docs: crd-ref-docs embedmd
-	$(CRD_REF_DOCS) --config=./docs/api/config.yaml \
+	$(CRD_REF_DOCS) \
+		--config=./docs/api/config.yaml \
 		--log-level=INFO \
 		--output-path=./docs/api/generated.md \
 		--source-path=./api \
-                --templates-dir=./docs/api/templates/markdown \
+		--templates-dir=./docs/api/templates/markdown \
 		--renderer=markdown
 	# TODO: Embed YAML examples into the generate API documentation.
 	# $(EMBEDMD) -w ./docs/api/generated.md
 
-# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
+# PLATFORMS defines the target platforms for the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
 # - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
@@ -216,10 +241,18 @@ install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified
 uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-install/kubernetes/system.yaml: manifests kustomize
+.PHONY: installation-scripts
+installation-scripts:
+	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
+
+.PHONY: installation-manifests
+installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
 	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
+
+.PHONY: prepare-release
+prepare-release: installation-scripts installation-manifests docs
 
 ##@ Build Dependencies
 

@@ -1,0 +1,20 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: llama-2-7b-k8s
+spec:
+  image: substratusai/model-trainer-huggingface
+  baseModel:
+    name: llama-2-7b
+  trainingDataset:
+    name: k8s-instructions
+  params:
+    # See HuggingFace transformers.TrainingArguments for all parameters
+    # https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments
+    num_train_epochs: 1
+    # Save to checkpoint every 5 steps for a dataset with ~70 steps total
+    save_steps: 5
+  resources:
+    gpu:
+      count: 4
+      type: nvidia-l4
