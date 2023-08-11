@@ -3,9 +3,6 @@ kind: Server
 metadata:
   name: facebook-opt-125m
 spec:
-  build:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-server-basaran
+  image: substratusai/model-server-basaran
   model:
     name: facebook-opt-125m

@@ -336,10 +336,8 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			ServiceAccountName: notebookServiceAccountName,
 			Containers: []corev1.Container{
 				{
-					Name:  containerName,
-					Image: notebook.GetImage(),
-					// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
-					// to execute this script.
+					Name:    containerName,
+					Image:   notebook.GetImage(),
 					Command: notebook.Spec.Command,
 					//WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{

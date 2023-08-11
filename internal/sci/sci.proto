@@ -18,10 +18,10 @@ message BindIdentityRequest {
 message BindIdentityResponse {}
 
 message CreateSignedURLRequest {
-  string bucketName = 1;
-  string objectName = 2;
-  int64 expirationSeconds = 3;
-  string md5checksum = 4;
+  string bucket_name = 1;
+  string object_name = 2;
+  int64 expiration_seconds = 3;
+  string md5_checksum = 4;
 }
 
 message CreateSignedURLResponse {
@@ -29,10 +29,10 @@ message CreateSignedURLResponse {
 }
 
 message GetObjectMd5Request {
-  string bucketName = 1;
-  string objectName = 2;
+  string bucket_name = 1;
+  string object_name = 2;
 }
 
 message GetObjectMd5Response {
-  string md5checksum = 1;
+  string md5_checksum = 1;
 }
