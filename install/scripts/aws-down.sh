@@ -22,6 +22,18 @@ export ARTIFACTS_BUCKET_NAME=${AWS_ACCOUNT_ID}-${CLUSTER_NAME}-artifacts
   kubectl delete deployments --namespace=kube-system --all) ||
   true
 
+instance_ids=$(aws ec2 describe-instances \
+  --filters "Name=tag:aws:eks:cluster-name,Values=${CLUSTER_NAME}" "Name=tag:karpenter.sh/managed-by,Values=${CLUSTER_NAME}" \
+  --query "Reservations[*].Instances[*].InstanceId" \
+  --output text \
+  --region ${REGION})
+
+if [[ ! -z "${instance_ids}" ]]; then
+  aws ec2 terminate-instances --instance-ids ${instance_ids} --region ${REGION}
+else
+  echo "No instances found with the specified tags."
+fi
+
 envsubst <${kubernetes_dir}/aws/eks-cluster.yaml.tpl >${kubernetes_dir}/aws/eks-cluster.yaml
 eksctl delete cluster -f ${kubernetes_dir}/aws/eks-cluster.yaml || true
 
