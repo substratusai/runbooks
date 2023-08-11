@@ -71,6 +71,11 @@ gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
    --role roles/iam.serviceAccountAdmin \
    --member "serviceAccount:${SERVICE_ACCOUNT}"
 
+# Allow to create signed URLs
+gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
+   --role roles/iam.serviceAccountTokenCreator \
+   --member "serviceAccount:${SERVICE_ACCOUNT}"
+
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
    --role roles/iam.serviceAccountAdmin \
    --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/substratus]"
