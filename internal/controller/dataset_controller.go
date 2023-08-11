@@ -18,6 +18,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
 )
 
 // DatasetReconciler reconciles a Dataset object.
@@ -28,6 +29,7 @@ type DatasetReconciler struct {
 	*ParamsReconciler
 
 	Cloud cloud.Cloud
+	SCI   sci.ControllerClient
 }
 
 func (r *DatasetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -84,7 +86,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	// ServiceAccount for the loader job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to write the GCS bucket containing training data.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dataLoaderServiceAccountName,
 			Namespace: dataset.Namespace,

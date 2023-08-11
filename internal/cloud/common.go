@@ -6,12 +6,15 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Common struct {
 	ClusterName       string     `env:"CLUSTER_NAME" validate:"required"`
 	ArtifactBucketURL *BucketURL `env:"ARTIFACT_BUCKET_URL,noinit" validate:"required"`
 	RegistryURL       string     `env:"REGISTRY_URL" validate:"required"`
+	Principal         string     `env:"PRINCIPAL"`
 }
 
 func (c *Common) ObjectBuiltImageURL(obj BuildableObject) string {
@@ -45,6 +48,11 @@ func (c *Common) ObjectArtifactURL(obj Object) *BucketURL {
 	u := *c.ArtifactBucketURL
 	u.Path = filepath.Join(u.Path, objectHash(c.ClusterName, obj))
 	return &u
+}
+
+func (c *Common) GetPrincipal(sa *corev1.ServiceAccount) string {
+	// In future will need a way to associate a Principal for each service account
+	return c.Principal
 }
 
 func objectHash(cluster string, obj Object) string {

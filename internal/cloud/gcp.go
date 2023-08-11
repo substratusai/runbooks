@@ -116,11 +116,12 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	return fmt.Errorf("container not found: %s", req.Container)
 }
 
-func (gcp *GCP) AssociateServiceAccount(sa *corev1.ServiceAccount) {
-	if sa.Annotations == nil {
-		sa.Annotations = map[string]string{}
-	}
-	sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.Name, gcp.ProjectID)
+func (gcp *GCP) GetPrincipal(sa *corev1.ServiceAccount) string {
+	return fmt.Sprintf("substratus@%s.iam.gserviceaccount.com", gcp.ProjectID)
+}
+
+func (gcp *GCP) AssociatePrincipal(sa *corev1.ServiceAccount) {
+	sa.Annotations["iam.gke.io/gcp-service-account"] = gcp.GetPrincipal(sa)
 }
 
 func (gcp *GCP) region() string {

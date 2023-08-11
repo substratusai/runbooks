@@ -23,6 +23,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
 )
 
 // ServerReconciler reconciles a Server object.
@@ -31,6 +32,7 @@ type ServerReconciler struct {
 	Scheme *runtime.Scheme
 
 	Cloud cloud.Cloud
+	SCI   sci.ControllerClient
 
 	// log should be used outside the context of Reconcile()
 	log logr.Logger
@@ -231,7 +233,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	// ServiceAccount for loading the Model.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the model.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modelServerServiceAccountName,
 			Namespace: model.Namespace,

@@ -22,6 +22,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
 )
 
 // ModelReconciler reconciles a Model object.
@@ -32,6 +33,7 @@ type ModelReconciler struct {
 	*ParamsReconciler
 
 	Cloud cloud.Cloud
+	SCI   sci.ControllerClient
 }
 
 type ModelReconcilerConfig struct {
@@ -78,7 +80,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the training data and read and write from
 	// the bucket that contains base model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modellerServiceAccountName,
 			Namespace: model.Namespace,
