@@ -20,7 +20,7 @@ import (
 
 func RetryOnConflictError(operation func() error) error {
 	backoff := retry.DefaultBackoff
-	backoff.Steps = 5
+	backoff.Steps = 10
 
 	return retry.OnError(backoff, func(err error) bool {
 		return errors.IsConflict(err)
@@ -47,7 +47,10 @@ func TestModelLoaderFromGit(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, k8sClient.Create(ctx, model), "create a model that references a git repository")
+	err := RetryOnConflictError(func() error {
+		return k8sClient.Create(ctx, model)
+	})
+	require.NoError(t, err, "create a model that references a git repository")
 
 	testContainerBuild(t, model, "Model")
 	testParamsConfigMap(t, model, "Model", `{ "s": "something-model", "x": 456 }`)
