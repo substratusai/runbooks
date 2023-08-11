@@ -6,22 +6,29 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/substratusai/substratus/internal/sci"
 )
 
 type Server struct {
 	sci.UnimplementedControllerServer
+	OIDCProviderURL string
+	OIDCProviderARN string
 	Clients
 }
 
 type Clients struct {
-	S3Client *s3.S3
+	S3Client  *s3.S3
+	IamClient *iam.IAM
 }
 
 func NewAWSServer() (*Server, error) {
@@ -29,13 +36,35 @@ func NewAWSServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AWS session: %w", err)
 	}
+	ec2Svc := ec2metadata.New(sess)
+
+	region, err := getRegion(ec2Svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get region: %w", err)
+	}
+
+	clusterID, err := getClusterID(ec2Svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster ID: %w", err)
+	}
+
+	accountId, err := getAccountID(ec2Svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get account ID: %w", err)
+	}
+
+	OIDCProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
+	OIDCProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, OIDCProviderURL)
 
 	c := &Clients{
-		S3Client: s3.New(sess),
+		S3Client:  s3.New(sess),
+		IamClient: iam.New(sess),
 	}
 
 	return &Server{
-		Clients: *c,
+		Clients:         *c,
+		OIDCProviderURL: OIDCProviderURL,
+		OIDCProviderARN: OIDCProviderARN,
 	}, nil
 }
 
@@ -109,4 +138,106 @@ func (s *Server) getObjectMetadata(sc *s3.S3, bucketName, objectKey string) (*s3
 		return &s3.HeadObjectOutput{}, err
 	}
 	return result, nil
+}
+
+func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {
+	// Construct the trust relationship
+
+	trustPolicy := fmt.Sprintf(`{
+		"Version": "2012-10-17",
+		"Statement": [{
+			"Effect": "Allow",
+			"Principal": {
+				"Federated": "%s"
+			},
+			"Action": "sts:AssumeRoleWithWebIdentity",
+			"Condition": {
+				"StringEquals": {
+					"%s:sub": "system:serviceaccount:%s:%s"
+				}
+			}
+		}]
+	}`, s.OIDCProviderARN, s.OIDCProviderURL, req.KubernetesNamespace, req.KubernetesServiceAccount)
+
+	input := &iam.UpdateAssumeRolePolicyInput{
+		PolicyDocument: aws.String(trustPolicy),
+		RoleName:       aws.String(req.Principal), // Assuming Principal is the AWS Role Name
+	}
+
+	_, err := s.Clients.IamClient.UpdateAssumeRolePolicy(input) // Assuming `Iam` client exists in `Clients` struct
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case iam.ErrCodeNoSuchEntityException:
+				return nil, fmt.Errorf("%s: %s", iam.ErrCodeNoSuchEntityException, aerr.Error())
+			case iam.ErrCodeMalformedPolicyDocumentException:
+				return nil, fmt.Errorf("%s: %s", iam.ErrCodeMalformedPolicyDocumentException, aerr.Error())
+			case iam.ErrCodeLimitExceededException:
+				return nil, fmt.Errorf("%s: %s", iam.ErrCodeLimitExceededException, aerr.Error())
+			case iam.ErrCodeUnmodifiableEntityException:
+				return nil, fmt.Errorf("%s: %s", iam.ErrCodeUnmodifiableEntityException, aerr.Error())
+			case iam.ErrCodeServiceFailureException:
+				return nil, fmt.Errorf("%s: %s", iam.ErrCodeServiceFailureException, aerr.Error())
+			default:
+				return nil, fmt.Errorf(aerr.Error())
+			}
+		}
+		return nil, fmt.Errorf(err.Error())
+	}
+
+	return &sci.BindIdentityResponse{}, nil
+}
+
+func getAccountID(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
+	sess := session.Must(session.NewSession())
+	svc := sts.New(sess)
+
+	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err == nil {
+		return *result.Account, nil
+	}
+
+	// Fall back to the environment variable if the sts:GetCallerIdentity call fails
+	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
+	if envAccountID != "" {
+		return envAccountID, nil
+	}
+
+	return "", fmt.Errorf("failed to determine AWS account ID from both STS and environment variable")
+}
+
+func getClusterID(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
+	// try EC2 metadata first
+	if ec2Svc.Available() {
+		userData, err := ec2Svc.GetUserData()
+		if err == nil {
+			return userData, nil
+		}
+	}
+
+	// fall back to the environment variable
+	clusterIDFromEnv := os.Getenv("EKS_CLUSTER_ID")
+	if clusterIDFromEnv != "" {
+		return clusterIDFromEnv, nil
+	}
+
+	return "", fmt.Errorf("could not determine the cluster ID from available sources")
+}
+
+func getRegion(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
+	// Try to get the region from the EC2 metadata service
+	if ec2Svc.Available() {
+		region, err := ec2Svc.Region()
+		if err == nil {
+			return region, nil
+		}
+	}
+
+	// Fall back to the environment variable if the metadata service fails
+	envRegion := os.Getenv("AWS_REGION")
+	if envRegion != "" {
+		return envRegion, nil
+	}
+
+	return "", fmt.Errorf("failed to determine AWS region from both EC2 metadata and environment variable")
 }
