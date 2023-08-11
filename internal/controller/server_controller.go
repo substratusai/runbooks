@@ -139,13 +139,22 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 							Name:            containerName,
 							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
-							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
-							// to execute this script.
-							Command: server.Spec.Command,
+							Command:         server.Spec.Command,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,
 									ContainerPort: 8080,
+								},
+							},
+							ReadinessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										// TBD: Not sure if this should ever be something we configure via
+										// the Server API. For now, we'll just hardcode it and add it to the container
+										// contract.
+										Path: "/",
+										Port: intstr.FromString(modelServerHTTPServePortName),
+									},
 								},
 							},
 						},
