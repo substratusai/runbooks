@@ -297,10 +297,8 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 					ServiceAccountName: modellerServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Name:  containerName,
-							Image: model.GetImage(),
-							// NOTE: tini should be installed as the ENTRYPOINT the image and will be used
-							// to execute this script.
+							Name:    containerName,
+							Image:   model.GetImage(),
 							Command: model.Spec.Command,
 							Env:     paramsToEnv(model.Spec.Params),
 						},

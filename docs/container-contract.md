@@ -10,7 +10,7 @@ The working directory MUST be set to `/content`.
 WORKDIR /content
 ```
 
-### Jupyter
+## Jupyter
 
 This requirement applies to Model, Dataset, and Notebook containers.
 
@@ -22,7 +22,7 @@ The `notebook.sh` script MUST be located in `$PATH`. It is recommended that this
 
 Note: This requirement is satisfied by default when using Substratus base images.
 
-### Directory Structure
+## Directory Structure
 
 ```
 /content/         # Working directory.
@@ -33,7 +33,7 @@ Note: This requirement is satisfied by default when using Substratus base images
   saved-model/    # Location where a previously saved model will be mounted.
 ```
 
-### Parameters
+## Parameters
 
 Substratus provides params as a file (`/content/params.json`) and as environment variables to containers.
 
@@ -48,3 +48,10 @@ spec:
 Parameters get converted to environment variables using the following scheme.
 
 `PARAM_{upper(param_key)}={param_value}`
+
+## Server
+
+Substratus Server containers are expected to:
+
+* Serve HTTP traffic on port `8080`.
+* Serve a 200 OK on the root path `/` when ready to serve traffic.
