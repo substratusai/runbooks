@@ -1,5 +1,5 @@
-// Package awsmanager provides an AWS implementation of the Substratus Cloud Interface (SCI)
-package awsmanager
+// Package aws provides an AWS implementation of the Substratus Cloud Interface (SCI)
+package awssci
 
 import (
 	"context"
