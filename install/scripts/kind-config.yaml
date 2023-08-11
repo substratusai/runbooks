@@ -1,0 +1,8 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    # Forward local machine port to in-cluster port.
+    extraPortMappings:
+      - containerPort: 8082
+        hostPort: 8082

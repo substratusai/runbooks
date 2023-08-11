@@ -142,6 +142,28 @@ dev-down-gcp: build-installer
 		substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
 
+.PHONY: dev-up-kind
+dev-up-kind:
+	cd install/scripts && ./kind-up.sh
+
+.PHONY: dev-run-kind
+# Controller manager configuration #
+dev-run-kind: export CLOUD=kind
+dev-run-kind: export CLUSTER_NAME=substratus
+dev-run-kind: export ARTIFACT_BUCKET_URL=kind://bucket
+dev-run-kind: export REGISTRY_URL=http://docker.svc.cluster.local:5000
+# Run the controller manager and the sci.
+dev-run-kind: manifests kustomize install-crds
+	go run ./cmd/sci-kind & \
+	go run ./cmd/controllermanager/main.go \
+		--sci-address=localhost:10080 \
+		--config-dump-path=/tmp/substratus-config.yaml
+
+.PHONY: dev-down-kind
+dev-down-kind:
+	cd install/scripts && ./kind-down.sh
+
+
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
 	docker run -it \
@@ -257,7 +279,8 @@ installation-scripts:
 installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
-	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
+	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
+	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs

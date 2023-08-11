@@ -1,0 +1,10 @@
+resources:
+  - service_account.yaml
+  - deployment.yaml
+  - service.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: sci-kind
+    newName: docker.io/substratusai/sci-kind
+    newTag: v0.8.1
