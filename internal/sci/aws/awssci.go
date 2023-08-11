@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -139,50 +140,74 @@ func (s *Server) getObjectMetadata(sc *s3.S3, bucketName, objectKey string) (*s3
 	}
 	return result, nil
 }
-
 func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {
-	// Construct the trust relationship
-
-	trustPolicy := fmt.Sprintf(`{
-		"Version": "2012-10-17",
-		"Statement": [{
-			"Effect": "Allow",
-			"Principal": {
-				"Federated": "%s"
-			},
-			"Action": "sts:AssumeRoleWithWebIdentity",
-			"Condition": {
-				"StringEquals": {
-					"%s:sub": "system:serviceaccount:%s:%s"
-				}
-			}
-		}]
-	}`, s.OIDCProviderARN, s.OIDCProviderURL, req.KubernetesNamespace, req.KubernetesServiceAccount)
-
-	input := &iam.UpdateAssumeRolePolicyInput{
-		PolicyDocument: aws.String(trustPolicy),
-		RoleName:       aws.String(req.Principal), // Assuming Principal is the AWS Role Name
+	// Fetch the current trust policy
+	getRoleInput := &iam.GetRoleInput{
+		RoleName: aws.String(req.Principal),
+	}
+	getRoleOutput, err := s.Clients.IamClient.GetRole(getRoleInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the role: %v", err)
 	}
 
-	_, err := s.Clients.IamClient.UpdateAssumeRolePolicy(input) // Assuming `Iam` client exists in `Clients` struct
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case iam.ErrCodeNoSuchEntityException:
-				return nil, fmt.Errorf("%s: %s", iam.ErrCodeNoSuchEntityException, aerr.Error())
-			case iam.ErrCodeMalformedPolicyDocumentException:
-				return nil, fmt.Errorf("%s: %s", iam.ErrCodeMalformedPolicyDocumentException, aerr.Error())
-			case iam.ErrCodeLimitExceededException:
-				return nil, fmt.Errorf("%s: %s", iam.ErrCodeLimitExceededException, aerr.Error())
-			case iam.ErrCodeUnmodifiableEntityException:
-				return nil, fmt.Errorf("%s: %s", iam.ErrCodeUnmodifiableEntityException, aerr.Error())
-			case iam.ErrCodeServiceFailureException:
-				return nil, fmt.Errorf("%s: %s", iam.ErrCodeServiceFailureException, aerr.Error())
-			default:
-				return nil, fmt.Errorf(aerr.Error())
+	// Decode the current trust policy
+	var existingTrustPolicy map[string]interface{}
+	if err := json.Unmarshal([]byte(*getRoleOutput.Role.AssumeRolePolicyDocument), &existingTrustPolicy); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal trust policy: %v", err)
+	}
+
+	subValue := fmt.Sprintf("system:serviceaccount:%s:%s", req.KubernetesNamespace, req.KubernetesServiceAccount)
+
+	// Construct the new trust relationship
+	newTrustRelationship := map[string]interface{}{
+		"Effect": "Allow",
+		"Principal": map[string]interface{}{
+			"Federated": s.OIDCProviderARN,
+		},
+		"Action": "sts:AssumeRoleWithWebIdentity",
+		"Condition": map[string]interface{}{
+			"StringEquals": map[string]string{
+				fmt.Sprintf("%s:sub", s.OIDCProviderURL): subValue,
+			},
+		},
+	}
+
+	// Check if the OIDC provider's trust relationship already exists
+	statements := existingTrustPolicy["Statement"].([]interface{})
+	alreadyExists := false
+	for _, stmt := range statements {
+		stmtMap := stmt.(map[string]interface{})
+		if principal, ok := stmtMap["Principal"].(map[string]interface{}); ok {
+			if federated, ok := principal["Federated"].(string); ok && federated == s.OIDCProviderARN {
+				condition := stmtMap["Condition"].(map[string]interface{})["StringEquals"].(map[string]interface{})
+				condition[fmt.Sprintf("%s:sub", s.OIDCProviderURL)] = subValue
+				alreadyExists = true
+				break
 			}
 		}
-		return nil, fmt.Errorf(err.Error())
+	}
+
+	if !alreadyExists {
+		// Append the new trust relationship to the existing policy
+		existingTrustPolicy["Statement"] = append(statements, newTrustRelationship)
+	}
+
+	updatedTrustPolicy, err := json.Marshal(existingTrustPolicy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal updated trust policy: %v", err)
+	}
+
+	// Apply the updated policy
+	input := &iam.UpdateAssumeRolePolicyInput{
+		PolicyDocument: aws.String(string(updatedTrustPolicy)),
+		RoleName:       aws.String(req.Principal),
+	}
+
+	_, err = s.Clients.IamClient.UpdateAssumeRolePolicy(input)
+	if err != nil {
+		// handle AWS-specific errors
+		// ... (as per your existing error handling code) ...
+		return nil, fmt.Errorf("failed to update trust policy: %v", err)
 	}
 
 	return &sci.BindIdentityResponse{}, nil
