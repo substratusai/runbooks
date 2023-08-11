@@ -1,4 +1,4 @@
-// Package gcp provides a GCP implementation of the Substratus Cloud Interface (SCI).
+// Package gcpmanager provides a GCP implementation of the Substratus Cloud Interface (SCI).
 package gcpmanager
 
 import (
@@ -12,8 +12,8 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
-	storage "cloud.google.com/go/storage"
-	sci "github.com/substratusai/substratus/internal/sci"
+	"cloud.google.com/go/storage"
+	"github.com/substratusai/substratus/internal/sci"
 	"golang.org/x/oauth2/google"
 	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
@@ -37,6 +37,8 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	bucketName, objectName, checksum := req.GetBucketName(),
 		req.GetObjectName(),
 		req.GetMd5Checksum()
+
+	// verify that the object doesn't exist
 	bucket := s.Clients.Storage.Bucket(bucketName)
 	obj := bucket.Object(objectName)
 	if _, err := obj.Attrs(ctx); err != nil && err != storage.ErrObjectNotExist {
@@ -47,7 +49,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to decode MD5 checksum: %w", err)
 	}
 	base64md5 := base64.StdEncoding.EncodeToString(data)
 
@@ -67,7 +69,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 			}
 			resp, err := s.Clients.Iam.SignBlob(ctx, req)
 			if err != nil {
-				panic(err)
+				return nil, fmt.Errorf("failed to sign the blob: %w", err)
 			}
 			return resp.SignedBlob, err
 		},
