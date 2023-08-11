@@ -1,3 +1,4 @@
+# TODO update skaffold to make it work
 apiVersion: skaffold/v3
 kind: Config
 metadata:

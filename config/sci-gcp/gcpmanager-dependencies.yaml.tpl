@@ -1,4 +1,5 @@
 # also created by gcpmanager-dependencies.sh, but having it here ensures cleanup
+# TODO Update skaffold to make it work
 apiVersion: v1
 kind: Namespace
 metadata:

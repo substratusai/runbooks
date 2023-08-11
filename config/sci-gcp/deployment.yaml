@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gcp-manager
+  name: sci-gcp
   namespace: substratus
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: gcp-manager
+      app: sci-gcp
   template:
     metadata:
       labels:
-        app: gcp-manager
+        app: sci-gcp
     spec:
       serviceAccountName: sci-gcp
       terminationGracePeriodSeconds: 10
       containers:
-        - name: gcp-manager
+        - name: sci-gcp
           # use this when running via skaffold
           # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
-          image: gcp-manager:latest
+          image: sci-gcp:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 10080
@@ -38,16 +38,3 @@ spec:
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 3
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: gcp-manager
-  namespace: substratus
-spec:
-  selector:
-    app: gcp-manager
-  ports:
-    - protocol: TCP
-      port: 10080
-      targetPort: 10080
