@@ -6,7 +6,16 @@ option go_package = "github.com/substratusai/substratus/internal/sci";
 service Controller {
   rpc CreateSignedURL(CreateSignedURLRequest) returns (CreateSignedURLResponse) {}
   rpc GetObjectMd5(GetObjectMd5Request) returns (GetObjectMd5Response) {}
+  rpc BindIdentity(BindIdentityRequest) returns (BindIdentityResponse) {}
 }
+
+message BindIdentityRequest {
+  string kubernetes_service_account = 1;
+  string kubernetes_namespace = 2;
+  string principal = 3; // the target cloud identity (e.g., an AWS IAM role or GSA)
+}
+
+message BindIdentityResponse {}
 
 message CreateSignedURLRequest {
   string bucket_name = 1;

@@ -225,7 +225,15 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 .PHONY: protogen
 protogen: protoc ## Generate protobuf files.
-	cd internal/sci ; protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative sci.proto
+	cd internal/sci && \
+	protoc \
+		-I$(LOCALBIN)/include \
+		-I. \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=. \
+		--go-grpc_opt=paths=source_relative \
+		sci.proto
 
 ##@ Deployment
 
@@ -312,10 +320,11 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: protoc
 protoc: $(PROTOC) ## download and install protoc.
 $(PROTOC): $(LOCALBIN)
-	@if ! test -x $(LOCALBIN)/protoc; then \
+	@if ! test -x $(LOCALBIN)/protoc || ! test -d $(LOCALBIN)/include; then \
 		curl -L https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -o /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip; \
 		unzip /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip -d /tmp/protoc/; \
 		cp /tmp/protoc/bin/protoc $(LOCALBIN)/protoc; \
+		cp -r /tmp/protoc/include $(LOCALBIN)/; \
 		rm -rf /tmp/protoc/; \
 		rm /tmp/protoc-${PROTOC_VERSION}-$(PROTOC_PLATFORM).zip; \
 		go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}; \
