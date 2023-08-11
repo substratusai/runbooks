@@ -15,7 +15,6 @@ locals {
 
 resource "google_container_node_pool" "a2-highgpu-1g" {
   name  = "a2-highgpu-1g"
-  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -51,7 +50,6 @@ resource "google_container_node_pool" "a2-highgpu-1g" {
 
 resource "google_container_node_pool" "a2-highgpu-2g" {
   name  = "a2-highgpu-2g"
-  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -86,7 +84,6 @@ resource "google_container_node_pool" "a2-highgpu-2g" {
 
 resource "google_container_node_pool" "a2-highgpu-4g" {
   name  = "a2-highgpu-4g"
-  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
@@ -121,7 +118,6 @@ resource "google_container_node_pool" "a2-highgpu-4g" {
 
 resource "google_container_node_pool" "a2-highgpu-8g" {
   name  = "a2-highgpu-8g"
-  count = var.attach_gpu_nodepools ? 1 : 0
 
   cluster            = google_container_cluster.main.id
   initial_node_count = 0
