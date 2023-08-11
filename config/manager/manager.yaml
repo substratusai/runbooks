@@ -85,5 +85,5 @@ spec:
             requests:
               cpu: 10m
               memory: 64Mi
-      serviceAccountName: substratus
+      serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

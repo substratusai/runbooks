@@ -13,7 +13,7 @@ spec:
       labels:
         app: gcp-manager
     spec:
-      serviceAccountName: substratus
+      serviceAccountName: sci-gcp
       terminationGracePeriodSeconds: 10
       containers:
         - name: gcp-manager
