@@ -1,5 +1,5 @@
 // Package gcp provides a GCP implementation of the Substratus Cloud Interface (SCI).
-package gcpmanager
+package gcp
 
 import (
 	"context"

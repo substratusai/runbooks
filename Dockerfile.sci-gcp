@@ -7,12 +7,12 @@ WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cmd/gcpmanager/main.go cmd/gcpmanager/main.go
+COPY cmd/sci-gcp/main.go cmd/sci-gcp/main.go
 COPY internal/ internal/
 
 # Build the app
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -a -o main cmd/gcpmanager/main.go
+    go build -a -o main cmd/sci-gcp/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

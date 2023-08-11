@@ -12,8 +12,8 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/storage"
-	"github.com/substratusai/substratus/internal/gcpmanager"
 	"github.com/substratusai/substratus/internal/sci"
+	"github.com/substratusai/substratus/internal/sci/gcp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -39,13 +39,13 @@ func main() {
 
 	hc := &http.Client{}
 	mc := metadata.NewClient(hc)
-	saEmail, err := gcpmanager.GetServiceAccountEmail(mc)
+	saEmail, err := gcp.GetServiceAccountEmail(mc)
 	if err != nil {
 		log.Fatalf("failed to get the SA email: %v", err)
 	}
 
-	s := gcpmanager.Server{
-		Clients: gcpmanager.Clients{
+	s := gcp.Server{
+		Clients: gcp.Clients{
 			Iam:      iamClient,
 			Metadata: mc,
 			Storage:  storageClient,
@@ -61,7 +61,7 @@ func main() {
 	hs.SetServingStatus("", hv1.HealthCheckResponse_SERVING)
 	hv1.RegisterHealthServer(gs, hs)
 
-	fmt.Printf("gcpmanager server listening on port %v...", port)
+	fmt.Printf("sci.gcp server listening on port %v...", port)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

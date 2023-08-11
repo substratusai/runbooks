@@ -17,8 +17,6 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: sci-gcp
-          # use this when running via skaffold
-          # image: us-central1-docker.pkg.dev/substratus-ai-001/substratus/gcpmanager:latest
           image: sci-gcp:latest
           imagePullPolicy: Always
           ports:

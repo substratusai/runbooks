@@ -1,4 +1,4 @@
-# TODO update skaffold to make it work
+# TODO update skaffold to make it work or remove this file
 apiVersion: skaffold/v3
 kind: Config
 metadata:

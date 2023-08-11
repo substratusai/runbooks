@@ -2,8 +2,8 @@
 # Image URL to use all building/pushing image targets
 VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
-IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
 IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
+IMG_SCI_GCP ?= docker.io/substratusai/sci-gcp:${VERSION}
 
 # Set to false if you don't want GPU nodepools created
 ATTACH_GPU_NODEPOOLS=true
@@ -106,21 +106,7 @@ test: manifests generate protogen fmt vet envtest ## Run tests.
 test-kubectl: manifests fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./kubectl/internal/commands -v
 
-.PHONY: render-skaffold-manifests
-render-skaffold-manifests: envsubst ## run envsubs against skaffold manifest tesmplates
-	@ if [ -n ${PROJECT_ID} ]; then export PROJECT_ID=$(shell gcloud config get-value project); fi && \
-	envsubst < config/skaffold-dependencies.sh.tpl > config/skaffold-dependencies.sh && \
-	chmod +x config/skaffold-dependencies.sh && \
-	envsubst < config/gcpmanager/gcpmanager-dependencies.yaml.tpl > config/gcpmanager/gcpmanager-dependencies.yaml && \
-	envsubst < config/gcpmanager/gcpmanager-skaffold.yaml.tpl > config/gcpmanager/gcpmanager-skaffold.yaml
-
-.PHONY: skaffold-dev-gcpmanager
-skaffold-dev-gcpmanager: protoc skaffold protogen render-skaffold-manifests ## Run skaffold dev against gcpmanager
-	config/skaffold-dependencies.sh && \
-	skaffold dev -f config/gcpmanager/gcpmanager-skaffold.yaml
-
 ##@ Build
-
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
@@ -135,7 +121,7 @@ dev-up-gcp: build-installer
 		-e INSTALL_OPERATOR=false \
 		substratus-installer gcp-up.sh
 	mkdir -p secrets
-	gcloud iam service-accounts keys create --iam-account=substratus-gcp-manager@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/gcp-manager-key.json
+	gcloud iam service-accounts keys create --iam-account=substratus@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/substratus-sa.json
 
 .PHONY: dev-down-gcp
 dev-down-gcp: build-installer
@@ -145,7 +131,7 @@ dev-down-gcp: build-installer
 		-e TOKEN=$(shell gcloud auth print-access-token) \
 		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 		substratus-installer gcp-down.sh
-	rm ./secrets/gcp-manager-key.json
+	rm ./secrets/substratus-sa.json
 
 .PHONY: dev-up-kind
 dev-up-kind:
@@ -204,10 +190,10 @@ dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
 dev-run-gcp: export CLUSTER_NAME=substratus
 dev-run-gcp: export CLUSTER_LOCATION=us-central1
 # Cloud manager configuration #
-dev-run-gcp: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/gcp-manager-key.json
+dev-run-gcp: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/substratus-sa.json
 # Run the controller manager and the cloud manager.
 dev-run-gcp: manifests kustomize install-crds
-	go run ./cmd/gcpmanager & \
+	go run ./cmd/csi-gcp & \
 	go run ./cmd/controllermanager/main.go \
 		--sci-address=localhost:10080 \
 		--config-dump-path=/tmp/substratus-config.yaml
@@ -286,14 +272,18 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 installation-scripts:
 	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
 
-.PHONY: installation-manifests
-installation-manifests: manifests kustomize
+.PHONY: installation-manifests-gcp
+installation-manifests-gcp: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
+	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
+	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
+
+.PHONY: installation-manifests-kind
+installation-manifests-kind: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
-	# TODO: Fix in another PR:
-	#$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
 	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
+
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs
