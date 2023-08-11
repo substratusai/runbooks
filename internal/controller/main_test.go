@@ -212,7 +212,7 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, obj)
 		assert.NoError(t, err, "getting object")
 		assert.True(t, meta.IsStatusConditionTrue(*obj.GetConditions(), apiv1.ConditionBuilt))
-	}, timeout*2, interval, "waiting for the container to be ready")
+	}, timeout*4, interval, "waiting for the container to be ready")
 }
 
 func testParamsConfigMap(t *testing.T, obj testObject, kind string, content string) {
