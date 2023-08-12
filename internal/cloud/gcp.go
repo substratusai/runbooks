@@ -60,6 +60,10 @@ func (gcp *GCP) AutoConfigure(ctx context.Context) error {
 		}
 	}
 
+	if gcp.Principal != "" {
+		gcp.Principal = fmt.Sprintf("substratus@%s.iam.gserviceaccount.com", gcp.ProjectID)
+	}
+
 	return nil
 }
 
@@ -114,10 +118,6 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	}
 
 	return fmt.Errorf("container not found: %s", req.Container)
-}
-
-func (gcp *GCP) GetPrincipal(sa *corev1.ServiceAccount) string {
-	return fmt.Sprintf("substratus@%s.iam.gserviceaccount.com", gcp.ProjectID)
 }
 
 func (gcp *GCP) AssociatePrincipal(sa *corev1.ServiceAccount) {
