@@ -20,7 +20,7 @@ const (
 	identityBoundLabel                 = "substratusai/identity-bound"
 )
 
-func reconcileCloudServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
+func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
 	if sa.Annotations == nil {
 		sa.Annotations = map[string]string{}
 	}

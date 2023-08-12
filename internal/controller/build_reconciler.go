@@ -74,7 +74,7 @@ func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	defer log.Info("Done reconciling build")
 
 	// Service account used for building and pushing the image.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      containerBuilderServiceAccountName,
 			Namespace: obj.GetNamespace(),

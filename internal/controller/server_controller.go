@@ -233,7 +233,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	// ServiceAccount for loading the Model.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the model.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modelServerServiceAccountName,
 			Namespace: model.Namespace,

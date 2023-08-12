@@ -157,7 +157,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	// ServiceAccount for the model Job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS buckets containing the training data and model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      notebookServiceAccountName,
 			Namespace: notebook.Namespace,

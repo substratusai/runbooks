@@ -86,7 +86,7 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 	// ServiceAccount for the loader job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to write the GCS bucket containing training data.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dataLoaderServiceAccountName,
 			Namespace: dataset.Namespace,

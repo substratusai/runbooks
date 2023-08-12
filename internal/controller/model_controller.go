@@ -80,7 +80,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS bucket containing the training data and read and write from
 	// the bucket that contains base model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      modellerServiceAccountName,
 			Namespace: model.Namespace,
