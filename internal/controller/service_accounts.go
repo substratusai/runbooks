@@ -41,7 +41,7 @@ func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciCl
 			return result{}, fmt.Errorf("failed bind identity principal %s to K8s SA %s/%s: %w",
 				principal, sa.Namespace, sa.Name, err)
 		}
-		sa.Annotations["identity-bound"] = principal
+		sa.Annotations[identityBoundLabel] = principal
 	}
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, sa, configureSA); err != nil {
