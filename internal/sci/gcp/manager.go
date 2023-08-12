@@ -12,8 +12,8 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
-	storage "cloud.google.com/go/storage"
-	sci "github.com/substratusai/substratus/internal/sci"
+	"cloud.google.com/go/storage"
+	"github.com/substratusai/substratus/internal/sci"
 	"golang.org/x/oauth2/google"
 	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
@@ -47,7 +47,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to decode MD5 checksum: %w", err)
 	}
 	base64md5 := base64.StdEncoding.EncodeToString(data)
 
@@ -67,7 +67,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 			}
 			resp, err := s.Clients.Iam.SignBlob(ctx, req)
 			if err != nil {
-				panic(err)
+				return nil, fmt.Errorf("failed to sign the blob: %w", err)
 			}
 			return resp.SignedBlob, err
 		},
@@ -92,6 +92,10 @@ func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request)
 	}
 	md5str := hex.EncodeToString(attrs.MD5)
 	return &sci.GetObjectMd5Response{Md5Checksum: md5str}, nil
+}
+
+func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {
+	return nil, nil
 }
 
 // GetServiceAccountEmail returns the email address of the service account
