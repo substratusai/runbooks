@@ -21,13 +21,13 @@ func main() {
 		bucketDir     string
 	}
 	flag.IntVar(&cfg.port, "port", 10080, "port number to listen on")
-	flag.IntVar(&cfg.signedURLPort, "signed-url-port", 8082, "port to listen for signed url traffic")
-	flag.StringVar(&cfg.bucketDir, "bucket-dir", "/bucket", "directory to store artfiacts")
+	flag.IntVar(&cfg.signedURLPort, "signed-url-port", 8080, "port to listen for signed url traffic")
+	//flag.StringVar(&cfg.bucketDir, "bucket-dir", "/bucket", "directory to store artfiacts")
 	flag.Parse()
 
 	s := &scikind.Server{
-		SignedURLAddress: fmt.Sprintf("localhost:%v", cfg.signedURLPort),
-		BucketDir:        cfg.bucketDir,
+		SignedURLAddress: "http://localhost:30080",
+		//		BucketDir:        cfg.bucketDir,
 	}
 	signedURLServer := &http.Server{
 		Addr:    fmt.Sprintf(":%v", cfg.signedURLPort),

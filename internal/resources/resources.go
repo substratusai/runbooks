@@ -62,7 +62,13 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 	return nil
 }
 
-func ContainerBuilderResources() corev1.ResourceRequirements {
+func ContainerBuilderResources(cloudName string) corev1.ResourceRequirements {
+	// Nasty hack that can go away later... Most likely this stuff will all go into
+	// a ConfigMap that is cloud-specific.
+	if cloudName == "kind" {
+		return corev1.ResourceRequirements{}
+	}
+
 	return corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
 			corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),

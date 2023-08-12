@@ -4,5 +4,5 @@ nodes:
   - role: control-plane
     # Forward local machine port to in-cluster port.
     extraPortMappings:
-      - containerPort: 8082
-        hostPort: 8082
+      - containerPort: 30080
+        hostPort: 30080

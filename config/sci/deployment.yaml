@@ -16,9 +16,8 @@ spec:
       serviceAccountName: sci
       terminationGracePeriodSeconds: 10
       containers:
-        - name: main
+        - name: sci
           image: sci
-          imagePullPolicy: Always
           ports:
             - containerPort: 10080
           resources:

@@ -146,18 +146,30 @@ dev-down-gcp: build-installer
 dev-up-kind:
 	cd install/scripts && ./kind-up.sh
 
-.PHONY: dev-run-kind
-# Controller manager configuration #
-dev-run-kind: export CLOUD=kind
-dev-run-kind: export CLUSTER_NAME=substratus
-dev-run-kind: export ARTIFACT_BUCKET_URL=kind://bucket
-dev-run-kind: export REGISTRY_URL=http://docker.svc.cluster.local:5000
-# Run the controller manager and the sci.
-dev-run-kind: manifests kustomize install-crds
-	go run ./cmd/sci-kind & \
-	go run ./cmd/controllermanager/main.go \
-		--sci-address=localhost:10080 \
-		--config-dump-path=/tmp/substratus-config.yaml
+#
+# TODO(nstogner): Running outside of cluster is tricky to support b/c how substratus
+# Pods need to mount the same directories as the SCI.
+# 
+#.PHONY: dev-run-kind
+## Controller manager configuration #
+#dev-run-kind: export CLOUD=kind
+#dev-run-kind: export CLUSTER_NAME=substratus
+#dev-run-kind: export ARTIFACT_BUCKET_URL=kind://bucket
+#dev-run-kind: export REGISTRY_URL=http://docker.svc.cluster.local:5000
+## Run the controller manager and the sci.
+#dev-run-kind: manifests kustomize install-crds
+#	go run ./cmd/sci-kind & \
+#	go run ./cmd/controllermanager/main.go \
+#		--sci-address=localhost:10080 \
+#		--config-dump-path=/tmp/substratus-config.yaml
+
+.PHONY: dev-skaffold-kind
+dev-skaffold-kind:
+	# NOTE: Disabled cache artifacts can help if you are having issues
+	# with timeouts from docker hub. It coulld be quicker to just rebuild
+	# and rely on standard docker layer caching.
+    # --cache-artifacts=false
+	skaffold dev -f skaffold.kind.yaml --cache-artifacts=false
 
 .PHONY: dev-down-kind
 dev-down-kind:

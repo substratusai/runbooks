@@ -4,8 +4,4 @@ metadata:
   name: squad
 spec:
   command: ["load.sh"]
-  build:
-    git:
-      url: https://github.com/substratusai/images
-      path: dataset-squad
-      branch: main
+  image: substratusai/dataset-squad

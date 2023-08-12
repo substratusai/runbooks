@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+manifests:
+  kustomize:
+    paths:
+      - ./config/install-kind
+build:
+  artifacts:
+    - image: docker.io/substratusai/controller-manager
+      docker:
+        dockerfile: Dockerfile
+    - image: docker.io/substratusai/sci-kind
+      docker:
+        dockerfile: Dockerfile.sci-kind
+  local:
+    push: false

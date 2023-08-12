@@ -11,3 +11,11 @@ spec:
           ports:
             - containerPort: 8080
             - containerPort: 10080
+          volumeMounts:
+            - name: bucket
+              mountPath: /bucket
+      volumes:
+        - name: bucket
+          hostPath:
+            path: /bucket
+            type: DirectoryOrCreate

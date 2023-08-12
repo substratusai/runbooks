@@ -364,7 +364,7 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
-						Resources:    resources.ContainerBuilderResources(),
+						Resources:    resources.ContainerBuilderResources(r.Cloud.Name()),
 					}},
 					RestartPolicy: "Never",
 					Volumes:       volumes,
@@ -416,6 +416,26 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 		},
 	}
 
+	// Dirty hack to support "dir:///" URLs for Kaniko.
+	// TODO(nstogner): Refactor this "cloud"-specific code. It does not
+	// belong here.
+	if r.Cloud.Name() == cloud.KindName {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "bucket",
+			MountPath: "/bucket",
+		})
+		typ := corev1.HostPathDirectory
+		volumes = append(volumes, corev1.Volume{
+			Name: "bucket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/bucket",
+					Type: &typ,
+				},
+			},
+		})
+	}
+
 	const builderContainerName = "builder"
 	podAnnotations["kubectl.kubernetes.io/default-container"] = builderContainerName
 	job = &batchv1.Job{
@@ -446,7 +466,7 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
-						Resources:    resources.ContainerBuilderResources(),
+						Resources:    resources.ContainerBuilderResources(r.Cloud.Name()),
 					}},
 					RestartPolicy: "Never",
 					Volumes:       volumes,

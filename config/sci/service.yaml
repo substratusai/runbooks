@@ -7,6 +7,7 @@ spec:
   selector:
     app: sci
   ports:
-    - protocol: TCP
+    - name: grpc-sci
+      protocol: TCP
       port: 10080
       targetPort: 10080

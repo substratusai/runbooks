@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sci
+  namespace: substratus
+spec:
+  type: NodePort
+  ports:
+    - name: http-signed-url
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+      nodePort: 30080 # Should match kind config.yaml
