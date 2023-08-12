@@ -13,23 +13,37 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/storage"
+	"github.com/sethvargo/go-envconfig"
 	"github.com/substratusai/substratus/internal/sci"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/iam/v1"
 	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // server implements the sci.ControllerServer interface.
 type Server struct {
 	sci.UnimplementedControllerServer
 	Clients
-	SaEmail string
+	SaEmail   string
+	ProjectID string `env:"PROJECT_ID" required:"true"`
 }
 
 type Clients struct {
-	Iam      *credentials.IamCredentialsClient
-	Metadata *metadata.Client
-	Storage  *storage.Client
-	Http     *http.Client
+	IAMCredentialsClient *credentials.IamCredentialsClient
+	IAM                  *iam.Service
+	Metadata             *metadata.Client
+	Storage              *storage.Client
+	Http                 *http.Client
+}
+
+func NewServer() (*Server, error) {
+	s := &Server{}
+	ctx := context.Background()
+	if err := envconfig.Process(ctx, s); err != nil {
+		return nil, fmt.Errorf("environment: %w", err)
+	}
+	return s, nil
 }
 
 // CreateSignedURL generates a signed URL for a specified GCS bucket and object path.
@@ -65,7 +79,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 				Payload: b,
 				Name:    s.SaEmail,
 			}
-			resp, err := s.Clients.Iam.SignBlob(ctx, req)
+			resp, err := s.Clients.IAMCredentialsClient.SignBlob(ctx, req)
 			if err != nil {
 				return nil, fmt.Errorf("failed to sign the blob: %w", err)
 			}
@@ -95,35 +109,67 @@ func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request)
 }
 
 func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {
-	return nil, nil
+	log := log.FromContext(ctx)
+	log.Info("Binding K8s Service Account to GCP Service Account",
+		"k8s_service_account", req.KubernetesServiceAccount, "namespace", req.KubernetesNamespace,
+		"gcp_service_account", req.Principal)
+	resource := fmt.Sprintf("projects/%v/serviceAccounts/%v", s.ProjectID, req.Principal)
+
+	// There is no add iam policy binding API so have to get existing policy to
+	// modify locally, then fully overwrite existing policy using set iam policy
+	policy, err := s.Clients.IAM.Projects.ServiceAccounts.GetIamPolicy(resource).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get policy of Service Account: %w", err)
+	}
+	policy.Bindings = append(policy.Bindings, &iam.Binding{
+		Members: []string{fmt.Sprintf("serviceAccount:%s.svc.id.goog[%s/%s]",
+			s.ProjectID, req.KubernetesNamespace, req.KubernetesServiceAccount)},
+		Role: "roles/iam.workloadIdentityUser",
+	})
+
+	rb := &iam.SetIamPolicyRequest{Policy: policy}
+	resp, err := s.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resource, rb).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("Error setting IAM policy: %w", err)
+	}
+
+	fmt.Printf("%#v\n", resp)
+	return &sci.BindIdentityResponse{}, nil
 }
 
 // GetServiceAccountEmail returns the email address of the service account
 // it relies on either a local metadata service or a key file.
-func GetServiceAccountEmail(m *metadata.Client) (string, error) {
+func (s *Server) AutoConfigure(m *metadata.Client) error {
 	if metadata.OnGCE() {
 		email, err := m.Email("default")
 		if err != nil {
-			return "", err
+			return fmt.Errorf("Error getting default creds: %w", err)
 		}
-		return email, nil
+		s.SaEmail = email
+
+		if s.ProjectID == "" {
+			projectID, err := m.ProjectID()
+			if err != nil {
+				return fmt.Errorf("Error getting project id from metadata server: %w", err)
+			}
+			s.ProjectID = projectID
+		}
 	} else {
 		// Parse the service account email from the key file.
 		keyFile := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 		if keyFile == "" {
-			return "", fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
+			return fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
 		}
 
 		key, err := os.ReadFile(keyFile)
 		if err != nil {
-			return "", err
+			return err
 		}
 
 		cfg, err := google.JWTConfigFromJSON(key)
 		if err != nil {
-			return "", err
+			return err
 		}
-
-		return cfg.Email, nil
+		s.SaEmail = cfg.Email
 	}
 }

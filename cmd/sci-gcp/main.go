@@ -14,6 +14,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/substratusai/substratus/internal/sci"
 	"github.com/substratusai/substratus/internal/sci/gcp"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -26,10 +27,14 @@ func main() {
 	flag.Parse()
 
 	ctx := context.Background()
-	iamClient, err := credentials.NewIamCredentialsClient(ctx)
+	iamCredClient, err := credentials.NewIamCredentialsClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to create iam credentials client: %v", err)
+	}
+
+	iamService, err := iam.NewService(ctx)
 	if err != nil {
 		log.Fatalf("failed to create iam client: %v", err)
-		log.Fatal(err)
 	}
 
 	storageClient, err := storage.NewClient(context.Background())
@@ -39,22 +44,23 @@ func main() {
 
 	hc := &http.Client{}
 	mc := metadata.NewClient(hc)
-	saEmail, err := gcp.GetServiceAccountEmail(mc)
-	if err != nil {
-		log.Fatalf("failed to get the SA email: %v", err)
-	}
 
-	s := gcp.Server{
-		Clients: gcp.Clients{
-			Iam:      iamClient,
-			Metadata: mc,
-			Storage:  storageClient,
-			Http:     hc,
-		},
-		SaEmail: saEmail,
+	s, err := gcp.NewServer()
+	if err != nil {
+		log.Fatalf("error creating new server: %v", err)
+	}
+	s.Clients = gcp.Clients{
+		IAMCredentialsClient: iamCredClient,
+		IAM:                  iamService,
+		Metadata:             mc,
+		Storage:              storageClient,
+		Http:                 hc,
+	}
+	if err := s.AutoConfigure(mc); err != nil {
+		log.Fatalf("error with automatically configuring sci-gcp: %v", err)
 	}
 	gs := grpc.NewServer()
-	sci.RegisterControllerServer(gs, &s)
+	sci.RegisterControllerServer(gs, s)
 
 	// Setup Health Check
 	hs := health.NewServer()
