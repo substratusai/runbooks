@@ -17,7 +17,7 @@ const (
 	modelServerServiceAccountName      = "model-server"
 	notebookServiceAccountName         = "notebook"
 	dataLoaderServiceAccountName       = "data-loader"
-	identityBoundLabel                 = "substratusai/identity-bound"
+	identityBoundLabel                 = "substratus.ai/identity-bound"
 )
 
 func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
