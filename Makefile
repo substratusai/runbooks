@@ -5,10 +5,6 @@ IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
 IMG_SCI_GCP ?= docker.io/substratusai/sci-gcp:${VERSION}
 
-# Set to false if you don't want GPU nodepools created
-ATTACH_GPU_NODEPOOLS=true
-
-
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 

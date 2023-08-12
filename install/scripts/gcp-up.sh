@@ -13,6 +13,7 @@ export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
 INSTALL_OPERATOR="${INSTALL_OPERATOR:-yes}"
 AUTO_APPROVE="${AUTO_APPROVE:-no}"
 
+set -x
 # Enable required services.
 gcloud services enable --project ${PROJECT} container.googleapis.com
 gcloud services enable --project ${PROJECT} artifactregistry.googleapis.com
@@ -41,12 +42,12 @@ cd -
 
 # Create a bucket for substratus models and datasets
 export ARTIFACTS_BUCKET="gs://${PROJECT}-substratus"
-if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" >/dev/null; then
+if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" -q >/dev/null; then
   gcloud storage buckets create --project ${PROJECT} "${ARTIFACTS_BUCKET}" --location ${cluster_region}
 fi
 
 # Create Artifact Registry to host container images
-if ! gcloud artifacts repositories describe substratus --location us-central1 --project ${PROJECT} > /dev/null; then
+if ! gcloud artifacts repositories describe substratus --location us-central1 --project ${PROJECT} -q > /dev/null; then
   gcloud artifacts repositories create substratus \
     --repository-format=docker --location=${cluster_region} \
     --project ${PROJECT}
@@ -60,25 +61,26 @@ fi
 
 # Give required permissions to Service Account
 gcloud storage buckets add-iam-policy-binding ${ARTIFACTS_BUCKET} \
-  --member=${SERVICE_ACCOUNT} --role=roles/storage.admin --project ${PROJECT}
+  --member="serviceAccount:${SERVICE_ACCOUNT}" --role=roles/storage.admin \
+  --project ${PROJECT}
 
 gcloud artifacts repositories add-iam-policy-binding substratus \
-  --location us-central1 --member=${SERVICE_ACCOUNT} \
+  --location us-central1 --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role=roles/artifactregistry.repoAdmin --project ${PROJECT}
 
 # Allow the Service Account to bind K8s Service Account to this Service Account
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountAdmin \
+   --role roles/iam.serviceAccountAdmin --project ${PROJECT} \
    --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 # Allow to create signed URLs
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountTokenCreator \
+   --role roles/iam.serviceAccountTokenCreator --project ${PROJECT} \
    --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountAdmin \
-   --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/substratus]"
+   --role roles/iam.workloadIdentityUser --project ${PROJECT} \
+   --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/sci]"
 
 
 # Configure kubectl.
