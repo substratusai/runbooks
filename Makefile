@@ -113,11 +113,12 @@ dev-up-gcp: build-installer
 		-v ${HOME}/.kube:/root/.kube \
 		-e PROJECT=$(shell gcloud config get project) \
 		-e TOKEN=$(shell gcloud auth print-access-token) \
-		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 		-e INSTALL_OPERATOR=false \
 		substratus-installer gcp-up.sh
 	mkdir -p secrets
-	gcloud iam service-accounts keys create --iam-account=substratus@$(shell gcloud config get project).iam.gserviceaccount.com ./secrets/substratus-sa.json
+	gcloud iam service-accounts keys create \
+	  --iam-account=substratus@$(shell gcloud config get project).iam.gserviceaccount.com \
+	  ./secrets/substratus-sa.json
 
 .PHONY: dev-down-gcp
 dev-down-gcp: build-installer
@@ -181,15 +182,15 @@ dev-down-aws: build-installer
 .PHONY: dev-run-gcp
 # Controller manager configuration #
 dev-run-gcp: export CLOUD=gcp
-dev-run-gcp: export GPU_TYPE=nvidia-l4
 dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
 dev-run-gcp: export CLUSTER_NAME=substratus
 dev-run-gcp: export CLUSTER_LOCATION=us-central1
+dev-run-gcp: export PRINCIPAL=substratus@${PROJECT_ID}.iam.gserviceaccount.com
 # Cloud manager configuration #
 dev-run-gcp: export GOOGLE_APPLICATION_CREDENTIALS=./secrets/substratus-sa.json
 # Run the controller manager and the cloud manager.
 dev-run-gcp: manifests kustomize install-crds
-	go run ./cmd/csi-gcp & \
+	go run ./cmd/sci-gcp & \
 	go run ./cmd/controllermanager/main.go \
 		--sci-address=localhost:10080 \
 		--config-dump-path=/tmp/substratus-config.yaml
