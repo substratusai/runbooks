@@ -12,7 +12,10 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const GCPName = "gcp"
+const (
+	GCPName                  = "gcp"
+	GCPWorkloadIdentityLabel = "iam.gke.io/gcp-service-account"
+)
 
 type GCP struct {
 	Common
@@ -120,8 +123,17 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	return fmt.Errorf("container not found: %s", req.Container)
 }
 
+func (gcp *GCP) GetPrincipal(sa *corev1.ServiceAccount) (string, bool) {
+	principalBound := true
+	if val, exist := sa.Annotations[GCPWorkloadIdentityLabel]; !exist || val != gcp.Principal {
+		principalBound = false
+	}
+	return gcp.Principal, principalBound
+}
+
 func (gcp *GCP) AssociatePrincipal(sa *corev1.ServiceAccount) {
-	sa.Annotations["iam.gke.io/gcp-service-account"] = gcp.GetPrincipal(sa)
+	principal, _ := gcp.GetPrincipal(sa)
+	sa.Annotations[GCPWorkloadIdentityLabel] = principal
 }
 
 func (gcp *GCP) region() string {

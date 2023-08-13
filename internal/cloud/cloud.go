@@ -35,8 +35,9 @@ type Cloud interface {
 	AssociatePrincipal(*corev1.ServiceAccount)
 
 	// GetPrincipal returns the IAM Principal (GCP SA, AWS IAM Role) that should be used
-	// for a specific K8s Service Account
-	GetPrincipal(*corev1.ServiceAccount) string
+	// for a specific K8s Service Account. Returns the principal and whether the principal
+	// was already bound successfully to the service account.
+	GetPrincipal(*corev1.ServiceAccount) (string, bool)
 
 	// MountBucket mutates the given Pod metadata and Pod spec in order to append
 	// volumes mounts for a bucket.

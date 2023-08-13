@@ -17,7 +17,6 @@ const (
 	modelServerServiceAccountName      = "model-server"
 	notebookServiceAccountName         = "notebook"
 	dataLoaderServiceAccountName       = "data-loader"
-	identityBoundLabel                 = "substratus.ai/identity-bound"
 )
 
 func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
@@ -30,8 +29,8 @@ func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciCl
 		return nil
 	}
 
-	principal := cloudConfig.GetPrincipal(sa)
-	if val, exist := sa.Annotations[identityBoundLabel]; !exist || val != principal {
+	principal, bound := cloudConfig.GetPrincipal(sa)
+	if !bound {
 		bindIdentityRequest := sci.BindIdentityRequest{
 			Principal:                principal,
 			KubernetesServiceAccount: sa.Name,
@@ -41,7 +40,6 @@ func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciCl
 			return result{}, fmt.Errorf("failed bind identity principal %s to K8s SA %s/%s: %w",
 				principal, sa.Namespace, sa.Name, err)
 		}
-		sa.Annotations[identityBoundLabel] = principal
 	}
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, sa, configureSA); err != nil {
