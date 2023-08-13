@@ -12,12 +12,12 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
+	credentialspb "cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"cloud.google.com/go/storage"
 	"github.com/sethvargo/go-envconfig"
 	"github.com/substratusai/substratus/internal/sci"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iam/v1"
-	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -26,7 +26,7 @@ type Server struct {
 	sci.UnimplementedControllerServer
 	Clients
 	SaEmail   string
-	ProjectID string `env:"PROJECT_ID" required:"true"`
+	ProjectID string `env:"PROJECT_ID"`
 }
 
 type Clients struct {
@@ -172,4 +172,5 @@ func (s *Server) AutoConfigure(m *metadata.Client) error {
 		}
 		s.SaEmail = cfg.Email
 	}
+	return nil
 }
