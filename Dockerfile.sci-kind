@@ -1,5 +1,5 @@
 # Start from the latest go base image
-FROM golang:1.20-bookworm AS builder
+FROM golang:1.19 AS builder
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 

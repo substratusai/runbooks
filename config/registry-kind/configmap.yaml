@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allow-bundled-registry-script
+data:
+  allow-bundled-registry.sh: |
+    #!/usr/bin/env bash
+
+    set -x
+    # Exit on non-existant variable.
+    set -u
+    # Exit on error.
+    set -e
+
+    export IMAGE_REGISTRY=$REGISTRY_PORT_5000_TCP_ADDR:5000
+
+    if ! grep -q $IMAGE_REGISTRY /mnt/etc/containerd/config.toml; then
+        containerd_version=$(nsenter --target 1 --mount bash -c "containerd --version | awk '{ print substr(\$3,0,4) }'")
+        if [ "$containerd_version" = "1.3." ] || [ "$containerd_version" = "1.4." ]; then
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins.cri.registry.configs."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        else
+            # Correct config for containerd 1.5 and above
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        fi
+        nsenter --target 1 --mount bash -c "systemctl is-active --quiet containerd && echo 'Restarting containerd' && systemctl restart containerd"
+    fi

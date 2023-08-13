@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: allow-bundled-registry
+  labels:
+    app: allow-bundled-registry
+spec:
+  selector:
+    matchLabels:
+      app: allow-bundled-registry
+  template:
+    metadata:
+      labels:
+        app: allow-bundled-registry
+    spec:
+      hostPID: true
+      initContainers:
+        - name: allow-bundled-registry
+          image: ubuntu:22.04
+          command: ["/scripts/allow-bundled-registry.sh"]
+          volumeMounts:
+            - name: etc
+              mountPath: "/mnt/etc"
+            - mountPath: /scripts
+              name: scripts
+          securityContext:
+            privileged: true
+      volumes:
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: scripts
+          configMap:
+            name: allow-bundled-registry-script
+            defaultMode: 0744
+      containers:
+        - name: pause
+          image: gcr.io/google_containers/pause
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists

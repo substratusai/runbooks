@@ -7,4 +7,4 @@ data:
   CLOUD: kind
   CLUSTER_NAME: substratus
   ARTIFACT_BUCKET_URL: tar:///bucket
-  REGISTRY_URL: http://docker.svc.cluster.local:5000
+  # REGISTRY_URL: <autoconfigured>

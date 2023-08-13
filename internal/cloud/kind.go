@@ -3,6 +3,7 @@ package cloud
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,12 @@ type Kind struct {
 func (k *Kind) Name() string { return KindName }
 
 func (k *Kind) AutoConfigure(ctx context.Context) error {
+	addr := os.Getenv("REGISTRY_PORT_5000_TCP_ADDR")
+	if addr == "" {
+		return fmt.Errorf("REGISTRY_PORT_5000_TCP_ADDR not set")
+	}
+	k.RegistryURL = addr + ":5000"
+
 	return nil
 }
 

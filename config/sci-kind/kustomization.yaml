@@ -1,6 +1,5 @@
 resources:
   - ../sci
-  - ./config.yaml
 patches:
   - path: deployment.yaml
   - path: service.yaml
