@@ -66,7 +66,7 @@ gcloud storage buckets add-iam-policy-binding ${ARTIFACTS_BUCKET} \
 
 gcloud artifacts repositories add-iam-policy-binding substratus \
   --location us-central1 --member="serviceAccount:${SERVICE_ACCOUNT}" \
-  --role=roles/artifactregistry.repoAdmin --project ${PROJECT}
+  --role=roles/artifactregistry.admin --project ${PROJECT}
 
 # Allow the Service Account to bind K8s Service Account to this Service Account
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
