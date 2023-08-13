@@ -19,6 +19,8 @@ type Kind struct {
 func (k *Kind) Name() string { return KindName }
 
 func (k *Kind) AutoConfigure(ctx context.Context) error {
+	// This environment variable comes from the registry Service in the same namespace.
+	// See: https://kubernetes.io/docs/concepts/services-networking/service/#environment-variables
 	addr := os.Getenv("REGISTRY_PORT_5000_TCP_ADDR")
 	if addr == "" {
 		return fmt.Errorf("REGISTRY_PORT_5000_TCP_ADDR not set")
