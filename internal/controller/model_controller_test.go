@@ -135,7 +135,7 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: "modeller"}, &sa)
 		assert.NoError(t, err, "getting the model trainer serviceaccount")
 	}, timeout, interval, "waiting for the model trainer serviceaccount to be created")
-	require.Equal(t, "substratus-modeller@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+	require.Equal(t, "substratus@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a trainer Job gets created by the controller.
 	var job batchv1.Job
