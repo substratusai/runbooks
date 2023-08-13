@@ -48,13 +48,8 @@ func TestServer(t *testing.T) {
 		t.Errorf("error getting IAM policy of service account: %v", err)
 	}
 	logIAMPolicyBindings(t, policy.Bindings, "policy bindings before BindIdentity call")
-	for _, binding := range policy.Bindings {
-		if index := slices.Index(binding.Members, expectedMember); index != -1 {
-			t.Logf("Cleaning up from previous test. Removing member %v", expectedMember)
-			binding.Members = slices.Delete(binding.Members, index, index+1)
-		}
-	}
 
+	policy.Bindings = cleanUpBinding(t, policy.Bindings, expectedMember)
 	rb := &iam.SetIamPolicyRequest{Policy: policy}
 	policy, err = server.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resourceID, rb).Context(ctx).Do()
 	if err != nil {
@@ -82,9 +77,13 @@ func TestServer(t *testing.T) {
 			bindingWasSet = true
 		}
 	}
-
 	require.Equal(t, bindingWasSet, true)
-
+	policy.Bindings = cleanUpBinding(t, policy.Bindings, expectedMember)
+	rb = &iam.SetIamPolicyRequest{Policy: policy}
+	policy, err = server.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resourceID, rb).Context(ctx).Do()
+	if err != nil {
+		t.Errorf("error setting IAM policy: %v", err)
+	}
 }
 
 func logIAMPolicyBindings(t *testing.T, bindings []*iam.Binding, message string) {
@@ -92,4 +91,14 @@ func logIAMPolicyBindings(t *testing.T, bindings []*iam.Binding, message string)
 	for _, binding := range bindings {
 		t.Logf("role: %v, members: %v", binding.Role, binding.Members)
 	}
+}
+
+func cleanUpBinding(t *testing.T, bindings []*iam.Binding, member string) []*iam.Binding {
+	for _, binding := range bindings {
+		if index := slices.Index(binding.Members, member); index != -1 {
+			t.Logf("Cleaning up binding. Removing member %v", member)
+			binding.Members = slices.Delete(binding.Members, index, index+1)
+		}
+	}
+	return bindings
 }
