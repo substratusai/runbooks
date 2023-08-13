@@ -59,6 +59,9 @@ spec:
             - --leader-elect
           image: controller:latest
           name: manager
+          envFrom:
+            - configMapRef:
+                name: system
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
