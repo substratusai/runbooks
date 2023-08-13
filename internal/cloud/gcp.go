@@ -132,6 +132,9 @@ func (gcp *GCP) GetPrincipal(sa *corev1.ServiceAccount) (string, bool) {
 }
 
 func (gcp *GCP) AssociatePrincipal(sa *corev1.ServiceAccount) {
+	if sa.Annotations == nil {
+		sa.Annotations = map[string]string{}
+	}
 	principal, _ := gcp.GetPrincipal(sa)
 	sa.Annotations[GCPWorkloadIdentityLabel] = principal
 }
