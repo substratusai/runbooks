@@ -130,7 +130,7 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 	rb := &iam.SetIamPolicyRequest{Policy: policy}
 	resp, err := s.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resource, rb).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("Error setting IAM policy: %w", err)
+		return nil, fmt.Errorf("error setting IAM policy: %w", err)
 	}
 
 	fmt.Printf("%#v\n", resp)
@@ -171,6 +171,12 @@ func (s *Server) AutoConfigure(m *metadata.Client) error {
 			return err
 		}
 		s.SaEmail = cfg.Email
+
+		cred, err := google.CredentialsFromJSON(context.Background(), key)
+		if err != nil {
+			return err
+		}
+		s.ProjectID = cred.ProjectID
 	}
 	return nil
 }
