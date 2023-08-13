@@ -73,6 +73,11 @@ gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
    --role roles/iam.serviceAccountAdmin --project ${PROJECT} \
    --member "serviceAccount:${SERVICE_ACCOUNT}"
 
+# allow SCI to manage workload identity bindings
+gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
+  --role roles/iam.serviceAccountAdmin --project ${PROJECT} \
+  --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/sci]"
+
 # Allow to create signed URLs
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
    --role roles/iam.serviceAccountTokenCreator --project ${PROJECT} \
@@ -81,7 +86,6 @@ gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
    --role roles/iam.workloadIdentityUser --project ${PROJECT} \
    --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/sci]"
-
 
 # Configure kubectl.
 gcloud container clusters get-credentials --project ${PROJECT} --region ${cluster_region} ${cluster_name}

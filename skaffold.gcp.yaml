@@ -3,7 +3,7 @@ kind: Config
 manifests:
   kustomize:
     paths:
-      - ./config/install-gcp
+      - ./config/skaffold-gcp
 build:
   artifacts:
     - image: controller-manager
@@ -13,4 +13,4 @@ build:
       docker:
         dockerfile: Dockerfile.sci-gcp
   local:
-    push: false
+    push: true

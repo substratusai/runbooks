@@ -63,7 +63,7 @@ func (gcp *GCP) AutoConfigure(ctx context.Context) error {
 		}
 	}
 
-	if gcp.Principal != "" {
+	if gcp.Principal == "" {
 		gcp.Principal = fmt.Sprintf("substratus@%s.iam.gserviceaccount.com", gcp.ProjectID)
 	}
 
