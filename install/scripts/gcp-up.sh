@@ -41,7 +41,7 @@ cluster_region=$(terraform output --raw cluster_region)
 cd -
 
 # Create a bucket for substratus models and datasets
-export ARTIFACTS_BUCKET="gs://${PROJECT}-substratus"
+export ARTIFACTS_BUCKET="gs://${PROJECT}-substratus-artifacts"
 if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" -q >/dev/null; then
   gcloud storage buckets create --project ${PROJECT} "${ARTIFACTS_BUCKET}" --location ${cluster_region}
 fi
