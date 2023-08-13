@@ -18,6 +18,7 @@ func TestCommon(t *testing.T) {
 	os.Setenv("CLUSTER_NAME", "my-cluster")
 	os.Setenv("ARTIFACT_BUCKET_URL", "gs://my-artifact-bucket")
 	os.Setenv("REGISTRY_URL", "gcr.io/my-project")
+	os.Setenv("PRINCIPAL", "dummy-value")
 
 	require.Error(t, validator.New().Struct(&common))
 	require.NoError(t, envconfig.Process(context.Background(), &common))
@@ -27,6 +28,7 @@ func TestCommon(t *testing.T) {
 		ClusterName:       "my-cluster",
 		ArtifactBucketURL: &cloud.BucketURL{Scheme: "gs", Bucket: "my-artifact-bucket"},
 		RegistryURL:       "gcr.io/my-project",
+		Principal:         "dummy-value",
 	}, common)
 
 	require.Equal(t, "gcr.io/my-project/my-cluster-model-my-ns-my-model:latest", common.ObjectBuiltImageURL(&apiv1.Model{
