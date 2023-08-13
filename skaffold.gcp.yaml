@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+manifests:
+  kustomize:
+    paths:
+      - ./config/install-gcp
+build:
+  artifacts:
+    - image: controller-manager
+      docker:
+        dockerfile: Dockerfile
+    - image: sci-gcp
+      docker:
+        dockerfile: Dockerfile.sci-gcp
+  local:
+    push: false
