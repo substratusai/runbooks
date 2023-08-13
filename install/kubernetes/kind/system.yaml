@@ -1,3 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: namespace
+    app.kubernetes.io/part-of: substratus
+    control-plane: controller-manager
+  name: substratus
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -1444,6 +1457,50 @@ subjects:
   namespace: substratus
 ---
 apiVersion: v1
+data:
+  allow-bundled-registry.sh: |
+    #!/usr/bin/env bash
+
+    set -x
+    # Exit on non-existant variable.
+    set -u
+    # Exit on error.
+    set -e
+
+    export IMAGE_REGISTRY=$REGISTRY_PORT_5000_TCP_ADDR:5000
+
+    if ! grep -q $IMAGE_REGISTRY /mnt/etc/containerd/config.toml; then
+        containerd_version=$(nsenter --target 1 --mount bash -c "containerd --version | awk '{ print substr(\$3,0,4) }'")
+        if [ "$containerd_version" = "1.3." ] || [ "$containerd_version" = "1.4." ]; then
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins.cri.registry.configs."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        else
+            # Correct config for containerd 1.5 and above
+            cat <<EOF >> /mnt/etc/containerd/config.toml
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."$IMAGE_REGISTRY"]
+      endpoint = ["http://$IMAGE_REGISTRY"]
+    EOF
+        fi
+        nsenter --target 1 --mount bash -c "systemctl is-active --quiet containerd && echo 'Restarting containerd' && systemctl restart containerd"
+    fi
+kind: ConfigMap
+metadata:
+  name: allow-bundled-registry-script
+  namespace: substratus
+---
+apiVersion: v1
+data:
+  ARTIFACT_BUCKET_URL: tar:///bucket
+  CLOUD: kind
+  CLUSTER_NAME: substratus
+kind: ConfigMap
+metadata:
+  name: system
+  namespace: substratus
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
@@ -1468,15 +1525,35 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: registry
+  namespace: substratus
+spec:
+  ports:
+  - port: 5000
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: registry
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: sci
   namespace: substratus
 spec:
   ports:
-  - port: 10080
+  - name: http-signed-url
+    nodePort: 30080
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  - name: grpc-sci
+    port: 10080
     protocol: TCP
     targetPort: 10080
   selector:
     app: sci
+  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1586,6 +1663,35 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: registry
+  namespace: substratus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+      - image: registry:2
+        name: registry
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - mountPath: /var/lib/registry
+          name: registry
+      volumes:
+      - hostPath:
+          path: /registry
+          type: DirectoryOrCreate
+        name: registry
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: sci
   namespace: substratus
 spec:
@@ -1599,12 +1705,7 @@ spec:
         app: sci
     spec:
       containers:
-      - name: sci
-        ports:
-        - containerPort: 8080
-        - containerPort: 10080
       - image: docker.io/substratusai/sci-kind:v0.8.1
-        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15
@@ -1613,8 +1714,9 @@ spec:
           tcpSocket:
             port: 10080
           timeoutSeconds: 5
-        name: main
+        name: sci
         ports:
+        - containerPort: 8080
         - containerPort: 10080
         resources:
           limits:
@@ -1623,5 +1725,57 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        volumeMounts:
+        - mountPath: /bucket
+          name: bucket
       serviceAccountName: sci
       terminationGracePeriodSeconds: 10
+      volumes:
+      - hostPath:
+          path: /bucket
+          type: DirectoryOrCreate
+        name: bucket
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: allow-bundled-registry
+  name: allow-bundled-registry
+  namespace: substratus
+spec:
+  selector:
+    matchLabels:
+      app: allow-bundled-registry
+  template:
+    metadata:
+      labels:
+        app: allow-bundled-registry
+    spec:
+      containers:
+      - image: gcr.io/google_containers/pause
+        name: pause
+      hostPID: true
+      initContainers:
+      - command:
+        - /scripts/allow-bundled-registry.sh
+        image: ubuntu:22.04
+        name: allow-bundled-registry
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /mnt/etc
+          name: etc
+        - mountPath: /scripts
+          name: scripts
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /etc
+        name: etc
+      - configMap:
+          defaultMode: 484
+          name: allow-bundled-registry-script
+        name: scripts
