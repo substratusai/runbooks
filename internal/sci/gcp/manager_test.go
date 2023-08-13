@@ -62,11 +62,14 @@ func TestServer(t *testing.T) {
 	}
 	logIAMPolicyBindings(t, policy.Bindings, "policy bindings after cleaning up from previous tests")
 
-	server.BindIdentity(ctx, &sci.BindIdentityRequest{
+	_, err = server.BindIdentity(ctx, &sci.BindIdentityRequest{
 		Principal:                server.SaEmail,
 		KubernetesServiceAccount: "integration-test",
 		KubernetesNamespace:      "integration-test",
 	})
+	if err != nil {
+		t.Errorf("error binding identity: %v", err)
+	}
 
 	policy, err = server.Clients.IAM.Projects.ServiceAccounts.GetIamPolicy(resourceID).Context(ctx).Do()
 	if err != nil {
