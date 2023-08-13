@@ -128,12 +128,11 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 	})
 
 	rb := &iam.SetIamPolicyRequest{Policy: policy}
-	resp, err := s.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resource, rb).Context(ctx).Do()
+	_, err = s.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resource, rb).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("error setting IAM policy: %w", err)
 	}
 
-	fmt.Printf("%#v\n", resp)
 	return &sci.BindIdentityResponse{}, nil
 }
 
