@@ -147,21 +147,13 @@ dev-up-kind:
 	cd install/scripts && ./kind-up.sh
 
 #
-# TODO(nstogner): Running outside of cluster is tricky to support b/c how substratus
+# TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
 # Pods need to mount the same directories as the SCI.
 # 
-#.PHONY: dev-run-kind
-## Controller manager configuration #
-#dev-run-kind: export CLOUD=kind
-#dev-run-kind: export CLUSTER_NAME=substratus
-#dev-run-kind: export ARTIFACT_BUCKET_URL=kind://bucket
-#dev-run-kind: export REGISTRY_URL=http://docker.svc.cluster.local:5000
-## Run the controller manager and the sci.
-#dev-run-kind: manifests kustomize install-crds
-#	go run ./cmd/sci-kind & \
-#	go run ./cmd/controllermanager/main.go \
-#		--sci-address=localhost:10080 \
-#		--config-dump-path=/tmp/substratus-config.yaml
+# .PHONY: dev-run-kind
+# dev-run-kind:
+# 	...
+#
 
 .PHONY: dev-skaffold-kind
 dev-skaffold-kind:

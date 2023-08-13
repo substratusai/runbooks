@@ -40,6 +40,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 		}
 
 		// TODO: Make spot configurable.
+		// TODO: Move this GCP code into cloud-specific configuration.
 		podSpec.NodeSelector["cloud.google.com/gke-spot"] = "true"
 		// Toleration is needed to trigger NAP
 		// https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#support_for_spot_vms
@@ -63,8 +64,9 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 }
 
 func ContainerBuilderResources(cloudName string) corev1.ResourceRequirements {
-	// Nasty hack that can go away later... Most likely this stuff will all go into
-	// a ConfigMap that is cloud-specific.
+	// TODO(nstogner): Cloud-specific conditional should go away...
+	// Most likely this stuff will all go into a ConfigMap that contains cloud-specific
+	// information.
 	if cloudName == "kind" {
 		return corev1.ResourceRequirements{}
 	}

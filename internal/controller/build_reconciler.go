@@ -416,7 +416,7 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 		},
 	}
 
-	// Dirty hack to support "dir:///" URLs for Kaniko.
+	// Dirty hack to support "tar://" URLs for Kaniko.
 	// TODO(nstogner): Refactor this "cloud"-specific code. It does not
 	// belong here.
 	if r.Cloud.Name() == cloud.KindName {

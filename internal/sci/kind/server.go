@@ -19,7 +19,6 @@ var _ sci.ControllerServer = &Server{}
 
 type Server struct {
 	SignedURLAddress string
-	//BucketDir        string
 
 	sci.UnimplementedControllerServer
 }
