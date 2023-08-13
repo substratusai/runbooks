@@ -18,6 +18,10 @@ import (
 )
 
 func TestServer(t *testing.T) {
+	// This tests requires a GCP Service Account key file and pointing GOOGLE_APPLICATION_CREDENTIALS
+	// to the location of the key file. For example run:
+	// `export GOOGLE_APPLICATION_CREDENTIALS=$PWD/secrets/substratus-sa.json`
+	// this test won't run if GOOGLE_APPLICATION_CREDENTIALS is not set
 	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
 		t.Skip("Skipping test because GOOGLE_APPLICATION_CREDENTIALS is not set")
 	}
@@ -80,7 +84,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, bindingWasSet, true)
 	policy.Bindings = cleanUpBinding(t, policy.Bindings, expectedMember)
 	rb = &iam.SetIamPolicyRequest{Policy: policy}
-	policy, err = server.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resourceID, rb).Context(ctx).Do()
+	_, err = server.Clients.IAM.Projects.ServiceAccounts.SetIamPolicy(resourceID, rb).Context(ctx).Do()
 	if err != nil {
 		t.Errorf("error setting IAM policy: %v", err)
 	}
