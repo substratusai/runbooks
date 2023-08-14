@@ -34,12 +34,12 @@ cd -
 
 set -x
 export SERVICE_ACCOUNT="substratus@${PROJECT}.iam.gserviceaccount.com"
-gcloud iam service-accounts delete ${SERVICE_ACCOUNT} --project ${PROJECT}
+# can't delete service account, getting permission denied
+# gcloud --quiet iam service-accounts delete ${SERVICE_ACCOUNT} --project ${PROJECT}
 
 
 export ARTIFACTS_BUCKET="gs://${PROJECT}-substratus-artifacts"
-gcloud storage buckets delete --project ${PROJECT} "${ARTIFACTS_BUCKET}" --location ${cluster_region}
+gcloud --quiet storage rm -r --project ${PROJECT} "${ARTIFACTS_BUCKET}" || true
 
-gcloud artifacts repositories delete substratus \
-  --repository-format=docker --location=${cluster_region} \
-  --project ${PROJECT}
+gcloud --quiet artifacts repositories delete substratus \
+  --project ${PROJECT} --location us-central1 || true
