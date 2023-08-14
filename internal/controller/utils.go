@@ -3,12 +3,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -73,4 +77,23 @@ func paramsToEnv(params map[string]intstr.IntOrString) []corev1.EnvVar {
 		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: p.String()})
 	}
 	return envs
+}
+
+func CreateKubernetesClient() (*kubernetes.Clientset, error) {
+	// Try in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		// If there's an error, it means we're not in-cluster, try out-of-cluster config
+		kubeconfig := os.Getenv("KUBECONFIG") // Path to a kubeconfig. Only required if out-of-cluster
+		if kubeconfig == "" {
+			kubeconfig = os.Getenv("HOME") + "/.kube/config"
+		}
+
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create out-of-cluster config: %v", err)
+		}
+	}
+
+	return kubernetes.NewForConfig(config)
 }
