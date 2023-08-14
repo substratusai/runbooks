@@ -59,11 +59,13 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	if _, err := obj.Attrs(ctx); err != nil && err != storage.ErrObjectNotExist {
 		// An error occurred that was NOT ErrObjectNotExist.
 		// This is an unexpected error and we should return it.
+		log.Error(err, "error checking if object exists", "object", objectName)
 		return nil, err
 	}
 
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
+		log.Error(err, "error decoding MD5 checksum", "checksum", checksum)
 		return nil, fmt.Errorf("failed to decode MD5 checksum: %w", err)
 	}
 	base64md5 := base64.StdEncoding.EncodeToString(data)
@@ -84,6 +86,7 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 			}
 			resp, err := s.Clients.IAMCredentialsClient.SignBlob(ctx, req)
 			if err != nil {
+				log.Error(err, "error signing blob")
 				return nil, fmt.Errorf("failed to sign the blob: %w", err)
 			}
 			return resp.SignedBlob, err
@@ -93,7 +96,8 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 	// Create a signed URL
 	url, err := storage.SignedURL(bucketName, objectName, opts)
 	if err != nil {
-		return nil, err
+		log.Error(err, "error creating signed url")
+		return nil, fmt.Errorf("error creating signed url: %w", err)
 	}
 
 	return &sci.CreateSignedURLResponse{Url: url}, nil
