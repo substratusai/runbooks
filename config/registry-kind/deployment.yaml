@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+        - name: registry
+          image: docker.io/library/registry:2
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: registry
+              mountPath: /var/lib/registry
+      volumes:
+        - name: registry
+          hostPath:
+            path: /registry
+            type: DirectoryOrCreate

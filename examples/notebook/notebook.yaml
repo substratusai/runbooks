@@ -4,6 +4,8 @@ metadata:
   name: example
 spec:
   image: substratusai/base:latest
+  model:
+    name: facebook-opt-125m
   params:
     abc: xyz
     x: 123

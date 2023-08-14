@@ -1,0 +1,27 @@
+# Start from the latest go base image
+FROM golang:1.19 AS builder
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+WORKDIR /workspace
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd/sci-kind/main.go cmd/sci-kind/main.go
+COPY internal/ internal/
+
+# Build the app
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -a -o main cmd/sci-kind/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+
+# Copy the Pre-built binary file from the previous stage
+COPY --from=builder /workspace/main .
+USER root
+EXPOSE 10080
+EXPOSE 8080
+
+# run the executable
+CMD ["/main"]

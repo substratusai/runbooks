@@ -38,16 +38,11 @@ func ParseBucketURL(bktURL string) (*BucketURL, error) {
 		return nil, fmt.Errorf("parsing url: %w", err)
 	}
 
-	bucket := u.Host
-	subpath := strings.TrimPrefix(u.Path, "/")
-
-	if bucket == "" {
-		return nil, fmt.Errorf("empty bucket: %s", bktURL)
-	}
+	// NOTE: For local Kind clusters where URL is "tar:///bucket", u.Host will be empty.
 
 	return &BucketURL{
 		Scheme: u.Scheme,
-		Bucket: bucket,
-		Path:   subpath,
+		Bucket: u.Host,
+		Path:   strings.TrimPrefix(u.Path, "/"),
 	}, nil
 }

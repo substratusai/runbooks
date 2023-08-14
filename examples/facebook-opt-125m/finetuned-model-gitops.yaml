@@ -3,7 +3,10 @@ kind: Model
 metadata:
   name: fb-opt-125m-squad
 spec:
-  image: substratusai/model-trainer-huggingface
+  build:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
   baseModel:
     name: facebook-opt-125m
   trainingDataset:

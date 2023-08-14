@@ -81,7 +81,7 @@ func TestMain(m *testing.M) {
 	testCloud.ProjectID = "test-project-id"
 	testCloud.ClusterName = "test-cluster-name"
 	testCloud.ClusterLocation = "us-central1"
-	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket"}
+	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket", Path: "/"}
 	testCloud.RegistryURL = "registry.test"
 	testCloud.Principal = "substratus@test-project-id.iam.gserviceaccount.com"
 

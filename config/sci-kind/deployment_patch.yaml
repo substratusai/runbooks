@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sci
+  namespace: substratus
+spec:
+  template:
+    spec:
+      containers:
+        - name: sci
+          ports:
+            - containerPort: 8080
+            - containerPort: 10080
+          volumeMounts:
+            - name: bucket
+              mountPath: /bucket
+      volumes:
+        - name: bucket
+          hostPath:
+            path: /bucket
+            type: DirectoryOrCreate

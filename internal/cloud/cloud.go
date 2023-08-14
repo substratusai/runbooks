@@ -58,6 +58,8 @@ func New(ctx context.Context) (Cloud, error) {
 	switch cloudName {
 	case GCPName:
 		c = &GCP{}
+	case KindName:
+		c = &Kind{}
 	default:
 		if cloudName == "" {
 			return nil, fmt.Errorf("unable to determine cloud, if running remotely, specify %v environment variable", CloudEnvVar)

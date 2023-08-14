@@ -111,7 +111,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 					corev1.VolumeMount{
 						Name:      req.Name,
 						MountPath: "/content/" + mount.ContentSubdir,
-						SubPath:   bktURL.Path + "/" + mount.BucketSubdir,
+						SubPath:   strings.TrimPrefix(bktURL.Path+"/"+mount.BucketSubdir, "/"),
 						ReadOnly:  req.ReadOnly,
 					},
 				)
