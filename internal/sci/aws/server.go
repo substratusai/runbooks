@@ -7,20 +7,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
 	awsSdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/substratusai/substratus/internal/sci"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type Server struct {
@@ -33,44 +30,6 @@ type Server struct {
 type Clients struct {
 	S3Client  *s3.S3
 	IamClient *iam.IAM
-}
-
-func NewAWSServer() (*Server, error) {
-	sess, err := session.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AWS session: %w", err)
-	}
-
-	clusterID, err := getClusterID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster ID: %w", err)
-	}
-
-	ec2Svc := ec2metadata.New(sess)
-	region, err := getRegion(ec2Svc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get region: %w", err)
-	}
-
-	stsSvc := sts.New(sess)
-	accountId, err := getAccountID(stsSvc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get account ID: %w", err)
-	}
-
-	OIDCProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
-	OIDCProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, OIDCProviderURL)
-
-	c := &Clients{
-		S3Client:  s3.New(sess),
-		IamClient: iam.New(sess),
-	}
-
-	return &Server{
-		Clients:         *c,
-		OIDCProviderURL: OIDCProviderURL,
-		OIDCProviderARN: OIDCProviderARN,
-	}, nil
 }
 
 func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
@@ -144,6 +103,7 @@ func (s *Server) getObjectMetadata(sc *s3.S3, bucketName, objectKey string) (*s3
 	}
 	return result, nil
 }
+
 func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {
 	// Fetch the current trust policy
 	getRoleInput := &iam.GetRoleInput{
@@ -154,27 +114,19 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 		return nil, fmt.Errorf("failed to get the role: %v", err)
 	}
 
+	// URL decode the trust policy before decoding
+	decodedPolicy, err := url.QueryUnescape(*getRoleOutput.Role.AssumeRolePolicyDocument)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode trust policy: %v", err)
+	}
+
 	// Decode the current trust policy
 	var existingTrustPolicy map[string]interface{}
-	if err := json.Unmarshal([]byte(*getRoleOutput.Role.AssumeRolePolicyDocument), &existingTrustPolicy); err != nil {
+	if err := json.Unmarshal([]byte(decodedPolicy), &existingTrustPolicy); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal trust policy: %v", err)
 	}
 
 	subValue := fmt.Sprintf("system:serviceaccount:%s:%s", req.KubernetesNamespace, req.KubernetesServiceAccount)
-
-	// Construct the new trust relationship
-	newTrustRelationship := map[string]interface{}{
-		"Effect": "Allow",
-		"Principal": map[string]interface{}{
-			"Federated": s.OIDCProviderARN,
-		},
-		"Action": "sts:AssumeRoleWithWebIdentity",
-		"Condition": map[string]interface{}{
-			"StringEquals": map[string]string{
-				fmt.Sprintf("%s:sub", s.OIDCProviderURL): subValue,
-			},
-		},
-	}
 
 	// Check if the OIDC provider's trust relationship already exists
 	statements := existingTrustPolicy["Statement"].([]interface{})
@@ -191,6 +143,19 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 		}
 	}
 
+	// Construct the new trust relationship
+	newTrustRelationship := map[string]interface{}{
+		"Effect": "Allow",
+		"Principal": map[string]interface{}{
+			"Federated": s.OIDCProviderARN,
+		},
+		"Action": "sts:AssumeRoleWithWebIdentity",
+		"Condition": map[string]interface{}{
+			"StringEquals": map[string]string{
+				fmt.Sprintf("%s:sub", s.OIDCProviderURL): subValue,
+			},
+		},
+	}
 	if !alreadyExists {
 		// Append the new trust relationship to the existing policy
 		existingTrustPolicy["Statement"] = append(statements, newTrustRelationship)
@@ -209,15 +174,13 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 
 	_, err = s.Clients.IamClient.UpdateAssumeRolePolicy(input)
 	if err != nil {
-		// handle AWS-specific errors
-		// ... (as per your existing error handling code) ...
 		return nil, fmt.Errorf("failed to update trust policy: %v", err)
 	}
 
 	return &sci.BindIdentityResponse{}, nil
 }
 
-func getAccountID(stsSvc *sts.STS) (string, error) {
+func GetAccountID(stsSvc *sts.STS) (string, error) {
 	result, err := stsSvc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err == nil {
 		return *result.Account, nil
@@ -232,41 +195,17 @@ func getAccountID(stsSvc *sts.STS) (string, error) {
 	return "", fmt.Errorf("failed to determine AWS account ID from both STS and environment variable")
 }
 
-func getClusterID() (string, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return "", fmt.Errorf("failed to set up in-cluster config: %w", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return "", fmt.Errorf("failed to create clientset: %w", err)
-	}
-
-	configMapName := "substratus-global"
-	configMapNamespace := "substratus"
-	configMapKey := "cluster_id"
-
-	configMap, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch ConfigMap: %w", err)
-	}
-
-	// Extract cluster ID from the ConfigMap
-	clusterID, exists := configMap.Data[configMapKey]
-	if !exists {
-		// Fall back to the environment variable
-		clusterIDFromEnv := os.Getenv("EKS_CLUSTER_ID")
-		if clusterIDFromEnv != "" {
-			return clusterIDFromEnv, nil
-		}
-		return "", fmt.Errorf("cluster ID key not found in ConfigMap and environment variable not set")
+func GetClusterID() (string, error) {
+	// Fall back to the environment variable
+	clusterID := os.Getenv("CLUSTER_NAME")
+	if clusterID != "" {
+		return clusterID, nil
 	}
 
 	return clusterID, nil
 }
 
-func getRegion(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
+func GetRegion(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
 	// Try to get the region from the EC2 metadata service
 	if ec2Svc.Available() {
 		region, err := ec2Svc.Region()

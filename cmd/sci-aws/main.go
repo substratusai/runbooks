@@ -7,6 +7,11 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/substratusai/substratus/internal/sci"
 	awssci "github.com/substratusai/substratus/internal/sci/aws"
 	"google.golang.org/grpc"
@@ -21,7 +26,7 @@ func main() {
 	flag.Parse()
 
 	// Create new AWS Server
-	s, err := awssci.NewAWSServer()
+	s, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to create AWS server: %v", err)
 	}
@@ -43,4 +48,42 @@ func main() {
 	if err := gs.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+}
+
+func NewServer() (*awssci.Server, error) {
+	sess, err := session.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AWS session: %w", err)
+	}
+
+	clusterID, err := awssci.GetClusterID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster ID: %w", err)
+	}
+
+	ec2Svc := ec2metadata.New(sess)
+	region, err := awssci.GetRegion(ec2Svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get region: %w", err)
+	}
+
+	stsSvc := sts.New(sess)
+	accountId, err := awssci.GetAccountID(stsSvc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get account ID: %w", err)
+	}
+
+	oidcProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
+	oidcProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, oidcProviderURL)
+
+	c := &awssci.Clients{
+		S3Client:  s3.New(sess),
+		IamClient: iam.New(sess),
+	}
+
+	return &awssci.Server{
+		Clients:         *c,
+		OIDCProviderURL: oidcProviderURL,
+		OIDCProviderARN: oidcProviderARN,
+	}, nil
 }
