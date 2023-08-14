@@ -48,6 +48,9 @@ func NewServer() (*Server, error) {
 
 // CreateSignedURL generates a signed URL for a specified GCS bucket and object path.
 func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRequest) (*sci.CreateSignedURLResponse, error) {
+	log := log.FromContext(ctx)
+	log.Info("creating signed URL", "bucket", req.BucketName, "object", req.ObjectName)
+
 	bucketName, objectName, checksum := req.GetBucketName(),
 		req.GetObjectName(),
 		req.GetMd5Checksum()

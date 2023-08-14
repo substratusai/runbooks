@@ -4,10 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
@@ -18,28 +20,41 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+var setupLog = ctrl.Log.WithName("setup")
 
 func main() {
 	// serve by default on port 10080
 	var port int
 	flag.IntVar(&port, "port", 10080, "port number to listen on")
+
+	opts := zap.Options{
+		Development: true,
+	}
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	ctx := context.Background()
 	iamCredClient, err := credentials.NewIamCredentialsClient(ctx)
 	if err != nil {
-		log.Fatalf("failed to create iam credentials client: %v", err)
+		setupLog.Error(err, "failed to create iam credentials client")
+		os.Exit(1)
 	}
 
 	iamService, err := iam.NewService(ctx)
 	if err != nil {
-		log.Fatalf("failed to create iam client: %v", err)
+		setupLog.Error(err, "failed to create iam client")
+		os.Exit(1)
 	}
 
 	storageClient, err := storage.NewClient(context.Background())
 	if err != nil {
-		log.Fatalf("failed to create storage client: %v", err)
+		setupLog.Error(err, "failed to create storage client")
+		os.Exit(1)
 	}
 
 	hc := &http.Client{}
@@ -47,7 +62,8 @@ func main() {
 
 	s, err := gcp.NewServer()
 	if err != nil {
-		log.Fatalf("error creating new server: %v", err)
+		setupLog.Error(err, "failed to create server")
+		os.Exit(1)
 	}
 	s.Clients = gcp.Clients{
 		IAMCredentialsClient: iamCredClient,
@@ -57,7 +73,8 @@ func main() {
 		Http:                 hc,
 	}
 	if err := s.AutoConfigure(mc); err != nil {
-		log.Fatalf("error with automatically configuring sci-gcp: %v", err)
+		setupLog.Error(err, "failed to AutoConfigure server")
+		os.Exit(1)
 	}
 	gs := grpc.NewServer()
 	sci.RegisterControllerServer(gs, s)
@@ -70,10 +87,12 @@ func main() {
 	fmt.Printf("sci.gcp server listening on port %v...", port)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		setupLog.Error(err, "failed to listen", "port", port)
+		os.Exit(1)
 	}
 
 	if err := gs.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		setupLog.Error(err, "failed to serve", "port", port)
+		os.Exit(1)
 	}
 }
