@@ -1458,7 +1458,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  allow-bundled-registry.sh: |
+  configure-cri.sh: |
     #!/usr/bin/env bash
 
     set -x
@@ -1484,17 +1484,19 @@ data:
     EOF
         fi
         nsenter --target 1 --mount bash -c "systemctl is-active --quiet containerd && echo 'Restarting containerd' && systemctl restart containerd"
+        # Wait for containerd to be ready so that skaffold doesn't fail.
+        nsenter --target 1 --mount bash -c "while ! ctr -n k8s.io containers ls; do sleep 1; done"
     fi
 kind: ConfigMap
 metadata:
-  name: allow-bundled-registry-script
+  name: configure-cri
   namespace: substratus
 ---
 apiVersion: v1
 data:
-  ARTIFACT_BUCKET_URL: tar:///bucket
   CLOUD: kind
   CLUSTER_NAME: substratus
+  PRINCIPAL: unused
 kind: ConfigMap
 metadata:
   name: system
@@ -1676,7 +1678,7 @@ spec:
         app: registry
     spec:
       containers:
-      - image: registry:2
+      - image: docker.io/library/registry:2
         name: registry
         ports:
         - containerPort: 5000
@@ -1740,17 +1742,17 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    app: allow-bundled-registry
-  name: allow-bundled-registry
+    app: configure-cri
+  name: configure-cri
   namespace: substratus
 spec:
   selector:
     matchLabels:
-      app: allow-bundled-registry
+      app: configure-cri
   template:
     metadata:
       labels:
-        app: allow-bundled-registry
+        app: configure-cri
     spec:
       containers:
       - image: gcr.io/google_containers/pause
@@ -1758,9 +1760,9 @@ spec:
       hostPID: true
       initContainers:
       - command:
-        - /scripts/allow-bundled-registry.sh
+        - /scripts/configure-cri.sh
         image: ubuntu:22.04
-        name: allow-bundled-registry
+        name: configure-cri
         securityContext:
           privileged: true
         volumeMounts:
@@ -1777,5 +1779,5 @@ spec:
         name: etc
       - configMap:
           defaultMode: 484
-          name: allow-bundled-registry-script
+          name: configure-cri
         name: scripts

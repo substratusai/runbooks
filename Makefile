@@ -3,6 +3,7 @@
 VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
+IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
 
 # Set to false if you don't want GPU nodepools created
 ATTACH_GPU_NODEPOOLS=true
@@ -35,10 +36,10 @@ ifeq ($(UNAME_M),arm64)
 	PROTOC_ARCH := aarch_64
 	SKAFFOLD_ARCH := arm64
 else
+	PROTOC_ARCH := $(UNAME_M)
 	ifeq ($(UNAME_M),x86_64)
 		SKAFFOLD_ARCH := amd64
 	else
-		PROTOC_ARCH := $(UNAME_M)
 		SKAFFOLD_ARCH := $(UNAME_M)
 	endif
 endif
@@ -289,7 +290,9 @@ installation-scripts:
 installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
-	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
+	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
+	# TODO: Fix in another PR:
+	#$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
 	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
 
 .PHONY: prepare-release

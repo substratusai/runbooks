@@ -26,7 +26,7 @@ func TestCommon(t *testing.T) {
 
 	require.EqualValues(t, cloud.Common{
 		ClusterName:       "my-cluster",
-		ArtifactBucketURL: &cloud.BucketURL{Scheme: "gs", Bucket: "my-artifact-bucket"},
+		ArtifactBucketURL: &cloud.BucketURL{Scheme: "gs", Bucket: "my-artifact-bucket", Path: ""},
 		RegistryURL:       "gcr.io/my-project",
 		Principal:         "dummy-value",
 	}, common)

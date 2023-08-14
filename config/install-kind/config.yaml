@@ -6,3 +6,4 @@ metadata:
 data:
   CLOUD: kind
   CLUSTER_NAME: substratus
+  PRINCIPAL: unused

@@ -36,7 +36,7 @@ func (k *Kind) AutoConfigure(ctx context.Context) error {
 		k.ArtifactBucketURL = &BucketURL{
 			Scheme: "tar",
 			Bucket: "",
-			Path:   "bucket",
+			Path:   "/bucket",
 		}
 	}
 
@@ -89,5 +89,6 @@ func (k *Kind) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSp
 	return fmt.Errorf("container not found: %s", req.Container)
 }
 
-func (k *Kind) AssociateServiceAccount(sa *corev1.ServiceAccount) {
-}
+func (k *Kind) AssociatePrincipal(*corev1.ServiceAccount) {}
+
+func (k Kind) GetPrincipal(*corev1.ServiceAccount) (string, bool) { return "", true }

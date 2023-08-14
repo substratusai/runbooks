@@ -6,6 +6,3 @@ images:
 - name: controller
   newName: docker.io/substratusai/controller-manager
   newTag: v0.8.1
-- name: gcp-manager
-  newName: docker.io/substratusai/gcp-manager
-  newTag: v0.6.5-alpha
