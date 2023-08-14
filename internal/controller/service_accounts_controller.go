@@ -32,13 +32,17 @@ type ServiceAccountReconciler struct {
 }
 
 func (r *ServiceAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if req.Namespace != "substratus" && req.Name != "sci" {
+		return ctrl.Result{}, nil
+	}
 	log := log.FromContext(ctx)
-	log.Info("Reconciling ServiceAccount")
+	log.Info("Reconciling ServiceAccount substratus/sci")
+	defer log.Info("Done reconciling Service Account")
 	var sa corev1.ServiceAccount
 	if err := r.Get(ctx, req.NamespacedName, &sa); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	if _, exists := r.Cloud.GetPrincipal(&sa); sa.Name == "sci" && sa.Namespace == "substratus" && !exists {
+	if _, exists := r.Cloud.GetPrincipal(&sa); !exists {
 		if sa.Annotations == nil {
 			sa.Annotations = map[string]string{}
 		}
