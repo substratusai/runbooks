@@ -3,8 +3,6 @@ package cloud
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,19 +11,38 @@ import (
 const KindName = "kind"
 
 type Kind struct {
+	// RegistryDiscoveryIP environment variable comes from the registry Service in the same namespace.
+	// See: https://kubernetes.io/docs/concepts/services-networking/service/#environment-variables
+	RegistryDiscoveryIP string `env:"REGISTRY_PORT_5000_TCP_ADDR" required:"true"`
+
 	Common
 }
 
 func (k *Kind) Name() string { return KindName }
 
 func (k *Kind) AutoConfigure(ctx context.Context) error {
-	// This environment variable comes from the registry Service in the same namespace.
-	// See: https://kubernetes.io/docs/concepts/services-networking/service/#environment-variables
-	addr := os.Getenv("REGISTRY_PORT_5000_TCP_ADDR")
-	if addr == "" {
-		return fmt.Errorf("REGISTRY_PORT_5000_TCP_ADDR not set")
+	if k.ArtifactBucketURL == nil {
+		// This is the base of the URL that Substratus objects will report
+		// in their status.artifacts.url field. It references a host path
+		// mount created in containers running on a Kind cluster.
+		//
+		// Translates to: "tar:///bucket"
+		//
+		// NOTE: kaniko interacts with this address and works because the
+		// /bucket directory is mounted in the builder container.
+		//
+		// See: https://github.com/GoogleContainerTools/kaniko#kaniko-build-contexts
+		//
+		k.ArtifactBucketURL = &BucketURL{
+			Scheme: "tar",
+			Bucket: "",
+			Path:   "bucket",
+		}
 	}
-	k.RegistryURL = addr + ":5000"
+
+	if k.RegistryURL == "" {
+		k.RegistryURL = k.RegistryDiscoveryIP + ":5000"
+	}
 
 	return nil
 }
@@ -47,7 +64,7 @@ func (k *Kind) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSp
 		Name: req.Name,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: filepath.Join("/bucket", bktURL.Path),
+				Path: bktURL.Path,
 				Type: &hostPathType,
 			},
 		},

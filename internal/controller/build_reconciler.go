@@ -416,9 +416,17 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 		},
 	}
 
-	// Dirty hack to support "tar://" URLs for Kaniko.
+	// Hack to support "tar://" URLs for Kaniko.
 	// TODO(nstogner): Refactor this "cloud"-specific code. It does not
 	// belong here.
+	//
+	// NOTE: Consider using a local context ("tar://") for kaniko across all clouds
+	// any relying on CSIs to mount the bucket.
+	// Before going that direction validate that we dont lose efficiencies:
+	// i.e. does kaniko avoid pulling the tarball in the case of using a gcs://
+	// context if the md5 already matches? i.e. does it send a small request to
+	// check the tarball signature before pulling it? Would we lose out on that
+	// efficiency if we switch to using gcs fuse to mount the tarball?
 	if r.Cloud.Name() == cloud.KindName {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "bucket",

@@ -35,8 +35,12 @@ ifeq ($(UNAME_M),arm64)
 	PROTOC_ARCH := aarch_64
 	SKAFFOLD_ARCH := arm64
 else
-	PROTOC_ARCH := $(UNAME_M)
-	SKAFFOLD_ARCH := $(UNAME_M)
+	ifeq ($(UNAME_M),x86_64)
+		SKAFFOLD_ARCH := amd64
+	else
+		PROTOC_ARCH := $(UNAME_M)
+		SKAFFOLD_ARCH := $(UNAME_M)
+	endif
 endif
 
 PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
@@ -149,19 +153,21 @@ dev-up-kind:
 #
 # TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
 # Pods need to mount the same directories as the SCI.
-# 
+#
 # .PHONY: dev-run-kind
 # dev-run-kind:
 # 	...
 #
 
 .PHONY: dev-skaffold-kind
-dev-skaffold-kind:
-	# NOTE: Disabled cache artifacts can help if you are having issues
-	# with timeouts from docker hub. It coulld be quicker to just rebuild
-	# and rely on standard docker layer caching.
-    # --cache-artifacts=false
-	skaffold dev -f skaffold.kind.yaml --cache-artifacts=false
+dev-skaffold-kind: skaffold
+	# NOTE: Installing the registry restarts containerd which causes
+	# skaffold to lose its connections to the Pods. To fix this, the registry is
+	# installed before running "skaffold dev".
+	$(SKAFFOLD) run -f skaffold.kind.yaml -m registry
+	$(SKAFFOLD) dev -f skaffold.kind.yaml -m install \
+	--cache-artifacts=true \
+	--tolerate-failures-until-deadline=true
 
 .PHONY: dev-down-kind
 dev-down-kind:
@@ -300,6 +306,7 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+SKAFFOLD ?= $(LOCALBIN)/skaffold
 EMBEDMD ?= $(LOCALBIN)/embedmd
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 PROTOC ?= $(LOCALBIN)/protoc
@@ -311,6 +318,7 @@ CRD_REF_DOCS_VERSION ?= v0.0.9
 PROTOC_VERSION ?= 23.4
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
 PROTOC_GEN_GO_VERSION ?= v1.31.0
+SKAFFOLD_VERSION ?= v2.6.3
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -359,11 +367,12 @@ $(PROTOC): $(LOCALBIN)
 	fi
 
 .PHONY: skaffold
-skaffold:
+skaffold: $(SKAFFOLD)
+$(SKAFFOLD): $(LOCALBIN)
 	@ test -s $(LOCALBIN)/skaffold || \
-	( curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
+	curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
 	chmod +x skaffold && \
-	mv skaffold $(LOCALBIN)/skaffold )
+	mv skaffold $(LOCALBIN)/skaffold
 
 .PHONY: envsubst
 envsubst:

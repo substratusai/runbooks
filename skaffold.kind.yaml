@@ -1,5 +1,23 @@
+# Skaffold module that only includes the registry and containerd restart.
+# This should be run before the install module or Skaffold is likely to fail
+# on a new Kind cluster due to a race condition between containerd (CRI)
+# restarting and the commands skaffold runs that relies on the CRI.
 apiVersion: skaffold/v4beta6
 kind: Config
+metadata:
+  name: registry
+manifests:
+  rawYaml:
+    - ./config/install-kind/namespace.yaml
+  kustomize:
+    paths:
+      - ./config/registry-kind
+---
+# Skaffold module that contains the full install including the registry.
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: install
 manifests:
   kustomize:
     paths:

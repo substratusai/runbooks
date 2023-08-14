@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: allow-bundled-registry
+  name: configure-cri
   labels:
-    app: allow-bundled-registry
+    app: configure-cri
 spec:
   selector:
     matchLabels:
-      app: allow-bundled-registry
+      app: configure-cri
   template:
     metadata:
       labels:
-        app: allow-bundled-registry
+        app: configure-cri
     spec:
       hostPID: true
       initContainers:
-        - name: allow-bundled-registry
+        - name: configure-cri
           image: ubuntu:22.04
-          command: ["/scripts/allow-bundled-registry.sh"]
+          command: ["/scripts/configure-cri.sh"]
           volumeMounts:
             - name: etc
               mountPath: "/mnt/etc"
@@ -31,7 +31,7 @@ spec:
             path: /etc
         - name: scripts
           configMap:
-            name: allow-bundled-registry-script
+            name: configure-cri
             defaultMode: 0744
       containers:
         - name: pause

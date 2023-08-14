@@ -16,15 +16,18 @@ import (
 
 func main() {
 	var cfg struct {
-		port          int
-		signedURLPort int
+		port                 int
+		signedURLPort        int
+		hostSignedURLAddress string
 	}
 	flag.IntVar(&cfg.port, "port", 10080, "port number to listen on")
 	flag.IntVar(&cfg.signedURLPort, "signed-url-port", 8080, "port to listen for signed url traffic")
+	flag.StringVar(&cfg.hostSignedURLAddress, "host-signed-url-address", "http://localhost:30080",
+		"host address that port forwards to the signed url port within the cluster. this should be set in kind config.yaml.")
 	flag.Parse()
 
 	s := &scikind.Server{
-		SignedURLAddress: "http://localhost:30080",
+		SignedURLAddress: cfg.hostSignedURLAddress,
 	}
 	signedURLServer := &http.Server{
 		Addr:    fmt.Sprintf(":%v", cfg.signedURLPort),

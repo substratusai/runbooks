@@ -1,8 +1,8 @@
 resources:
   - ../sci
 patches:
-  - path: deployment.yaml
-  - path: service.yaml
+  - path: deployment_patch.yaml
+  - path: service_patch.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:

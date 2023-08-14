@@ -6,5 +6,3 @@ metadata:
 data:
   CLOUD: kind
   CLUSTER_NAME: substratus
-  ARTIFACT_BUCKET_URL: tar:///bucket
-  # REGISTRY_URL: <autoconfigured>
