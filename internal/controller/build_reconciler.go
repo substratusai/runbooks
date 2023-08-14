@@ -210,7 +210,8 @@ func (r *BuildReconciler) reconcileUploadFile(ctx context.Context, obj Buildable
 
 		url, expiration, err := r.generateSignedURL(obj)
 		if err != nil {
-			return result{}, fmt.Errorf("generating upload url: %w", err)
+			objectURL := r.Cloud.ObjectArtifactURL(obj)
+			return result{}, fmt.Errorf("generating upload url for object %v: %w", objectURL, err)
 		}
 
 		obj.SetStatusUpload(apiv1.UploadStatus{
