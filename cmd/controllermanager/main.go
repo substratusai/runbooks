@@ -116,14 +116,8 @@ func main() {
 	// Create a client using the connection
 	sciClient := sci.NewControllerClient(conn)
 
-	if err = (&controller.ServiceAccountReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Cloud:  cld,
-		SCI:    sciClient,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Model")
-		os.Exit(1)
+	for i := 0; i < 3; i++ {
+
 	}
 
 	if err = (&controller.ModelReconciler{

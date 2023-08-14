@@ -7,12 +7,11 @@ import (
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/sci"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -31,32 +30,17 @@ type ServiceAccountReconciler struct {
 	SCI   sci.ControllerClient
 }
 
-func (r *ServiceAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.Namespace != "substratus" && req.Name != "sci" {
-		return ctrl.Result{}, nil
-	}
-	log := log.FromContext(ctx)
-	log.Info("Reconciling ServiceAccount substratus/sci")
-	defer log.Info("Done reconciling Service Account")
-	var sa corev1.ServiceAccount
-	if err := r.Get(ctx, req.NamespacedName, &sa); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-	if _, exists := r.Cloud.GetPrincipal(&sa); !exists {
-		if sa.Annotations == nil {
-			sa.Annotations = map[string]string{}
-		}
+func AssociatePrincipalSCIServiceAccount(ctx context.Context, client *kubernetes.Clientset, cloud cloud.Cloud) error {
+	namespace := "substratus"
+	serviceAccountName := "sci"
 
-		configureSA := func() error {
-			r.Cloud.AssociatePrincipal(&sa)
-			return nil
-		}
-
-		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, &sa, configureSA); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to create or update SCI service account: %w", err)
-		}
+	sa, err := client.CoreV1().ServiceAccounts(namespace).Get(ctx, serviceAccountName, metav1.GetOptions{})
+	if err != nil {
+		return err
 	}
-	return ctrl.Result{}, nil
+
+	cloud.AssociatePrincipal(sa)
+	return nil
 }
 
 func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
@@ -87,15 +71,4 @@ func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciCl
 	}
 
 	return result{success: true}, nil
-}
-
-//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *ServiceAccountReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.ServiceAccount{}).
-		Owns(&corev1.ServiceAccount{}).
-		Watches(&corev1.ServiceAccount{}, &handler.EnqueueRequestForObject{}).
-		Complete(r)
 }
