@@ -68,12 +68,12 @@ func New(ctx context.Context) (Cloud, error) {
 		}
 	}
 
-	if err := c.AutoConfigure(ctx); err != nil {
-		return nil, fmt.Errorf("autoconfigure: %w", err)
-	}
-
 	if err := envconfig.Process(ctx, c); err != nil {
 		return nil, fmt.Errorf("environment: %w", err)
+	}
+
+	if err := c.AutoConfigure(ctx); err != nil {
+		return nil, fmt.Errorf("autoconfigure: %w", err)
 	}
 
 	if err := validator.New().Struct(c); err != nil {
