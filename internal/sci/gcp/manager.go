@@ -188,7 +188,17 @@ func (s *Server) AutoConfigure(m *metadata.Client) error {
 }
 
 func (server *Server) Validate() error {
+	// retry is needed because GKE workload identity will fail during first few seconds
+	// so restarting the pod won't help
 	resourceID := fmt.Sprintf("projects/%s/serviceAccounts/%s", server.ProjectID, server.SaEmail)
-	_, err := server.Clients.IAM.Projects.ServiceAccounts.GetIamPolicy(resourceID).Context(context.Background()).Do()
+	var err error
+	for i := 0; i < 3; i++ {
+		_, err = server.Clients.IAM.Projects.ServiceAccounts.GetIamPolicy(resourceID).Context(context.Background()).Do()
+		if err == nil {
+			return nil
+		}
+		log.FromContext(context.Background()).Error(err, "error trying to get IAM policy. Retrying in for 5 seconds")
+		time.Sleep(time.Second * 5)
+	}
 	return err
 }
