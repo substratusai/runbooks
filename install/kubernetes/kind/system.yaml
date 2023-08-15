@@ -1707,7 +1707,11 @@ spec:
         app: sci
     spec:
       containers:
-      - image: docker.io/substratusai/sci-kind:v0.8.1
+      - envFrom:
+        - configMapRef:
+            name: system
+        image: docker.io/substratusai/sci-kind:v0.8.1
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15

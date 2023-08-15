@@ -274,18 +274,13 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 installation-scripts:
 	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
 
-.PHONY: installation-manifests-gcp
-installation-manifests-gcp: manifests kustomize
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
-	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
-
-.PHONY: installation-manifests-kind
-installation-manifests-kind: manifests kustomize
+.PHONY: installation-manifests
+installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
 	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
-
+	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
+	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs

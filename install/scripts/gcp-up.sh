@@ -94,7 +94,5 @@ kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container
 
 # Install cluster components.
 if [ "${INSTALL_OPERATOR}" == "yes" ]; then
-  kubectl apply -f kubernetes/namespace.yaml
-  kubectl apply -f kubernetes/config.yaml
-  kubectl apply -f kubernetes/system.yaml
+  kubectl apply -f kubernetes/gcp/system.yaml
 fi
