@@ -1,4 +1,4 @@
-// Package aws provides an AWS implementation of the Substratus Cloud Interface (SCI)
+// Package sciaws provides an AWS implementation of the Substratus Cloud Interface (SCI)
 package aws
 
 import (
@@ -33,7 +33,13 @@ type Clients struct {
 }
 
 func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
-	headResult, err := s.getObjectMetadata(s.Clients.S3Client, req.BucketName, req.ObjectName)
+	// ensure the object is accessible
+	bucketName, objectName := req.GetBucketName(), req.GetObjectName()
+	input := &s3.HeadObjectInput{
+		Bucket: awsSdk.String(bucketName),
+		Key:    awsSdk.String(objectName),
+	}
+	headResult, err := s.Clients.S3Client.HeadObject(input)
 	if err != nil {
 		return nil, err
 	}
@@ -55,11 +61,22 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		req.GetObjectName(),
 		req.GetMd5Checksum()
 
-	// verify that the object doesn't exist
-	if _, err := s.getObjectMetadata(s.Clients.S3Client, bucketName, objectName); err != nil {
-		return nil, err
+	// ensure the object is accessible
+	input := &s3.HeadObjectInput{
+		Bucket: awsSdk.String(bucketName),
+		Key:    awsSdk.String(objectName),
 	}
-
+	_, err := s.Clients.S3Client.HeadObject(input)
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() != s3.ErrCodeNoSuchKey {
+				return nil, fmt.Errorf("failed to head object: %w", err)
+			}
+		} else {
+			// It's an error of a different type, not an awserr.Error
+			return nil, fmt.Errorf("failed to head object: %w", err)
+		}
+	}
 	// Convert hex MD5 to base64
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
@@ -81,27 +98,6 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		return nil, fmt.Errorf("failed to presign request: %w", err)
 	}
 	return &sci.CreateSignedURLResponse{Url: url}, nil
-}
-
-func (s *Server) getObjectMetadata(sc *s3.S3, bucketName, objectKey string) (*s3.HeadObjectOutput, error) {
-	input := &s3.HeadObjectInput{
-		Bucket: awsSdk.String(bucketName),
-		Key:    awsSdk.String(objectKey),
-	}
-	result, err := sc.HeadObject(input)
-
-	if err != nil {
-		awsErr, ok := err.(awserr.Error)
-		if ok {
-			if awsErr.Code() == s3.ErrCodeNoSuchKey {
-				return &s3.HeadObjectOutput{}, nil
-			}
-		}
-		// An error occurred that was NOT s3.ErrCodeNoSuchKey.
-		// This is an unexpected error and we should return it.
-		return &s3.HeadObjectOutput{}, err
-	}
-	return result, nil
 }
 
 func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest) (*sci.BindIdentityResponse, error) {

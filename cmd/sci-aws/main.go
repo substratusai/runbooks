@@ -73,6 +73,7 @@ func NewServer() (*awssci.Server, error) {
 		return nil, fmt.Errorf("failed to get account ID: %w", err)
 	}
 
+	// TODO(bjb): I think we need another cluster identifier (oidc provider id)
 	oidcProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
 	oidcProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, oidcProviderURL)
 
