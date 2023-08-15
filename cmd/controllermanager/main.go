@@ -116,8 +116,13 @@ func main() {
 	// Create a client using the connection
 	sciClient := sci.NewControllerClient(conn)
 
-	for i := 0; i < 3; i++ {
-
+	kubernetesClient, err := controller.CreateKubernetesClient()
+	if err != nil {
+		setupLog.Error(err, "error creating K8s client-go client")
+	}
+	err = controller.AssociatePrincipalSCIServiceAccount(context.Background(), kubernetesClient, cld)
+	if err != nil {
+		setupLog.Error(err, "error associating principal to SCI K8s ServiceAccount")
 	}
 
 	if err = (&controller.ModelReconciler{
