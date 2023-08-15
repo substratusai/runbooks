@@ -31,7 +31,8 @@ func AssociatePrincipalSCIServiceAccount(ctx context.Context, client *kubernetes
 	}
 
 	cloud.AssociatePrincipal(sa)
-	return nil
+	_, err = client.CoreV1().ServiceAccounts(namespace).Update(ctx, sa, metav1.UpdateOptions{})
+	return err
 }
 
 func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {

@@ -123,6 +123,7 @@ func main() {
 	err = controller.AssociatePrincipalSCIServiceAccount(context.Background(), kubernetesClient, cld)
 	if err != nil {
 		setupLog.Error(err, "error associating principal to SCI K8s ServiceAccount")
+		os.Exit(1)
 	}
 
 	if err = (&controller.ModelReconciler{
