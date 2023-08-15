@@ -76,6 +76,11 @@ func main() {
 		setupLog.Error(err, "failed to AutoConfigure server")
 		os.Exit(1)
 	}
+
+	if err := s.Validate(); err != nil {
+		setupLog.Error(err, "failed to validate server")
+		os.Exit(1)
+	}
 	gs := grpc.NewServer()
 	sci.RegisterControllerServer(gs, s)
 

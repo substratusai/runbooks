@@ -186,3 +186,9 @@ func (s *Server) AutoConfigure(m *metadata.Client) error {
 	}
 	return nil
 }
+
+func (server *Server) Validate() error {
+	resourceID := fmt.Sprintf("projects/%s/serviceAccounts/%s", server.ProjectID, server.SaEmail)
+	_, err := server.Clients.IAM.Projects.ServiceAccounts.GetIamPolicy(resourceID).Context(context.Background()).Do()
+	return err
+}
