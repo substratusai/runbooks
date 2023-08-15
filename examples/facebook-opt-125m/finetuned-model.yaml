@@ -3,15 +3,10 @@ kind: Model
 metadata:
   name: fb-opt-125m-squad
 spec:
-  build:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-trainer-huggingface
+  image: substratusai/model-trainer-huggingface
+  baseModel:
+    name: facebook-opt-125m
   trainingDataset:
     name: squad
-  resources:
-    cpu:
-      count: 4
-      memory: 4
   params:
     epochs: 1

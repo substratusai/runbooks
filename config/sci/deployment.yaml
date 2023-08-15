@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sci
+  namespace: substratus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sci
+  template:
+    metadata:
+      labels:
+        app: sci
+    spec:
+      serviceAccountName: sci
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: sci
+          image: sci
+          ports:
+            - containerPort: 10080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+          livenessProbe:
+            tcpSocket:
+              port: 10080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3

@@ -1,0 +1,15 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: fb-opt-125m-squad
+spec:
+  build:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-trainer-huggingface
+  baseModel:
+    name: facebook-opt-125m
+  trainingDataset:
+    name: squad
+  params:
+    epochs: 1

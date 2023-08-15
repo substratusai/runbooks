@@ -48,7 +48,7 @@ func main() {
 	var sciAddr string
 	flag.StringVar(&configDumpPath, "config-dump-path", "", "The filepath to dump the running config to.")
 	// TODO: Change SCI Service name to be cloud-agnostic.
-	flag.StringVar(&sciAddr, "sci-address", "gcp-manager.substratus.svc.cluster.local:10080", "The address of the Substratus Cloud Interface server.")
+	flag.StringVar(&sciAddr, "sci-address", "sci.substratus.svc.cluster.local:10080", "The address of the Substratus Cloud Interface server.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -114,12 +114,13 @@ func main() {
 	}
 	defer conn.Close()
 	// Create a client using the connection
-	gc := sci.NewControllerClient(conn)
+	sciClient := sci.NewControllerClient(conn)
 
 	if err = (&controller.ModelReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -132,7 +133,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     cld,
-		SCI:       gc,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Model{} },
 		Kind:      "Model",
 	}).SetupWithManager(mgr); err != nil {
@@ -143,6 +144,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
+		SCI:    sciClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
@@ -151,7 +153,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     cld,
-		SCI:       gc,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Server{} },
 		Kind:      "Server",
 	}).SetupWithManager(mgr); err != nil {
@@ -162,6 +164,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -174,7 +177,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     cld,
-		SCI:       gc,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Notebook{} },
 		Kind:      "Notebook",
 	}).SetupWithManager(mgr); err != nil {
@@ -185,6 +188,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -197,7 +201,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     cld,
-		SCI:       gc,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Dataset{} },
 		Kind:      "Dataset",
 	}).SetupWithManager(mgr); err != nil {

@@ -29,6 +29,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/controller"
+	"github.com/substratusai/substratus/internal/sci"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -80,8 +81,11 @@ func TestMain(m *testing.M) {
 	testCloud.ProjectID = "test-project-id"
 	testCloud.ClusterName = "test-cluster-name"
 	testCloud.ClusterLocation = "us-central1"
-	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket"}
+	testCloud.ArtifactBucketURL = &cloud.BucketURL{Scheme: "gs", Bucket: "test-artifact-bucket", Path: "/"}
 	testCloud.RegistryURL = "registry.test"
+	testCloud.Principal = "substratus@test-project-id.iam.gserviceaccount.com"
+
+	sciClient := &sci.FakeCSIControllerClient{}
 
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
 	//requireNoError(err)
@@ -90,6 +94,7 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -100,6 +105,7 @@ func TestMain(m *testing.M) {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     testCloud,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Model{} },
 		Kind:      "Model",
 	}).SetupWithManager(mgr)
@@ -108,12 +114,14 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
+		SCI:    sciClient,
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.BuildReconciler{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     testCloud,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Server{} },
 		Kind:      "Server",
 	}).SetupWithManager(mgr)
@@ -122,6 +130,7 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -132,6 +141,7 @@ func TestMain(m *testing.M) {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     testCloud,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Notebook{} },
 		Kind:      "Notebook",
 	}).SetupWithManager(mgr)
@@ -140,6 +150,7 @@ func TestMain(m *testing.M) {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
+		SCI:    sciClient,
 		ParamsReconciler: &controller.ParamsReconciler{
 			Scheme: mgr.GetScheme(),
 			Client: mgr.GetClient(),
@@ -150,6 +161,7 @@ func TestMain(m *testing.M) {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		Cloud:     testCloud,
+		SCI:       sciClient,
 		NewObject: func() controller.BuildableObject { return &apiv1.Dataset{} },
 		Kind:      "Dataset",
 	}).SetupWithManager(mgr)
@@ -196,7 +208,7 @@ func testContainerBuild(t *testing.T, obj testObject, kind string) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: "container-builder"}, &sa)
 		assert.NoError(t, err, "getting the container builder serviceaccount")
 	}, timeout, interval, "waiting for the container builder serviceaccount to be created")
-	require.Equal(t, "substratus-container-builder@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+	require.Equal(t, "substratus@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a container builder Job gets created by the controller.
 	var builderJob batchv1.Job

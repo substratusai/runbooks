@@ -1,0 +1,11 @@
+apiVersion: substratus.ai/v1
+kind: Dataset
+metadata:
+  name: squad
+spec:
+  command: ["load.sh"]
+  build:
+    git:
+      url: https://github.com/substratusai/images
+      path: dataset-squad
+      branch: main

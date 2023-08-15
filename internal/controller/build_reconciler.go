@@ -74,7 +74,7 @@ func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	defer log.Info("Done reconciling build")
 
 	// Service account used for building and pushing the image.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      containerBuilderServiceAccountName,
 			Namespace: obj.GetNamespace(),
@@ -364,7 +364,7 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
-						Resources:    resources.ContainerBuilderResources(),
+						Resources:    resources.ContainerBuilderResources(r.Cloud.Name()),
 					}},
 					RestartPolicy: "Never",
 					Volumes:       volumes,
@@ -416,6 +416,34 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 		},
 	}
 
+	// Hack to support "tar://" URLs for Kaniko.
+	// TODO(nstogner): Refactor this "cloud"-specific code. It does not
+	// belong here.
+	//
+	// NOTE: Consider using a local context ("tar://") for kaniko across all clouds
+	// any relying on CSIs to mount the bucket.
+	// Before going that direction validate that we dont lose efficiencies:
+	// i.e. does kaniko avoid pulling the tarball in the case of using a gcs://
+	// context if the md5 already matches? i.e. does it send a small request to
+	// check the tarball signature before pulling it? Would we lose out on that
+	// efficiency if we switch to using gcs fuse to mount the tarball?
+	if r.Cloud.Name() == cloud.KindName {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "bucket",
+			MountPath: "/bucket",
+		})
+		typ := corev1.HostPathDirectory
+		volumes = append(volumes, corev1.Volume{
+			Name: "bucket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/bucket",
+					Type: &typ,
+				},
+			},
+		})
+	}
+
 	const builderContainerName = "builder"
 	podAnnotations["kubectl.kubernetes.io/default-container"] = builderContainerName
 	job = &batchv1.Job{
@@ -446,7 +474,7 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 						Image:        "gcr.io/kaniko-project/executor:latest",
 						Args:         buildArgs,
 						VolumeMounts: volumeMounts,
-						Resources:    resources.ContainerBuilderResources(),
+						Resources:    resources.ContainerBuilderResources(r.Cloud.Name()),
 					}},
 					RestartPolicy: "Never",
 					Volumes:       volumes,

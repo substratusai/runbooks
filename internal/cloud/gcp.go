@@ -12,7 +12,10 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const GCPName = "gcp"
+const (
+	GCPName                  = "gcp"
+	GCPWorkloadIdentityLabel = "iam.gke.io/gcp-service-account"
+)
 
 type GCP struct {
 	Common
@@ -60,6 +63,10 @@ func (gcp *GCP) AutoConfigure(ctx context.Context) error {
 		}
 	}
 
+	if gcp.Principal != "" {
+		gcp.Principal = fmt.Sprintf("substratus@%s.iam.gserviceaccount.com", gcp.ProjectID)
+	}
+
 	return nil
 }
 
@@ -104,7 +111,7 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 					corev1.VolumeMount{
 						Name:      req.Name,
 						MountPath: "/content/" + mount.ContentSubdir,
-						SubPath:   bktURL.Path + "/" + mount.BucketSubdir,
+						SubPath:   strings.TrimPrefix(bktURL.Path+"/"+mount.BucketSubdir, "/"),
 						ReadOnly:  req.ReadOnly,
 					},
 				)
@@ -116,11 +123,20 @@ func (gcp *GCP) MountBucket(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodS
 	return fmt.Errorf("container not found: %s", req.Container)
 }
 
-func (gcp *GCP) AssociateServiceAccount(sa *corev1.ServiceAccount) {
+func (gcp *GCP) GetPrincipal(sa *corev1.ServiceAccount) (string, bool) {
+	principalBound := true
+	if val, exist := sa.Annotations[GCPWorkloadIdentityLabel]; !exist || val != gcp.Principal {
+		principalBound = false
+	}
+	return gcp.Principal, principalBound
+}
+
+func (gcp *GCP) AssociatePrincipal(sa *corev1.ServiceAccount) {
 	if sa.Annotations == nil {
 		sa.Annotations = map[string]string{}
 	}
-	sa.Annotations["iam.gke.io/gcp-service-account"] = fmt.Sprintf("substratus-%s@%s.iam.gserviceaccount.com", sa.Name, gcp.ProjectID)
+	principal, _ := gcp.GetPrincipal(sa)
+	sa.Annotations[GCPWorkloadIdentityLabel] = principal
 }
 
 func (gcp *GCP) region() string {

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: configure-cri
+  labels:
+    app: configure-cri
+spec:
+  selector:
+    matchLabels:
+      app: configure-cri
+  template:
+    metadata:
+      labels:
+        app: configure-cri
+    spec:
+      hostPID: true
+      initContainers:
+        - name: configure-cri
+          image: ubuntu:22.04
+          command: ["/scripts/configure-cri.sh"]
+          volumeMounts:
+            - name: etc
+              mountPath: "/mnt/etc"
+            - mountPath: /scripts
+              name: scripts
+          securityContext:
+            privileged: true
+      volumes:
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: scripts
+          configMap:
+            name: configure-cri
+            defaultMode: 0744
+      containers:
+        - name: pause
+          image: gcr.io/google_containers/pause
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists

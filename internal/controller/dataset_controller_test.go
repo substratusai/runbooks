@@ -53,7 +53,7 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: dataset.Namespace, Name: "data-loader"}, &sa)
 		assert.NoError(t, err, "getting the data loader serviceaccount")
 	}, timeout, interval, "waiting for the data loader serviceaccount to be created")
-	require.Equal(t, "substratus-data-loader@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
+	require.Equal(t, "substratus@test-project-id.iam.gserviceaccount.com", sa.Annotations["iam.gke.io/gcp-service-account"])
 
 	// Test that a data loader builder Job gets created by the controller.
 	var loaderJob batchv1.Job

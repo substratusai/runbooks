@@ -30,9 +30,14 @@ type Cloud interface {
 	// ObjectArtifactURL returns the URL of the artifact that was stored for a given Object.
 	ObjectArtifactURL(Object) *BucketURL
 
-	// AssociateServiceAccount associates the given service account with a cloud
-	// identity (i.e. updates annotations).
-	AssociateServiceAccount(*corev1.ServiceAccount)
+	// AssociatePrincipal associates the given K8s service account with a cloud
+	// identity (i.e. updates cloud specific annotations on K8s SA)
+	AssociatePrincipal(*corev1.ServiceAccount)
+
+	// GetPrincipal returns the IAM Principal (GCP SA, AWS IAM Role) that should be used
+	// for a specific K8s Service Account. Returns the principal and whether the principal
+	// was already bound successfully to the service account.
+	GetPrincipal(*corev1.ServiceAccount) (string, bool)
 
 	// MountBucket mutates the given Pod metadata and Pod spec in order to append
 	// volumes mounts for a bucket.
@@ -53,6 +58,8 @@ func New(ctx context.Context) (Cloud, error) {
 	switch cloudName {
 	case GCPName:
 		c = &GCP{}
+	case KindName:
+		c = &Kind{}
 	default:
 		if cloudName == "" {
 			return nil, fmt.Errorf("unable to determine cloud, if running remotely, specify %v environment variable", CloudEnvVar)

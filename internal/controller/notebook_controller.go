@@ -21,6 +21,7 @@ import (
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
 )
 
 // NotebookReconciler reconciles a Notebook object.
@@ -29,6 +30,7 @@ type NotebookReconciler struct {
 	Scheme *runtime.Scheme
 
 	Cloud cloud.Cloud
+	SCI   sci.ControllerClient
 
 	*ParamsReconciler
 }
@@ -155,7 +157,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	// ServiceAccount for the model Job.
 	// Within the context of GCP, this ServiceAccount will need IAM permissions
 	// to read the GCS buckets containing the training data and model artifacts.
-	if result, err := reconcileCloudServiceAccount(ctx, r.Cloud, r.Client, &corev1.ServiceAccount{
+	if result, err := reconcileServiceAccount(ctx, r.Cloud, r.SCI, r.Client, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      notebookServiceAccountName,
 			Namespace: notebook.Namespace,

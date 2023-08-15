@@ -3,6 +3,7 @@
 VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
+IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
 
 # Set to false if you don't want GPU nodepools created
 ATTACH_GPU_NODEPOOLS=true
@@ -36,7 +37,11 @@ ifeq ($(UNAME_M),arm64)
 	SKAFFOLD_ARCH := arm64
 else
 	PROTOC_ARCH := $(UNAME_M)
-	SKAFFOLD_ARCH := $(UNAME_M)
+	ifeq ($(UNAME_M),x86_64)
+		SKAFFOLD_ARCH := amd64
+	else
+		SKAFFOLD_ARCH := $(UNAME_M)
+	endif
 endif
 
 PROTOC_PLATFORM := $(PROTOC_OS)-$(PROTOC_ARCH)
@@ -141,6 +146,34 @@ dev-down-gcp: build-installer
 		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 		substratus-installer gcp-down.sh
 	rm ./secrets/gcp-manager-key.json
+
+.PHONY: dev-up-kind
+dev-up-kind:
+	cd install/scripts && ./kind-up.sh
+
+#
+# TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
+# Pods need to mount the same directories as the SCI.
+#
+# .PHONY: dev-run-kind
+# dev-run-kind:
+# 	...
+#
+
+.PHONY: dev-skaffold-kind
+dev-skaffold-kind: skaffold
+	# NOTE: Installing the registry restarts containerd which causes
+	# skaffold to lose its connections to the Pods. To fix this, the registry is
+	# installed before running "skaffold dev".
+	$(SKAFFOLD) run -f skaffold.kind.yaml -m registry
+	$(SKAFFOLD) dev -f skaffold.kind.yaml -m install \
+	--cache-artifacts=true \
+	--tolerate-failures-until-deadline=true
+
+.PHONY: dev-down-kind
+dev-down-kind:
+	cd install/scripts && ./kind-down.sh
+
 
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
@@ -257,7 +290,10 @@ installation-scripts:
 installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
-	$(KUSTOMIZE) build config/default > install/kubernetes/system.yaml
+	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
+	# TODO: Fix in another PR:
+	#$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
+	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs
@@ -273,6 +309,7 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+SKAFFOLD ?= $(LOCALBIN)/skaffold
 EMBEDMD ?= $(LOCALBIN)/embedmd
 CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
 PROTOC ?= $(LOCALBIN)/protoc
@@ -284,6 +321,7 @@ CRD_REF_DOCS_VERSION ?= v0.0.9
 PROTOC_VERSION ?= 23.4
 PROTOC_GEN_GO_GRPC_VERSION ?= v1.1.0
 PROTOC_GEN_GO_VERSION ?= v1.31.0
+SKAFFOLD_VERSION ?= v2.6.3
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -332,11 +370,12 @@ $(PROTOC): $(LOCALBIN)
 	fi
 
 .PHONY: skaffold
-skaffold:
+skaffold: $(SKAFFOLD)
+$(SKAFFOLD): $(LOCALBIN)
 	@ test -s $(LOCALBIN)/skaffold || \
-	( curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
+	curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
 	chmod +x skaffold && \
-	mv skaffold $(LOCALBIN)/skaffold )
+	mv skaffold $(LOCALBIN)/skaffold
 
 .PHONY: envsubst
 envsubst:
