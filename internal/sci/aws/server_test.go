@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"math/rand"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -29,10 +30,15 @@ func randomString(length int, charset string) string {
 	return string(b)
 }
 
-// oidcProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
-// oidcProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, oidcProviderURL)
-
 func TestGetObjectMd5(t *testing.T) {
+	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
+	if envAccountID == "" {
+		t.Skip("Skipping TestGetObjectMd5 because AWS_ACCOUNT_ID is not set")
+	}
+	envClusterName := os.Getenv("CLUSTER_NAME")
+	if envClusterName == "" {
+		t.Skip("Skipping TestGetObjectMd5 because CLUSTER_NAME is not set")
+	}
 	sess, err := session.NewSession()
 	assert.NoError(t, err)
 
@@ -73,6 +79,15 @@ func TestGetObjectMd5(t *testing.T) {
 }
 
 func TestBindIdentity(t *testing.T) {
+	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
+	if envAccountID == "" {
+		t.Skip("Skipping TestBindIdentity because AWS_ACCOUNT_ID is not set")
+	}
+	envClusterName := os.Getenv("CLUSTER_NAME")
+	if envClusterName == "" {
+		t.Skip("Skipping TestBindIdentity because CLUSTER_NAME is not set")
+	}
+
 	sess, err := session.NewSession()
 	assert.NoError(t, err)
 	iamClient := iam.New(sess)

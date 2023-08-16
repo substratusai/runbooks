@@ -60,12 +60,6 @@ func NewServer() (*awssci.Server, error) {
 		return nil, fmt.Errorf("failed to get cluster ID: %w", err)
 	}
 
-	// ec2Svc := ec2metadata.New(sess)
-	// region, err := awssci.GetRegion(ec2Svc)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get region: %w", err)
-	// }
-
 	oidcProviderURL, err := awssci.GetOidcProviderUrl(sess, clusterID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster OIDC provider URL: %w", err)

@@ -60,8 +60,9 @@ iam:
       wellKnownPolicies:
         ebsCSIController: true
     - metadata:
-        name: aws-manager
+        name: substratus
         namespace: substratus
+      roleName: substratus
       attachPolicy:
         # https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
         Version: "2012-10-17"

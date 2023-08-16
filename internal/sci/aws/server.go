@@ -14,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	awsSdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -216,22 +215,4 @@ func GetOidcProviderUrl(sess *session.Session, clusterName string) (string, erro
 	}
 
 	return *result.Cluster.Identity.Oidc.Issuer, nil
-}
-
-func GetRegion(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
-	// Try to get the region from the EC2 metadata service
-	if ec2Svc.Available() {
-		region, err := ec2Svc.Region()
-		if err == nil {
-			return region, nil
-		}
-	}
-
-	// Fall back to the environment variable if the metadata service fails
-	envRegion := os.Getenv("AWS_REGION")
-	if envRegion != "" {
-		return envRegion, nil
-	}
-
-	return "", fmt.Errorf("failed to determine AWS region from both EC2 metadata and environment variable")
 }
