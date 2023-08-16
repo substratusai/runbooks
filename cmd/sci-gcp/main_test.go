@@ -14,7 +14,7 @@ package main_test
 //		--upload-file the-file.tar.gz \
 //		$URL
 
-// the following function was successfully used to exercise csi.gcp.Server.CreateSignedURL()
+// the following function was successfully used to exercise sci.gcp.Server.CreateSignedURL()
 // func invokeManually(storageClient *storage.Client) {
 // 	payload := sci.CreateSignedURLRequest{
 // 		BucketName:        "substratus-ai-001-substratus-notebooks",
