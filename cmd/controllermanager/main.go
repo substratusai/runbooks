@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -115,6 +116,16 @@ func main() {
 	defer conn.Close()
 	// Create a client using the connection
 	sciClient := sci.NewControllerClient(conn)
+
+	kubernetesClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "error creating K8s client-go client")
+	}
+	err = controller.AssociatePrincipalSCIServiceAccount(context.Background(), kubernetesClient, cld)
+	if err != nil {
+		setupLog.Error(err, "error associating principal to SCI K8s ServiceAccount")
+		os.Exit(1)
+	}
 
 	if err = (&controller.ModelReconciler{
 		Client: mgr.GetClient(),

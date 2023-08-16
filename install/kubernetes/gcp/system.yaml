@@ -1458,45 +1458,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  configure-cri.sh: |
-    #!/usr/bin/env bash
-
-    set -x
-    # Exit on non-existant variable.
-    set -u
-    # Exit on error.
-    set -e
-
-    export IMAGE_REGISTRY=$REGISTRY_PORT_5000_TCP_ADDR:5000
-
-    if ! grep -q $IMAGE_REGISTRY /mnt/etc/containerd/config.toml; then
-        containerd_version=$(nsenter --target 1 --mount bash -c "containerd --version | awk '{ print substr(\$3,0,4) }'")
-        if [ "$containerd_version" = "1.3." ] || [ "$containerd_version" = "1.4." ]; then
-            cat <<EOF >> /mnt/etc/containerd/config.toml
-    [plugins.cri.registry.configs."$IMAGE_REGISTRY"]
-      endpoint = ["http://$IMAGE_REGISTRY"]
-    EOF
-        else
-            # Correct config for containerd 1.5 and above
-            cat <<EOF >> /mnt/etc/containerd/config.toml
-    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."$IMAGE_REGISTRY"]
-      endpoint = ["http://$IMAGE_REGISTRY"]
-    EOF
-        fi
-        nsenter --target 1 --mount bash -c "systemctl is-active --quiet containerd && echo 'Restarting containerd' && systemctl restart containerd"
-        # Wait for containerd to be ready so that skaffold doesn't fail.
-        nsenter --target 1 --mount bash -c "while ! ctr -n k8s.io containers ls; do sleep 1; done"
-    fi
-kind: ConfigMap
-metadata:
-  name: configure-cri
-  namespace: substratus
----
-apiVersion: v1
-data:
-  CLOUD: kind
-  CLUSTER_NAME: substratus
-  PRINCIPAL: unused
+  CLOUD: gcp
 kind: ConfigMap
 metadata:
   name: system
@@ -1527,35 +1489,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: registry
-  namespace: substratus
-spec:
-  ports:
-  - port: 5000
-    protocol: TCP
-    targetPort: 5000
-  selector:
-    app: registry
----
-apiVersion: v1
-kind: Service
-metadata:
   name: sci
   namespace: substratus
 spec:
   ports:
-  - name: http-signed-url
-    nodePort: 30080
-    port: 80
-    protocol: TCP
-    targetPort: 8080
   - name: grpc-sci
     port: 10080
     protocol: TCP
     targetPort: 10080
   selector:
     app: sci
-  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1665,35 +1608,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: registry
-  namespace: substratus
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: registry
-  template:
-    metadata:
-      labels:
-        app: registry
-    spec:
-      containers:
-      - image: docker.io/library/registry:2
-        name: registry
-        ports:
-        - containerPort: 5000
-        volumeMounts:
-        - mountPath: /var/lib/registry
-          name: registry
-      volumes:
-      - hostPath:
-          path: /registry
-          type: DirectoryOrCreate
-        name: registry
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: sci
   namespace: substratus
 spec:
@@ -1710,7 +1624,7 @@ spec:
       - envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/sci-kind:v0.8.1
+        image: docker.io/substratusai/sci-gcp:v0.8.1
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1722,7 +1636,6 @@ spec:
           timeoutSeconds: 5
         name: sci
         ports:
-        - containerPort: 8080
         - containerPort: 10080
         resources:
           limits:
@@ -1731,57 +1644,5 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts:
-        - mountPath: /bucket
-          name: bucket
       serviceAccountName: sci
       terminationGracePeriodSeconds: 10
-      volumes:
-      - hostPath:
-          path: /bucket
-          type: DirectoryOrCreate
-        name: bucket
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  labels:
-    app: configure-cri
-  name: configure-cri
-  namespace: substratus
-spec:
-  selector:
-    matchLabels:
-      app: configure-cri
-  template:
-    metadata:
-      labels:
-        app: configure-cri
-    spec:
-      containers:
-      - image: gcr.io/google_containers/pause
-        name: pause
-      hostPID: true
-      initContainers:
-      - command:
-        - /scripts/configure-cri.sh
-        image: ubuntu:22.04
-        name: configure-cri
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /mnt/etc
-          name: etc
-        - mountPath: /scripts
-          name: scripts
-      tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      volumes:
-      - hostPath:
-          path: /etc
-        name: etc
-      - configMap:
-          defaultMode: 484
-          name: configure-cri
-        name: scripts

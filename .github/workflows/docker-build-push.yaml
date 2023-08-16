@@ -66,7 +66,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-installer.outputs.tags }}
           labels: ${{ steps.meta-installer.outputs.labels }}
-  gcp-manager:
+  sci-gcp:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -82,17 +82,17 @@ jobs:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
       - name: Docker meta
-        id: meta-gcp-manager
+        id: meta
         uses: docker/metadata-action@v4
         with:
-          images: substratusai/gcp-manager
+          images: substratusai/sci-gcp
       - name: Build and push
-        id: build-and-push-gcp-manager
+        id: build-and-push-sci-gcp
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: Dockerfile.gcpmanager
+          file: Dockerfile.sci-gcp
           platforms: "linux/amd64,linux/arm64"
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-gcp-manager.outputs.tags }}
-          labels: ${{ steps.meta-gcp-manager.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
