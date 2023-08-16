@@ -8,6 +8,7 @@ namespace: substratus
 #    someName: someValue
 
 resources:
+  - ./namespace.yaml
   - ./config.yaml
   - ../crd
   - ../rbac
