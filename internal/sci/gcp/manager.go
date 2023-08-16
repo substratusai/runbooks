@@ -197,7 +197,7 @@ func (server *Server) Validate() error {
 		if err == nil {
 			return nil
 		}
-		log.FromContext(context.Background()).Error(err, "error trying to get IAM policy. Retrying in for 5 seconds")
+		log.FromContext(context.Background()).Error(err, "error trying to get IAM policy. Retrying in 5 seconds")
 		time.Sleep(time.Second * 5)
 	}
 	return err
