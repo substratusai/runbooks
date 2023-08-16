@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -61,10 +60,15 @@ func NewServer() (*awssci.Server, error) {
 		return nil, fmt.Errorf("failed to get cluster ID: %w", err)
 	}
 
-	ec2Svc := ec2metadata.New(sess)
-	region, err := awssci.GetRegion(ec2Svc)
+	// ec2Svc := ec2metadata.New(sess)
+	// region, err := awssci.GetRegion(ec2Svc)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get region: %w", err)
+	// }
+
+	oidcProviderURL, err := awssci.GetOidcProviderUrl(sess, clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get region: %w", err)
+		return nil, fmt.Errorf("failed to get cluster OIDC provider URL: %w", err)
 	}
 
 	stsSvc := sts.New(sess)
@@ -73,8 +77,6 @@ func NewServer() (*awssci.Server, error) {
 		return nil, fmt.Errorf("failed to get account ID: %w", err)
 	}
 
-	// TODO(bjb): I think we need another cluster identifier (oidc provider id)
-	oidcProviderURL := fmt.Sprintf("oidc.eks.%s.amazonaws.com/id/%s", region, clusterID)
 	oidcProviderARN := fmt.Sprintf("arn:aws:iam::%s:oidc-provider/%s", accountId, oidcProviderURL)
 
 	c := &awssci.Clients{

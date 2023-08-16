@@ -11,9 +11,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsSdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -199,6 +202,20 @@ func GetClusterID() (string, error) {
 	}
 
 	return clusterID, nil
+}
+
+func GetOidcProviderUrl(sess *session.Session, clusterName string) (string, error) {
+	svc := eks.New(sess)
+	input := &eks.DescribeClusterInput{
+		Name: aws.String(clusterName),
+	}
+
+	result, err := svc.DescribeCluster(input)
+	if err != nil {
+		return "", err
+	}
+
+	return *result.Cluster.Identity.Oidc.Issuer, nil
 }
 
 func GetRegion(ec2Svc *ec2metadata.EC2Metadata) (string, error) {
