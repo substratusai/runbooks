@@ -319,6 +319,19 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 		},
 	)
 
+	// The GKE metadata server needs a few seconds before it can accept requests
+	// Kaniko will fail during checking push permissions without this hack
+	// See more: https://cloud.google.com/kubernetes-engine/docs/troubleshooting/troubleshooting-security#troubleshoot-timeout
+	if r.Cloud.Name() == cloud.GCPName {
+		initContainers = append(initContainers,
+			corev1.Container{
+				Name:  "gcp-workload-identity-readiness-check",
+				Image: "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine",
+				Args: []string{"/bin/bash", "-c",
+					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1"},
+			})
+	}
+
 	volumeMounts = []corev1.VolumeMount{
 		{
 			Name:      "workspace",
@@ -443,6 +456,19 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 				},
 			},
 		})
+	}
+
+	// The GKE metadata server needs a few seconds before it can accept requests
+	// Kaniko will fail during checking push permissions without this hack
+	// See more: https://cloud.google.com/kubernetes-engine/docs/troubleshooting/troubleshooting-security#troubleshoot-timeout
+	if r.Cloud.Name() == cloud.GCPName {
+		initContainers = append(initContainers,
+			corev1.Container{
+				Name:  "gcp-workload-identity-readiness-check",
+				Image: "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine",
+				Args: []string{"/bin/bash", "-c",
+					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1"},
+			})
 	}
 
 	const builderContainerName = "builder"
