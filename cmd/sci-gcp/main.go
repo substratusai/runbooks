@@ -70,7 +70,7 @@ func main() {
 		IAM:                  iamService,
 		Metadata:             mc,
 		Storage:              storageClient,
-		Http:                 hc,
+		HTTP:                 hc,
 	}
 	if err := s.AutoConfigure(mc); err != nil {
 		setupLog.Error(err, "failed to AutoConfigure server")

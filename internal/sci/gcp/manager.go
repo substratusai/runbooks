@@ -34,7 +34,7 @@ type Clients struct {
 	IAM                  *iam.Service
 	Metadata             *metadata.Client
 	Storage              *storage.Client
-	Http                 *http.Client
+	HTTP                 *http.Client
 }
 
 func NewServer() (*Server, error) {
