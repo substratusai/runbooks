@@ -117,6 +117,7 @@ func main() {
 	// Create a client using the connection
 	sciClient := sci.NewControllerClient(conn)
 
+	// this environment is only set within a container running on K8s
 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
 		kubernetesClient, err := kubernetes.NewForConfig(mgr.GetConfig())
 		if err != nil {
