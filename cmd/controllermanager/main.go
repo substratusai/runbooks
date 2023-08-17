@@ -117,14 +117,17 @@ func main() {
 	// Create a client using the connection
 	sciClient := sci.NewControllerClient(conn)
 
-	kubernetesClient, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		setupLog.Error(err, "error creating K8s client-go client")
-	}
-	err = controller.AssociatePrincipalSCIServiceAccount(context.Background(), kubernetesClient, cld)
-	if err != nil {
-		setupLog.Error(err, "error associating principal to SCI K8s ServiceAccount")
-		os.Exit(1)
+	// this environment is only set within a container running on K8s
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		kubernetesClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+		if err != nil {
+			setupLog.Error(err, "error creating K8s client-go client")
+		}
+		err = controller.AssociatePrincipalSCIServiceAccount(context.Background(), kubernetesClient, cld)
+		if err != nil {
+			setupLog.Error(err, "error associating principal to SCI K8s ServiceAccount")
+			os.Exit(1)
+		}
 	}
 
 	if err = (&controller.ModelReconciler{
