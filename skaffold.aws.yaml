@@ -1,0 +1,18 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: install
+manifests:
+  kustomize:
+    paths:
+      - ./config/install-aws
+build:
+  artifacts:
+    - image: docker.io/substratusai/controller-manager
+      docker:
+        dockerfile: Dockerfile
+    - image: docker.io/substratusai/sci-aws
+      docker:
+        dockerfile: Dockerfile.sci-aws
+  local:
+    push: true

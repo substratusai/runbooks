@@ -58,6 +58,7 @@ helm upgrade \
   --set controller.resources.limits.memory=1Gi \
   --wait
 
+# TOOD(bjb): drop envsubst and just use kustomize
 envsubst <${kubernetes_dir}/aws/karpenter-provisioner.yaml.tpl >${kubernetes_dir}/aws/karpenter-provisioner.yaml
 kubectl apply -f ${kubernetes_dir}/aws/karpenter-provisioner.yaml
 

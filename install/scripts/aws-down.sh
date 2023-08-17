@@ -34,6 +34,7 @@ else
   echo "No instances found with the specified tags."
 fi
 
+# TOOD(bjb): drop envsubst and just use kustomize
 envsubst <${kubernetes_dir}/aws/eks-cluster.yaml.tpl >${kubernetes_dir}/aws/eks-cluster.yaml
 eksctl delete cluster -f ${kubernetes_dir}/aws/eks-cluster.yaml || true
 

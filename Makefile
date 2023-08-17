@@ -4,6 +4,7 @@ VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_GCPMANAGER ?= docker.io/substratusai/gcp-manager:${VERSION}
 IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
+IMG_SCI_AWS ?= docker.io/substratusai/sci-aws:${VERSION}
 
 # Set to false if you don't want GPU nodepools created
 ATTACH_GPU_NODEPOOLS=true
@@ -174,7 +175,7 @@ dev-skaffold-kind: skaffold
 dev-down-kind:
 	cd install/scripts && ./kind-down.sh
 
-
+# AWS deployment
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
 	docker run -it \
@@ -185,6 +186,27 @@ dev-up-aws: build-installer
 		-e AWS_SESSION_TOKEN=$(shell aws configure get aws_session_token) \
 		-e INSTALL_OPERATOR=false \
 		substratus-installer aws-up.sh
+
+.PHONY: dev-skaffold-aws
+dev-skaffold-aws: export AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query Account --output text)
+dev-skaffold-aws: export SKAFFOLD_DEFAULT_REPO=substratus
+dev-run-aws: export CLUSTER_NAME=substratus
+dev-run-aws: export PRINCIPAL=substratus
+dev-skaffold-aws:
+	skaffold dev -f skaffold.aws.yaml
+
+.PHONY: dev-run-aws
+# Controller manager configuration #
+dev-run-aws: export CLOUD=aws
+dev-run-aws: export AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)"
+dev-run-aws: export CLUSTER_NAME=substratus
+dev-run-aws: export PRINCIPAL=substratus
+# Run the controller manager and the cloud manager.
+dev-run-aws: manifests kustomize install-crds
+	go run ./cmd/sci-aws & \
+	go run ./cmd/controllermanager/main.go \
+		--sci-address=localhost:10080 \
+		--config-dump-path=/tmp/substratus-config.yaml
 
 .PHONY: dev-down-aws
 dev-down-aws: build-installer
@@ -291,9 +313,11 @@ installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/gcpmanager && $(KUSTOMIZE) edit set image gcp-manager=${IMG_GCPMANAGER}
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
+	cd config/sci-aws && $(KUSTOMIZE) edit set image sci=${IMG_SCI_AWS}
 	# TODO: Fix in another PR:
 	#$(KUSTOMIZE) build config/install-gcp > install/kubernetes/system.yaml
 	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
+	$(KUSTOMIZE) build config/install-aws > install/kubernetes/system.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs
