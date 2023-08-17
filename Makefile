@@ -162,7 +162,7 @@ dev-down-kind:
 dev-skaffold-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-skaffold-gcp: export SKAFFOLD_DEFAULT_REPO=gcr.io/${PROJECT_ID}
 dev-skaffold-gcp:
-	skaffold dev -f skaffold.gcp.yaml
+	$(SKAFFOLD) dev -f skaffold.gcp.yaml
 
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
