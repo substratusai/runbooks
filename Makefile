@@ -107,7 +107,7 @@ build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: dev-up-gcp
-dev-gcp-up: PROJECT_ID ?=$(shell gcloud config get project)
+dev-up-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-up-gcp: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
