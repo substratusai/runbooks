@@ -5,7 +5,7 @@ metadata:
   namespace: substratus
 data:
   CLOUD: gcp
-  # ARTIFACT_BUCKET_URL: tar:///bucket auto configured
+  # ARTIFACT_BUCKET_URL: gs://$PROJECT_ID-substratus-artifacts auto configured
   # REGISTRY_URL: us-central1-docker.pkg.dev/my-project/substratus # auto configured
   # CLUSTER_NAME: substratus auto configured
   # PRINCIPAL: substratus@my-project.iam.gserviceaccount.com auto configured
