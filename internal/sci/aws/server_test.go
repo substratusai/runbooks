@@ -2,7 +2,9 @@ package aws
 
 import (
 	"context"
+	"log"
 	"math/rand"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -57,7 +59,12 @@ func TestGetObjectMd5(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	defer server.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: &bucket})
+	defer func() {
+		_, err := server.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: &bucket})
+		if err != nil {
+			log.Printf("Error deleting bucket %s: %v", bucket, err)
+		}
+	}()
 
 	// Upload an object
 	_, err = server.Clients.S3Client.PutObject(&s3.PutObjectInput{
@@ -79,6 +86,7 @@ func TestGetObjectMd5(t *testing.T) {
 }
 
 func TestBindIdentity(t *testing.T) {
+	// TODO(bjb): see setup techique here: https://pkg.go.dev/testing#hdr-Main
 	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
 	if envAccountID == "" {
 		t.Skip("Skipping TestBindIdentity because AWS_ACCOUNT_ID is not set")
@@ -95,7 +103,7 @@ func TestBindIdentity(t *testing.T) {
 	oidcProviderURL := "oidc.eks.us-west-2.amazonaws.com/id/C2A3CBF5FF8C55D72C8843756CD44444"
 	server := &Server{
 		Clients: Clients{
-			IamClient: iamClient,
+			IAMClient: iamClient,
 		},
 		OIDCProviderURL: oidcProviderURL,
 		OIDCProviderARN: "arn:aws:iam::243019462222:oidc-provider/" + oidcProviderURL,
@@ -115,14 +123,14 @@ func TestBindIdentity(t *testing.T) {
 		]
 	  }`
 
-	_, err = server.Clients.IamClient.CreateRole(&iam.CreateRoleInput{
+	_, err = server.Clients.IAMClient.CreateRole(&iam.CreateRoleInput{
 		RoleName:                 &roleName,
 		AssumeRolePolicyDocument: awssdk.String(rolePolicy),
 	})
 	assert.NoError(t, err)
 
 	defer func() {
-		if _, err := server.Clients.IamClient.DeleteRole(&iam.DeleteRoleInput{RoleName: &roleName}); err != nil {
+		if _, err := server.Clients.IAMClient.DeleteRole(&iam.DeleteRoleInput{RoleName: &roleName}); err != nil {
 			t.Logf("Failed to delete IAM role: %v", err)
 		}
 	}()
@@ -131,7 +139,7 @@ func TestBindIdentity(t *testing.T) {
 	getRoleInput := &iam.GetRoleInput{
 		RoleName: awssdk.String(roleName),
 	}
-	getRoleOutput, err := server.Clients.IamClient.GetRole(getRoleInput)
+	getRoleOutput, err := server.Clients.IAMClient.GetRole(getRoleInput)
 	if err != nil {
 		t.Fatalf("Debug: failed to get the role: %v", err)
 	}
@@ -142,6 +150,21 @@ func TestBindIdentity(t *testing.T) {
 		KubernetesNamespace:      "test-namespace",
 		KubernetesServiceAccount: "test-serviceaccount",
 	})
+	if err != nil {
+		t.Fatalf("Error in BindIdentity: %v", err)
+	}
+
+	getRoleOutput, err = server.Clients.IAMClient.GetRole(getRoleInput)
+	if err != nil {
+		t.Fatalf("Debug: failed to get the role: %v", err)
+	}
+
+	encodedPolicy := *getRoleOutput.Role.AssumeRolePolicyDocument
+	decodedPolicy, err := url.QueryUnescape(encodedPolicy)
+	if err != nil {
+		t.Fatalf("Error decoding policy document: %v", err)
+	}
+	assert.Contains(t, decodedPolicy, "system:serviceaccount:test-namespace:test-serviceaccount")
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 }

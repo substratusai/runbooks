@@ -31,7 +31,7 @@ type Server struct {
 
 type Clients struct {
 	S3Client  *s3.S3
-	IamClient *iam.IAM
+	IAMClient *iam.IAM
 }
 
 func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
@@ -107,7 +107,7 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 	getRoleInput := &iam.GetRoleInput{
 		RoleName: awsSdk.String(req.Principal),
 	}
-	getRoleOutput, err := s.Clients.IamClient.GetRole(getRoleInput)
+	getRoleOutput, err := s.Clients.IAMClient.GetRole(getRoleInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the role: %v", err)
 	}
@@ -170,7 +170,7 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 		RoleName:       awsSdk.String(req.Principal),
 	}
 
-	_, err = s.Clients.IamClient.UpdateAssumeRolePolicy(input)
+	_, err = s.Clients.IAMClient.UpdateAssumeRolePolicy(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update trust policy: %v", err)
 	}

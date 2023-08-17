@@ -75,7 +75,7 @@ func NewServer() (*awssci.Server, error) {
 
 	c := &awssci.Clients{
 		S3Client:  s3.New(sess),
-		IamClient: iam.New(sess),
+		IAMClient: iam.New(sess),
 	}
 
 	return &awssci.Server{

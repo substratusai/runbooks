@@ -95,3 +95,9 @@ iam:
               - "iam:UpdateAssumeRolePolicy"
             Resource:
               - "arn:aws:iam::${AWS_ACCOUNT_ID}:role/$${aws:userid}"
+          - Sid: "DescribeSubstratusCluster"
+            Effect: Allow
+            Action:
+              - "eks:DescribeCluster"
+            Resource:
+              - "arn:aws:eks:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}"
