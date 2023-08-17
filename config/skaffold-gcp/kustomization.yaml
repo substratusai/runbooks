@@ -1,0 +1,9 @@
+resources:
+  - ../install-gcp
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: docker.io/substratusai/controller-manager
+  newName: controller-manager
+- name: docker.io/substratusai/sci-gcp
+  newName: sci-gcp

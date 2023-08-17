@@ -8,10 +8,12 @@ namespace: substratus
 #    someName: someValue
 
 resources:
+  - ./namespace.yaml
+  - ./config.yaml
   - ../crd
   - ../rbac
   - ../manager
-  - ../gcpmanager
+  - ../sci-gcp
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook

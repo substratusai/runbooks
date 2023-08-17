@@ -22,11 +22,24 @@ echo "bucket = \"${TF_BUCKET}\"" >>backend.tfvars
 terraform init --backend-config=backend.tfvars
 
 export TF_VAR_project_id=${PROJECT}
+cluster_name=$(terraform output --raw cluster_name)
+cluster_region=$(terraform output --raw cluster_region)
 if [ "${AUTO_APPROVE}" == "yes" ]; then
   terraform destroy -auto-approve
 else
   terraform destroy
 fi
-cluster=$(terraform output --raw cluster_name)
 
 cd -
+
+set -x
+export SERVICE_ACCOUNT="substratus@${PROJECT}.iam.gserviceaccount.com"
+# can't delete service account, getting permission denied
+# gcloud --quiet iam service-accounts delete ${SERVICE_ACCOUNT} --project ${PROJECT}
+
+
+export ARTIFACTS_BUCKET="gs://${PROJECT}-substratus-artifacts"
+gcloud --quiet storage rm -r --project ${PROJECT} "${ARTIFACTS_BUCKET}" || true
+
+gcloud --quiet artifacts repositories delete substratus \
+  --project ${PROJECT} --location us-central1 || true

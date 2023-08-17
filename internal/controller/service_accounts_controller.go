@@ -7,6 +7,8 @@ import (
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/sci"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -18,6 +20,20 @@ const (
 	notebookServiceAccountName         = "notebook"
 	dataLoaderServiceAccountName       = "data-loader"
 )
+
+func AssociatePrincipalSCIServiceAccount(ctx context.Context, client *kubernetes.Clientset, cloud cloud.Cloud) error {
+	namespace := "substratus"
+	serviceAccountName := "sci"
+
+	sa, err := client.CoreV1().ServiceAccounts(namespace).Get(ctx, serviceAccountName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	cloud.AssociatePrincipal(sa)
+	_, err = client.CoreV1().ServiceAccounts(namespace).Update(ctx, sa, metav1.UpdateOptions{})
+	return err
+}
 
 func reconcileServiceAccount(ctx context.Context, cloudConfig cloud.Cloud, sciClient sci.ControllerClient, c client.Client, sa *corev1.ServiceAccount) (result, error) {
 	if sa.Annotations == nil {
