@@ -1457,14 +1457,6 @@ subjects:
   namespace: substratus
 ---
 apiVersion: v1
-data:
-  CLOUD: gcp
-kind: ConfigMap
-metadata:
-  name: system
-  namespace: substratus
----
-apiVersion: v1
 kind: Service
 metadata:
   labels:

@@ -9,7 +9,6 @@ namespace: substratus
 
 resources:
   - ./namespace.yaml
-  - ./config.yaml
   - ../crd
   - ../rbac
   - ../manager
