@@ -60,8 +60,9 @@ iam:
       wellKnownPolicies:
         ebsCSIController: true
     - metadata:
-        name: aws-manager
+        name: substratus
         namespace: substratus
+      roleName: substratus
       attachPolicy:
         # https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
         Version: "2012-10-17"
@@ -94,3 +95,9 @@ iam:
               - "iam:UpdateAssumeRolePolicy"
             Resource:
               - "arn:aws:iam::${AWS_ACCOUNT_ID}:role/$${aws:userid}"
+          - Sid: "DescribeSubstratusCluster"
+            Effect: Allow
+            Action:
+              - "eks:DescribeCluster"
+            Resource:
+              - "arn:aws:eks:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}"
