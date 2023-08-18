@@ -11,7 +11,6 @@ ENVTEST_K8S_VERSION = 1.26.1
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
 
-PROJECT_ID := $(shell gcloud config get-value project)
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
 
@@ -108,23 +107,25 @@ build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/controllermanager/main.go
 
 .PHONY: dev-up-gcp
+dev-up-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-up-gcp: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=$(shell gcloud config get project) \
+		-e PROJECT=${PROJECT_ID} \
 		-e TOKEN=$(shell gcloud auth print-access-token) \
 		-e INSTALL_OPERATOR=false \
 		substratus-installer gcp-up.sh
 	mkdir -p secrets
 	gcloud iam service-accounts keys create \
-	  --iam-account=substratus@$(shell gcloud config get project).iam.gserviceaccount.com \
+	  --iam-account=substratus@${PROJECT_ID}.iam.gserviceaccount.com \
 	  ./secrets/substratus-sa.json
 
 .PHONY: dev-down-gcp
+dev-down-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-down-gcp: build-installer
 	docker run -it \
 		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=$(shell gcloud config get project) \
+		-e PROJECT=${PROJECT_ID} \
 		-e TOKEN=$(shell gcloud auth print-access-token) \
 		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
 		substratus-installer gcp-down.sh
@@ -158,10 +159,10 @@ dev-down-kind:
 	cd install/scripts && ./kind-down.sh
 
 .PHONY: dev-skaffold-gcp
-dev-skaffold-gcp: export PROJECT_ID=$(shell gcloud config get project)
+dev-skaffold-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-skaffold-gcp: export SKAFFOLD_DEFAULT_REPO=gcr.io/${PROJECT_ID}
 dev-skaffold-gcp:
-	skaffold dev -f skaffold.gcp.yaml
+	$(SKAFFOLD) dev -f skaffold.gcp.yaml
 
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
@@ -187,7 +188,7 @@ dev-down-aws: build-installer
 .PHONY: dev-run-gcp
 # Controller manager configuration #
 dev-run-gcp: export CLOUD=gcp
-dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
+dev-run-gcp: PROJECT_ID ?= $(shell gcloud config get project)
 dev-run-gcp: export CLUSTER_NAME=substratus
 dev-run-gcp: export CLUSTER_LOCATION=us-central1
 dev-run-gcp: export PRINCIPAL=substratus@${PROJECT_ID}.iam.gserviceaccount.com
