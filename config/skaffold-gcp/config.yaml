@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: system
+  namespace: substratus
+data:
+  CLOUD: gcp
+  # ARTIFACT_BUCKET_URL: gs://$PROJECT_ID-substratus-artifacts auto configured
+  # REGISTRY_URL: us-central1-docker.pkg.dev/my-project/substratus # auto configured
+  # CLUSTER_NAME: substratus auto configured
+  # PRINCIPAL: substratus@my-project.iam.gserviceaccount.com auto configured
+  # PROJECT_ID: my-project auto configured
+  # CLUSTER_LOCATION: us-central1 auto configured

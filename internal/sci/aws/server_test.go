@@ -1,19 +1,30 @@
-package aws
+package aws_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"log"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
+	awsSdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/substratusai/substratus/internal/sci"
+	sciAws "github.com/substratusai/substratus/internal/sci/aws"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -30,7 +41,31 @@ func randomString(length int, charset string) string {
 	return string(b)
 }
 
+func AwsCredentialsPresent() bool {
+	sess, err := session.NewSession()
+	if err != nil {
+		fmt.Printf("Failed to create session: %v", err)
+		return false
+	}
+
+	creds := sess.Config.Credentials
+	_, err = creds.Get()
+	if err != nil {
+		if err == credentials.ErrNoValidProvidersFoundInChain {
+			fmt.Println("No AWS credentials found, skipping test")
+			return false
+		} else {
+			fmt.Printf("Failed to retrieve AWS credentials: %v", err)
+			return false
+		}
+	}
+	return true
+}
+
 func TestGetObjectMd5(t *testing.T) {
+	if !AwsCredentialsPresent() {
+		t.Skip("AWS credentials not found")
+	}
 	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
 	if envAccountID == "" {
 		t.Skip("Skipping TestGetObjectMd5 because AWS_ACCOUNT_ID is not set")
@@ -43,8 +78,8 @@ func TestGetObjectMd5(t *testing.T) {
 	assert.NoError(t, err)
 
 	s3Client := s3.New(sess)
-	server := &Server{
-		Clients: Clients{
+	server := &sciAws.Server{
+		Clients: sciAws.Clients{
 			S3Client: s3Client,
 		},
 	}
@@ -57,9 +92,33 @@ func TestGetObjectMd5(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	defer server.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: &bucket})
+	defer func() {
+		listOutput, listErr := server.Clients.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+			Bucket: &bucket,
+		})
+		if listErr != nil {
+			log.Printf("Error listing objects in bucket %s: %v", bucket, listErr)
+			return
+		}
 
-	// Upload an object
+		// Delete each object prior to bucket deletion
+		for _, object := range listOutput.Contents {
+			_, delErr := server.Clients.S3Client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: &bucket,
+				Key:    object.Key,
+			})
+			if delErr != nil {
+				log.Printf("Error deleting object %s in bucket %s: %v", *object.Key, bucket, delErr)
+			}
+		}
+
+		// finally, delete the bucket
+		_, err := server.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: &bucket})
+		if err != nil {
+			log.Printf("Error deleting bucket %s: %v", bucket, err)
+		}
+	}()
+
 	_, err = server.Clients.S3Client.PutObject(&s3.PutObjectInput{
 		Bucket: &bucket,
 		Key:    &object,
@@ -79,6 +138,10 @@ func TestGetObjectMd5(t *testing.T) {
 }
 
 func TestBindIdentity(t *testing.T) {
+	if !AwsCredentialsPresent() {
+		t.Skip("AWS credentials not found")
+	}
+	// TODO(bjb): see setup techique here: https://pkg.go.dev/testing#hdr-Main
 	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
 	if envAccountID == "" {
 		t.Skip("Skipping TestBindIdentity because AWS_ACCOUNT_ID is not set")
@@ -93,9 +156,9 @@ func TestBindIdentity(t *testing.T) {
 	iamClient := iam.New(sess)
 
 	oidcProviderURL := "oidc.eks.us-west-2.amazonaws.com/id/C2A3CBF5FF8C55D72C8843756CD44444"
-	server := &Server{
-		Clients: Clients{
-			IamClient: iamClient,
+	server := &sciAws.Server{
+		Clients: sciAws.Clients{
+			IAMClient: iamClient,
 		},
 		OIDCProviderURL: oidcProviderURL,
 		OIDCProviderARN: "arn:aws:iam::243019462222:oidc-provider/" + oidcProviderURL,
@@ -115,23 +178,23 @@ func TestBindIdentity(t *testing.T) {
 		]
 	  }`
 
-	_, err = server.Clients.IamClient.CreateRole(&iam.CreateRoleInput{
+	_, err = server.Clients.IAMClient.CreateRole(&iam.CreateRoleInput{
 		RoleName:                 &roleName,
-		AssumeRolePolicyDocument: awssdk.String(rolePolicy),
+		AssumeRolePolicyDocument: awsSdk.String(rolePolicy),
 	})
 	assert.NoError(t, err)
 
 	defer func() {
-		if _, err := server.Clients.IamClient.DeleteRole(&iam.DeleteRoleInput{RoleName: &roleName}); err != nil {
+		if _, err := server.Clients.IAMClient.DeleteRole(&iam.DeleteRoleInput{RoleName: &roleName}); err != nil {
 			t.Logf("Failed to delete IAM role: %v", err)
 		}
 	}()
 
 	// Debug: Fetch and print the current trust policy before making the BindIdentity call
 	getRoleInput := &iam.GetRoleInput{
-		RoleName: awssdk.String(roleName),
+		RoleName: awsSdk.String(roleName),
 	}
-	getRoleOutput, err := server.Clients.IamClient.GetRole(getRoleInput)
+	getRoleOutput, err := server.Clients.IAMClient.GetRole(getRoleInput)
 	if err != nil {
 		t.Fatalf("Debug: failed to get the role: %v", err)
 	}
@@ -142,6 +205,138 @@ func TestBindIdentity(t *testing.T) {
 		KubernetesNamespace:      "test-namespace",
 		KubernetesServiceAccount: "test-serviceaccount",
 	})
+	if err != nil {
+		t.Fatalf("Error in BindIdentity: %v", err)
+	}
+
+	getRoleOutput, err = server.Clients.IAMClient.GetRole(getRoleInput)
+	if err != nil {
+		t.Fatalf("Debug: failed to get the role: %v", err)
+	}
+
+	encodedPolicy := *getRoleOutput.Role.AssumeRolePolicyDocument
+	decodedPolicy, err := url.QueryUnescape(encodedPolicy)
+	if err != nil {
+		t.Fatalf("Error decoding policy document: %v", err)
+	}
+	assert.Contains(t, decodedPolicy, "system:serviceaccount:test-namespace:test-serviceaccount")
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
+}
+
+func TestCreateSignedURL(t *testing.T) {
+	if !AwsCredentialsPresent() {
+		t.Skip("AWS credentials not found")
+	}
+	sess, err := session.NewSession(&awsSdk.Config{
+		Region: awsSdk.String("us-west-2"),
+	})
+	assert.NoError(t, err)
+
+	s3Client := s3.New(sess)
+	s := &sciAws.Server{
+		Clients: sciAws.Clients{
+			S3Client: s3Client,
+		},
+	}
+	bucketName := "substratus-test-bucket-" + randomString(8, charset)
+	objectName := "test-object.txt"
+	content := "test content"
+	checksum := "9473fdd0d880a43c21b7778d34872157"
+	h := md5.New()
+	io.WriteString(h, content)
+	calculatedChecksum := fmt.Sprintf("%x", h.Sum(nil))
+	if calculatedChecksum != checksum {
+		t.Fatalf("MD5 mismatch. Expected %s but got %s", checksum, calculatedChecksum)
+	}
+
+	_, err = s.Clients.S3Client.HeadBucket(&s3.HeadBucketInput{
+		Bucket: awsSdk.String(bucketName),
+	})
+	if err == nil {
+		_, delErr := s.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{
+			Bucket: awsSdk.String(bucketName),
+		})
+		if delErr != nil {
+			t.Fatalf("Failed to delete existing bucket: %v", delErr)
+		}
+	}
+
+	_, err = s.Clients.S3Client.CreateBucket(&s3.CreateBucketInput{
+		Bucket: awsSdk.String(bucketName),
+	})
+	assert.NoError(t, err)
+
+	// Cleanup resources after tests
+	defer func() {
+		// Delete all objects
+		objects, _ := s.Clients.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+			Bucket: awsSdk.String(bucketName),
+		})
+		for _, object := range objects.Contents {
+			s.Clients.S3Client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: awsSdk.String(bucketName),
+				Key:    object.Key,
+			})
+		}
+
+		_, err := s.Clients.S3Client.DeleteBucket(&s3.DeleteBucketInput{
+			Bucket: awsSdk.String(bucketName),
+		})
+		if err != nil {
+			t.Log("Failed to delete bucket:", err)
+		}
+	}()
+
+	req := &sci.CreateSignedURLRequest{
+		BucketName:        bucketName,
+		ObjectName:        objectName,
+		Md5Checksum:       checksum,
+		ExpirationSeconds: 3600,
+	}
+	resp, err := s.CreateSignedURL(context.TODO(), req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Url)
+
+	// Use the signed URL to PUT the object
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	// Convert hex MD5 to base64
+	data, err := hex.DecodeString(checksum)
+	if err != nil {
+		t.Fatalf("failed to decode MD5 checksum: %v", err)
+	}
+	base64md5 := base64.StdEncoding.EncodeToString(data)
+
+	putReq, err := http.NewRequest(http.MethodPut, resp.Url, strings.NewReader(content))
+	if err != nil {
+		t.Fatalf("failed to create new PUT request: %v", err)
+	}
+
+	putReq.Header.Set("Content-MD5", base64md5)
+	putReq.Header.Set("Content-Type", "application/octet-stream")
+
+	putRes, err := client.Do(putReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, putRes.StatusCode)
+	putRes.Body.Close()
+
+	getObjectOutput, err := s.Clients.S3Client.GetObject(&s3.GetObjectInput{
+		Bucket: awsSdk.String(bucketName),
+		Key:    awsSdk.String(objectName),
+	})
+	assert.NoError(t, err)
+
+	if getObjectOutput == nil || getObjectOutput.Body == nil {
+		t.Fatalf("GetObjectOutput or its Body is nil")
+	}
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(getObjectOutput.Body)
+	assert.NoError(t, err)
+	getObjectOutput.Body.Close()
+
+	newContent := buf.String()
+	assert.Equal(t, content, newContent)
 }

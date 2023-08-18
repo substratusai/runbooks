@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsSdk "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -31,7 +30,7 @@ type Server struct {
 
 type Clients struct {
 	S3Client  *s3.S3
-	IamClient *iam.IAM
+	IAMClient *iam.IAM
 }
 
 func (s *Server) GetObjectMd5(ctx context.Context, req *sci.GetObjectMd5Request) (*sci.GetObjectMd5Response, error) {
@@ -63,22 +62,6 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		req.GetObjectName(),
 		req.GetMd5Checksum()
 
-	// ensure the object is accessible
-	input := &s3.HeadObjectInput{
-		Bucket: awsSdk.String(bucketName),
-		Key:    awsSdk.String(objectName),
-	}
-	_, err := s.Clients.S3Client.HeadObject(input)
-	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() != s3.ErrCodeNoSuchKey {
-				return nil, fmt.Errorf("failed to head object: %w", err)
-			}
-		} else {
-			// It's an error of a different type, not an awserr.Error
-			return nil, fmt.Errorf("failed to head object: %w", err)
-		}
-	}
 	// Convert hex MD5 to base64
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
@@ -107,7 +90,7 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 	getRoleInput := &iam.GetRoleInput{
 		RoleName: awsSdk.String(req.Principal),
 	}
-	getRoleOutput, err := s.Clients.IamClient.GetRole(getRoleInput)
+	getRoleOutput, err := s.Clients.IAMClient.GetRole(getRoleInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the role: %v", err)
 	}
@@ -170,7 +153,7 @@ func (s *Server) BindIdentity(ctx context.Context, req *sci.BindIdentityRequest)
 		RoleName:       awsSdk.String(req.Principal),
 	}
 
-	_, err = s.Clients.IamClient.UpdateAssumeRolePolicy(input)
+	_, err = s.Clients.IAMClient.UpdateAssumeRolePolicy(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update trust policy: %v", err)
 	}

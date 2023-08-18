@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 	testCloud.RegistryURL = "registry.test"
 	testCloud.Principal = "substratus@test-project-id.iam.gserviceaccount.com"
 
-	sciClient := &sci.FakeCSIControllerClient{}
+	sciClient := &sci.FakeSCIControllerClient{}
 
 	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
 	//requireNoError(err)

@@ -14,14 +14,14 @@ package main_test
 //		--upload-file the-file.tar.gz \
 //		$URL
 
-// the following function was successfully used to exercise gcpmanager.Server.CreateSignedURL()
+// the following function was successfully used to exercise sci.gcp.Server.CreateSignedURL()
 // func invokeManually(storageClient *storage.Client) {
 // 	payload := sci.CreateSignedURLRequest{
 // 		BucketName:        "substratus-ai-001-substratus-notebooks",
 // 		ObjectName:        "notebook.tar.gz",
 // 		ExpirationSeconds: 300,
 // 	}
-// 	serv := gcpmanager.Server{
+// 	serv := gcp.Server{
 // 		StorageClient: storageClient,
 // 	}
 // 	fmt.Println("calling CreateSignedURL with payload:")
