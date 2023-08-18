@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	awsSdk "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -63,22 +62,6 @@ func (s *Server) CreateSignedURL(ctx context.Context, req *sci.CreateSignedURLRe
 		req.GetObjectName(),
 		req.GetMd5Checksum()
 
-	// ensure the object is accessible
-	input := &s3.HeadObjectInput{
-		Bucket: awsSdk.String(bucketName),
-		Key:    awsSdk.String(objectName),
-	}
-	_, err := s.Clients.S3Client.HeadObject(input)
-	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() != s3.ErrCodeNoSuchKey {
-				return nil, fmt.Errorf("failed to head object: %w", err)
-			}
-		} else {
-			// It's an error of a different type, not an awserr.Error
-			return nil, fmt.Errorf("failed to head object: %w", err)
-		}
-	}
 	// Convert hex MD5 to base64
 	data, err := hex.DecodeString(checksum)
 	if err != nil {
