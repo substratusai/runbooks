@@ -5,6 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/storage v1.31.0
+	github.com/aws/aws-sdk-go v1.44.321
 	github.com/briandowns/spinner v1.23.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-playground/validator/v10 v10.14.1
@@ -12,6 +13,7 @@ require (
 	github.com/sethvargo/go-envconfig v0.9.0
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 	k8s.io/api v0.27.4
@@ -25,7 +27,6 @@ require (
 require github.com/inconshreveable/mousetrap v1.0.1 // indirect
 
 require (
-	github.com/aws/aws-sdk-go v1.44.321 // indirect
 	cloud.google.com/go v0.110.6 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
@@ -35,15 +36,14 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5 // indirect

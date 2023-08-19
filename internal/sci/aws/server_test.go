@@ -18,10 +18,12 @@ import (
 	"time"
 
 	awsSdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/stretchr/testify/assert"
 	"github.com/substratusai/substratus/internal/sci"
 	sciAws "github.com/substratusai/substratus/internal/sci/aws"
@@ -41,10 +43,10 @@ func randomString(length int, charset string) string {
 	return string(b)
 }
 
-func AwsCredentialsPresent() bool {
+func awsCredentialsPresent() bool {
 	sess, err := session.NewSession()
 	if err != nil {
-		fmt.Printf("Failed to create session: %v", err)
+		fmt.Printf("Failed to create session: %v\n", err)
 		return false
 	}
 
@@ -55,15 +57,28 @@ func AwsCredentialsPresent() bool {
 			fmt.Println("No AWS credentials found, skipping test")
 			return false
 		} else {
-			fmt.Printf("Failed to retrieve AWS credentials: %v", err)
+			fmt.Printf("Failed to retrieve AWS credentials: %v\n", err)
 			return false
 		}
 	}
+
+	// Check if the credentials are expired by making an actual call
+	stsSvc := sts.New(sess)
+	_, err = stsSvc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == "ExpiredToken" {
+				fmt.Println("AWS credentials have expired, skipping test")
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
 func TestGetObjectMd5(t *testing.T) {
-	if !AwsCredentialsPresent() {
+	if !awsCredentialsPresent() {
 		t.Skip("AWS credentials not found")
 	}
 	envAccountID := os.Getenv("AWS_ACCOUNT_ID")
@@ -138,7 +153,7 @@ func TestGetObjectMd5(t *testing.T) {
 }
 
 func TestBindIdentity(t *testing.T) {
-	if !AwsCredentialsPresent() {
+	if !awsCredentialsPresent() {
 		t.Skip("AWS credentials not found")
 	}
 	// TODO(bjb): see setup techique here: https://pkg.go.dev/testing#hdr-Main
@@ -225,8 +240,10 @@ func TestBindIdentity(t *testing.T) {
 }
 
 func TestCreateSignedURL(t *testing.T) {
-	if !AwsCredentialsPresent() {
+	if !awsCredentialsPresent() {
 		t.Skip("AWS credentials not found")
+	} else {
+		fmt.Println("somehow credentials found?")
 	}
 	sess, err := session.NewSession(&awsSdk.Config{
 		Region: awsSdk.String("us-west-2"),
