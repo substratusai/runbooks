@@ -177,12 +177,10 @@ func GetAccountID(stsSvc *sts.STS) (string, error) {
 }
 
 func GetClusterID() (string, error) {
-	// Fall back to the environment variable
 	clusterID := os.Getenv("CLUSTER_NAME")
-	if clusterID != "" {
-		return clusterID, nil
+	if clusterID == "" {
+		return "", fmt.Errorf("CLUSTER_NAME env var not found")
 	}
-
 	return clusterID, nil
 }
 

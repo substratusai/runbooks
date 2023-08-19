@@ -1,0 +1,10 @@
+resources:
+  - ./config.yaml
+  - ../install-aws
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: docker.io/substratusai/controller-manager
+    newName: controller-manager
+  - name: docker.io/substratusai/sci-aws
+    newName: sci-aws

@@ -1,0 +1,2381 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: namespace
+    app.kubernetes.io/part-of: substratus
+    control-plane: controller-manager
+  name: substratus
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: datasets.substratus.ai
+spec:
+  group: substratus.ai
+  names:
+    categories:
+    - ai
+    kind: Dataset
+    listKind: DatasetList
+    plural: datasets
+    shortNames:
+    - data
+    singular: dataset
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: "The Dataset API is used to describe data that can be referenced
+          for training Models. \n - Datasets pull in remote data sources using containerized
+          data loaders. \n - Users can specify their own ETL logic by referencing
+          a repository from a Dataset. \n - Users can leverage pre-built data loader
+          integrations with various sources. \n - Training typically requires a large
+          dataset. The Dataset API pulls a dataset once and stores it in a bucket,
+          which is mounted directly into training Jobs. \n - The Dataset API allows
+          users to query ready-to-use datasets (`kubectl get datasets`). \n - The
+          Dataset API allows Kubernetes RBAC to be applied as a mechanism for controlling
+          access to data."
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec is the desired state of the Dataset.
+            properties:
+              build:
+                description: Build specifies how to build an image.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      .spec.image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
+                        type: string
+                      url:
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  upload:
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
+                    properties:
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains dataset loading code and dependencies.
+                type: string
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Params will be passed into the loading process as environment
+                  variables.
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
+                type: object
+            type: object
+          status:
+            description: Status is the observed state of the Dataset.
+            properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
+              conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Dataset.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ready:
+                default: false
+                description: Ready indicates that the Dataset is ready to use. See
+                  Conditions for more details.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: models.substratus.ai
+spec:
+  group: substratus.ai
+  names:
+    categories:
+    - ai
+    kind: Model
+    listKind: ModelList
+    plural: models
+    singular: model
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: "The Model API is used to build and train machine learning models.
+          \n - Base models can be built from a Git repository. \n - Models can be
+          trained by combining a base Model with a Dataset. \n - Model artifacts are
+          persisted in cloud buckets."
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec is the desired state of the Model.
+            properties:
+              baseModel:
+                description: BaseModel should be set in order to mount another model
+                  to be used for transfer learning.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              build:
+                description: Build specifies how to build an image.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      .spec.image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
+                        type: string
+                      url:
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  upload:
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
+                    properties:
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model code and dependencies.
+                type: string
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Parameters are passing into the model training/loading
+                  container as environment variables. Environment variable name will
+                  be `"PARAM_" + uppercase(key)`.
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
+                type: object
+              trainingDataset:
+                description: Dataset to mount for training.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+            type: object
+          status:
+            description: Status is the observed state of the Model.
+            properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
+              conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Model.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ready:
+                default: false
+                description: Ready indicates that the Model is ready to use. See Conditions
+                  for more details.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: notebooks.substratus.ai
+spec:
+  group: substratus.ai
+  names:
+    categories:
+    - ai
+    kind: Notebook
+    listKind: NotebookList
+    plural: notebooks
+    shortNames:
+    - nb
+    singular: notebook
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: "The Notebook API can be used to quickly spin up a development
+          environment backed by high performance compute. \n - Notebooks integrate
+          with the Model and Dataset APIs allow for quick iteration. \n - Notebooks
+          can be synced to local directories to streamline developer experiences using
+          Substratus kubectl plugins."
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec is the observed state of the Notebook.
+            properties:
+              build:
+                description: Build specifies how to build an image.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      .spec.image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
+                        type: string
+                      url:
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  upload:
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
+                    properties:
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              dataset:
+                description: Dataset to load into the notebook container.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              image:
+                description: Image that contains notebook and dependencies.
+                type: string
+              model:
+                description: Model to load into the notebook container.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Params will be passed into the notebook container as
+                  environment variables.
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
+                type: object
+              suspend:
+                description: Suspend should be set to true to stop the notebook (Pod)
+                  from running. This is a pointer to distinguish between explicit
+                  false and not specified.
+                type: boolean
+            type: object
+          status:
+            description: Status is the observed state of the Notebook.
+            properties:
+              buildUpload:
+                description: BuildUpload contains the status of the build context
+                  upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
+              conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Notebook.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ready:
+                default: false
+                description: Ready indicates that the Notebook is ready to serve.
+                  See Conditions for more details.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: servers.substratus.ai
+spec:
+  group: substratus.ai
+  names:
+    categories:
+    - ai
+    kind: Server
+    listKind: ServerList
+    plural: servers
+    singular: server
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: The Server API is used to deploy a server that exposes the capabilities
+          of a Model via a HTTP interface.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec is the desired state of the Server.
+            properties:
+              build:
+                description: Build specifies how to build an image.
+                properties:
+                  git:
+                    description: Git is a reference to a git repository that will
+                      be built within the cluster. Built image will be set in the
+                      .spec.image field.
+                    properties:
+                      branch:
+                        description: Branch is the git branch to use. Choose either
+                          branch or tag. This branch will be pulled only at build
+                          time and not monitored for changes.
+                        type: string
+                      path:
+                        description: Path within the git repository referenced by
+                          url.
+                        type: string
+                      tag:
+                        description: Tag is the git tag to use. Choose either tag
+                          or branch. This tag will be pulled only at build time and
+                          not monitored for changes.
+                        type: string
+                      url:
+                        description: 'URL to the git repository to build. Example:
+                          https://github.com/my-username/my-repo'
+                        type: string
+                    required:
+                    - url
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  upload:
+                    description: Upload can be set to request to start an upload flow
+                      where the client is responsible for uploading a local directory
+                      that is to be built in the cluster.
+                    properties:
+                      md5Checksum:
+                        description: MD5Checksum is the md5 checksum of the tar'd
+                          repo root requested to be uploaded and built.
+                        maxLength: 32
+                        minLength: 32
+                        pattern: ^[a-fA-F0-9]{32}$
+                        type: string
+                      requestID:
+                        description: RequestID is the ID of the request to build the
+                          image. Changing this ID to a new value can be used to get
+                          a new signed URL (useful when a URL has expired).
+                        type: string
+                    required:
+                    - md5Checksum
+                    - requestID
+                    type: object
+                    x-kubernetes-map-type: atomic
+                type: object
+                x-kubernetes-map-type: atomic
+              command:
+                description: Command to run in the container.
+                items:
+                  type: string
+                type: array
+              image:
+                description: Image that contains model serving application and dependencies.
+                type: string
+              model:
+                description: Model references the Model object to be served.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
+              resources:
+                description: Resources are the compute resources required by the container.
+                properties:
+                  cpu:
+                    default: 2
+                    description: CPU resources.
+                    format: int64
+                    type: integer
+                  disk:
+                    default: 10
+                    description: Disk size in Gigabytes.
+                    format: int64
+                    type: integer
+                  gpu:
+                    description: GPU resources.
+                    properties:
+                      count:
+                        description: Count is the number of GPUs.
+                        format: int64
+                        type: integer
+                      type:
+                        description: Type of GPU.
+                        type: string
+                    type: object
+                  memory:
+                    default: 10
+                    description: Memory is the amount of RAM in Gigabytes.
+                    format: int64
+                    type: integer
+                type: object
+            type: object
+          status:
+            description: Status is the observed state of the Server.
+            properties:
+              buildUpload:
+                description: Upload contains the status of the build context upload.
+                properties:
+                  expiration:
+                    description: Expiration is the time at which the signed URL expires.
+                    format: date-time
+                    type: string
+                  requestID:
+                    description: RequestID is the request id that corresponds to this
+                      status. Clients should check that this matches the request id
+                      that they set in the upload spec before uploading.
+                    type: string
+                  signedURL:
+                    description: SignedURL is a short lived HTTPS URL. The client
+                      is expected to send a PUT request to this URL containing a tar'd
+                      docker build context. Content-Type of "application/octet-stream"
+                      should be used.
+                    type: string
+                  storedMD5Checksum:
+                    description: StoredMD5Checksum is the md5 checksum of the file
+                      that the controller observed in storage.
+                    type: string
+                type: object
+              conditions:
+                description: Conditions is the list of conditions that describe the
+                  current state of the Server.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              ready:
+                default: false
+                description: Ready indicates whether the Server is ready to serve
+                  traffic. See Conditions for more details.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: controller-manager-sa
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: serviceaccount
+    app.kubernetes.io/part-of: substratus
+  name: controller-manager
+  namespace: substratus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: leader-election-role
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: role
+    app.kubernetes.io/part-of: substratus
+  name: leader-election-role
+  namespace: substratus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - datasets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - models/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - substratus.ai
+  resources:
+  - servers/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: metrics-reader
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/part-of: substratus
+  name: metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: proxy-role
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/part-of: substratus
+  name: proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: leader-election-rolebinding
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: rolebinding
+    app.kubernetes.io/part-of: substratus
+  name: leader-election-rolebinding
+  namespace: substratus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: substratus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: manager-rolebinding
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: clusterrolebinding
+    app.kubernetes.io/part-of: substratus
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: substratus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: proxy-rolebinding
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: clusterrolebinding
+    app.kubernetes.io/part-of: substratus
+  name: proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: proxy-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: substratus
+---
+apiVersion: v1
+data:
+  CLOUD: aws
+kind: ConfigMap
+metadata:
+  name: system
+  namespace: substratus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: controller-manager-metrics-service
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: service
+    app.kubernetes.io/part-of: substratus
+    control-plane: controller-manager
+  name: controller-manager-metrics-service
+  namespace: substratus
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: substratus
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/part-of: substratus
+    control-plane: controller-manager
+  name: controller-manager
+  namespace: substratus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+                - ppc64le
+                - s390x
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        envFrom:
+        - configMapRef:
+            name: system
+        image: docker.io/substratusai/controller-manager:v0.8.1
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: controller-manager
+      terminationGracePeriodSeconds: 10
+---
+---
+# Source: karpenter/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karpenter
+      app.kubernetes.io/instance: karpenter
+---
+# Source: karpenter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::243019462621:role/substratus-karpenter
+---
+# Source: karpenter/templates/secret-webhook-cert.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karpenter-cert
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+# data: {} # Injected by karpenter-webhook
+---
+# Source: karpenter/templates/configmap-logging.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-logging
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  # https://github.com/uber-go/zap/blob/aa3e73ec0896f8b066ddf668597a02f89628ee50/config.go
+  zap-logger-config: |
+    {
+      "level": "debug",
+      "development": false,
+      "disableStacktrace": true,
+      "disableCaller": true,
+      "sampling": {
+        "initial": 100,
+        "thereafter": 100
+      },
+      "outputPaths": ["stdout"],
+      "errorOutputPaths": ["stderr"],
+      "encoding": "console",
+      "encoderConfig": {
+        "timeKey": "time",
+        "levelKey": "level",
+        "nameKey": "logger",
+        "callerKey": "caller",
+        "messageKey": "message",
+        "stacktraceKey": "stacktrace",
+        "levelEncoder": "capital",
+        "timeEncoder": "iso8601"
+      }
+    }
+  loglevel.webhook: "error"
+---
+# Source: karpenter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karpenter-global-settings
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+data:  
+    "aws.clusterEndpoint": ""
+    "aws.clusterName": "substratus"
+    "aws.defaultInstanceProfile": "KarpenterNodeInstanceProfile-substratus"
+    "aws.enableENILimitedPodDensity": "true"
+    "aws.enablePodENI": "false"
+    "aws.interruptionQueueName": "substratus"
+    "aws.isolatedVPC": "false"
+    "aws.vmMemoryOverheadPercent": "0.075"
+    "batchIdleDuration": "1s"
+    "batchMaxDuration": "10s"
+    "featureGates.driftEnabled": "false"
+---
+# Source: karpenter/templates/aggregate-clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter-admin
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: ["karpenter.sh"]
+    resources: ["provisioners", "provisioners/status", "machines", "machines/status"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+---
+# Source: karpenter/templates/clusterrole-core.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter-core
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Read
+  - apiGroups: ["karpenter.sh"]
+    resources: ["provisioners", "provisioners/status", "machines", "machines/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [ "policy" ]
+    resources: [ "poddisruptionbudgets" ]
+    verbs: [ "get", "list", "watch" ]
+  # Write
+  - apiGroups: ["karpenter.sh"]
+    resources: ["provisioners/status", "machines", "machines/status"]
+    verbs: ["create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["create", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["update"]
+    resourceNames: ["validation.webhook.karpenter.sh", "validation.webhook.config.karpenter.sh"]
+---
+# Source: karpenter/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Read
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["update"]
+    resourceNames: ["validation.webhook.karpenter.k8s.aws"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["update"]
+    resourceNames: ["defaulting.webhook.karpenter.k8s.aws"]
+  # Write
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates/status"]
+    verbs: ["patch", "update"]
+---
+# Source: karpenter/templates/clusterrole-core.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: karpenter-core
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: karpenter-core
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+# Source: karpenter/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: karpenter
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+# Source: karpenter/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Read
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps", "namespaces", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Write
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["update"]
+    resourceNames: ["karpenter-cert"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["update", "patch", "delete"]
+    resourceNames:
+      - karpenter-global-settings
+      - config-logging
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["patch", "update"]
+    resourceNames:
+      - "karpenter-leader-election"
+      - "webhook.configmapwebhook.00-of-01"
+      - "webhook.defaultingwebhook.00-of-01"
+      - "webhook.validationwebhook.00-of-01"
+      - "webhook.webhookcertificates.00-of-01"
+  # Cannot specify resourceNames on create
+  # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]
+---
+# Source: karpenter/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: karpenter-dns
+  namespace: kube-system
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Read
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["kube-dns"]
+    verbs: ["get"]
+---
+# Source: karpenter/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: karpenter
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+# Source: karpenter/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter-dns
+  namespace: kube-system
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: karpenter-dns
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+# Source: karpenter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 8000
+      targetPort: http-metrics
+      protocol: TCP
+    - name: https-webhook
+      port: 8443
+      targetPort: https-webhook
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+---
+# Source: karpenter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karpenter
+      app.kubernetes.io/instance: karpenter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: karpenter
+        app.kubernetes.io/instance: karpenter
+      annotations:
+        checksum/settings: 39876a01f1a7222696cf39c013c78592cd2cd34293e0c98b768ccf10d5482f60
+    spec:
+      serviceAccountName: karpenter
+      securityContext:
+        fsGroup: 1000
+      priorityClassName: "system-cluster-critical"
+      dnsPolicy: Default
+      containers:
+        - name: controller
+          image: public.ecr.aws/karpenter/controller:v0.29.2@sha256:bac5ea470c09df21eb3742cf9448e9b806138ed5b6321d4e04697bbdf122eac6
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.19.0-0"
+            - name: KARPENTER_SERVICE
+              value: karpenter
+            - name: WEBHOOK_PORT
+              value: "8443"
+            - name: METRICS_PORT
+              value: "8000"
+            - name: HEALTH_PROBE_PORT
+              value: "8081"
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: controller
+                  divisor: "0"
+                  resource: limits.memory
+          ports:
+            - name: http-metrics
+              containerPort: 8000
+              protocol: TCP
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+            - name: https-webhook
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            timeoutSeconds: 30
+            httpGet:
+              path: /readyz
+              port: http
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+      nodeSelector:
+        kubernetes.io/os: linux
+      # The template below patches the .Values.affinity to add a default label selector where not specificed
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.sh/provisioner-name
+                operator: DoesNotExist
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: karpenter
+                app.kubernetes.io/name: karpenter
+            topologyKey: kubernetes.io/hostname
+      # The template below patches the .Values.topologySpreadConstraints to add a default label selector where not specificed
+      topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: karpenter
+              app.kubernetes.io/name: karpenter
+          maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+---
+# Source: karpenter/templates/webhooks.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: defaulting.webhook.karpenter.k8s.aws
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: defaulting.webhook.karpenter.k8s.aws
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karpenter
+        namespace: karpenter
+        port: 8443
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups:
+          - karpenter.k8s.aws
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - awsnodetemplates
+          - awsnodetemplates/status
+        scope: '*'
+      - apiGroups:
+          - karpenter.sh
+        apiVersions:
+          - v1alpha5
+        resources:
+          - provisioners
+          - provisioners/status
+        operations:
+          - CREATE
+          - UPDATE
+---
+# Source: karpenter/templates/webhooks-core.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.karpenter.sh
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: validation.webhook.karpenter.sh
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karpenter
+        namespace: karpenter
+        port: 8443
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups:
+          - karpenter.sh
+        apiVersions:
+          - v1alpha5
+        resources:
+          - provisioners
+          - provisioners/status
+        operations:
+          - CREATE
+          - UPDATE
+---
+# Source: karpenter/templates/webhooks-core.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.config.karpenter.sh
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: validation.webhook.config.karpenter.sh
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karpenter
+        namespace: karpenter
+        port: 8443
+    failurePolicy: Fail
+    sideEffects: None
+    objectSelector:
+      matchLabels:
+        app.kubernetes.io/part-of: karpenter
+---
+# Source: karpenter/templates/webhooks.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.karpenter.k8s.aws
+  labels:
+    helm.sh/chart: karpenter-v0.29.2
+    app.kubernetes.io/name: karpenter
+    app.kubernetes.io/instance: karpenter
+    app.kubernetes.io/version: "0.29.2"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: validation.webhook.karpenter.k8s.aws
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: karpenter
+        namespace: karpenter
+        port: 8443
+    failurePolicy: Fail
+    sideEffects: None
+    rules:
+      - apiGroups:
+          - karpenter.k8s.aws
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - awsnodetemplates
+          - awsnodetemplates/status
+        scope: '*'
+      - apiGroups:
+          - karpenter.sh
+        apiVersions:
+          - v1alpha5
+        resources:
+          - provisioners
+          - provisioners/status
+        operations:
+          - CREATE
+          - UPDATE
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
+spec:
+  instanceProfile: KarpenterNodeInstanceProfile-substratus
+  subnetSelector:
+    karpenter.sh/discovery: substratus
+    Name: "*Private*"
+  securityGroupSelector:
+    karpenter.sh/discovery: substratus
+---
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: nvidia-gpu
+spec:
+  providerRef:
+    name: default
+  consolidation:
+    enabled: true
+  # These well-known labels (specifically karpenter.k8s.aws/instance-gpu-name)
+  # will guide karpenter in accelerator and instance type selection:
+  # https://karpenter.sh/v0.29/concepts/scheduling/#labels
+  taints:
+    - key: nvidia.com/gpu
+      value: "true"
+      effect: "NoSchedule"
+  requirements:
+    - key: karpenter.sh/capacity-type
+      operator: In
+      values: ["spot"]
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values: [
+        "p4de",
+        "p4d",
+        "p3dn",
+        "p3",
+        "p2",
+        "g2",
+        "g3",
+        "g4",
+        "g5",
+      ]
+    - key: "kubernetes.io/arch"
+      operator: In
+      values: ["amd64"]
+---
+---
+# Source: nvidia-device-plugin/templates/daemonset.yml
+# Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvdp-nvidia-device-plugin
+  namespace: nvidia-device-plugin
+  labels:
+    helm.sh/chart: nvidia-device-plugin-0.14.1
+    app.kubernetes.io/name: nvidia-device-plugin
+    app.kubernetes.io/instance: nvdp
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvidia-device-plugin
+      app.kubernetes.io/instance: nvdp
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvidia-device-plugin
+        app.kubernetes.io/instance: nvdp
+      annotations:
+        {}
+    spec:
+      priorityClassName: system-node-critical
+      securityContext:
+        {}
+      containers:
+      - image: nvcr.io/nvidia/k8s-device-plugin:v0.14.1
+        imagePullPolicy: IfNotPresent
+        name: nvidia-device-plugin-ctr
+        env:
+          - name: NVIDIA_MIG_MONITOR_DEVICES
+            value: all
+        securityContext:
+          capabilities:
+            add:
+              - SYS_ADMIN
+        volumeMounts:
+          - name: device-plugin
+            mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.k8s.aws/instance-gpu-manufacturer
+                operator: In
+                values:
+                - nvidia
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+---
+# Source: nvidia-device-plugin/templates/gfd.yml
+# Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.

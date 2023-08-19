@@ -10,8 +10,8 @@ set -u
 export CLOUDSDK_AUTH_ACCESS_TOKEN=${TOKEN}
 # Used by terraform:
 export GOOGLE_OAUTH_ACCESS_TOKEN=${TOKEN}
-INSTALL_OPERATOR="${INSTALL_OPERATOR:-yes}"
-AUTO_APPROVE="${AUTO_APPROVE:-no}"
+INSTALL_OPERATOR="${INSTALL_OPERATOR:-true}"
+AUTO_APPROVE="${AUTO_APPROVE:-false}"
 
 set -x
 # Enable required services.
@@ -30,7 +30,7 @@ echo "bucket = \"${TF_BUCKET}\"" >>backend.tfvars
 terraform init --backend-config=backend.tfvars
 
 export TF_VAR_project_id=${PROJECT}
-if [ "${AUTO_APPROVE}" == "yes" ]; then
+if [ "${AUTO_APPROVE}" == "true" ]; then
   terraform apply -auto-approve
 else
   terraform apply
@@ -47,7 +47,7 @@ if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" -q >/dev/null; then
 fi
 
 # Create Artifact Registry to host container images
-if ! gcloud artifacts repositories describe substratus --location us-central1 --project ${PROJECT} -q > /dev/null; then
+if ! gcloud artifacts repositories describe substratus --location us-central1 --project ${PROJECT} -q >/dev/null; then
   gcloud artifacts repositories create substratus \
     --repository-format=docker --location=${cluster_region} \
     --project ${PROJECT}
@@ -70,8 +70,8 @@ gcloud artifacts repositories add-iam-policy-binding substratus \
 
 # Allow the Service Account to bind K8s Service Account to this Service Account
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountAdmin --project ${PROJECT} \
-   --member "serviceAccount:${SERVICE_ACCOUNT}"
+  --role roles/iam.serviceAccountAdmin --project ${PROJECT} \
+  --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 # allow SCI to manage workload identity bindings
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
@@ -80,12 +80,12 @@ gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
 
 # Allow to create signed URLs
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountTokenCreator --project ${PROJECT} \
-   --member "serviceAccount:${SERVICE_ACCOUNT}"
+  --role roles/iam.serviceAccountTokenCreator --project ${PROJECT} \
+  --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.workloadIdentityUser --project ${PROJECT} \
-   --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/sci]"
+  --role roles/iam.workloadIdentityUser --project ${PROJECT} \
+  --member "serviceAccount:${PROJECT}.svc.id.goog[substratus/sci]"
 
 # Configure kubectl.
 gcloud container clusters get-credentials --project ${PROJECT} --region ${cluster_region} ${cluster_name}
@@ -93,6 +93,6 @@ gcloud container clusters get-credentials --project ${PROJECT} --region ${cluste
 kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml
 
 # Install cluster components.
-if [ "${INSTALL_OPERATOR}" == "yes" ]; then
+if [ "${INSTALL_OPERATOR}" == "true" ]; then
   kubectl apply -f kubernetes/gcp/system.yaml
 fi

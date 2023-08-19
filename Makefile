@@ -4,6 +4,7 @@ VERSION ?= v0.8.1
 IMG ?= docker.io/substratusai/controller-manager:${VERSION}
 IMG_SCI_KIND ?= docker.io/substratusai/sci-kind:${VERSION}
 IMG_SCI_GCP ?= docker.io/substratusai/sci-gcp:${VERSION}
+IMG_SCI_AWS ?= docker.io/substratusai/sci-aws:${VERSION}
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
@@ -160,8 +161,7 @@ dev-down-kind:
 .PHONY: dev-skaffold-gcp
 dev-skaffold-gcp: export PROJECT_ID=$(shell gcloud config get project)
 dev-skaffold-gcp: export SKAFFOLD_DEFAULT_REPO=gcr.io/${PROJECT_ID}
-dev-skaffold-gcp:
-	skaffold dev -f skaffold.gcp.yaml
+dev-skaffold-gcp: skaffold dev -f skaffold.gcp.yaml
 
 .PHONY: dev-up-aws
 dev-up-aws: build-installer
@@ -171,21 +171,21 @@ dev-up-aws: build-installer
 		-e AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id) \
 		-e AWS_SECRET_ACCESS_KEY=$(shell aws configure get aws_secret_access_key) \
 		-e AWS_SESSION_TOKEN=$(shell aws configure get aws_session_token) \
-		-e INSTALL_OPERATOR=false \
+		-e INSTALL_OPERATOR=true \
 		substratus-installer aws-up.sh
 
 .PHONY: dev-skaffold-aws
 dev-skaffold-aws: export AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query Account --output text)
-dev-skaffold-aws: export SKAFFOLD_DEFAULT_REPO=substratus
-dev-run-aws: export CLUSTER_NAME=substratus
-dev-run-aws: export PRINCIPAL=substratus
-dev-skaffold-aws:
-	skaffold dev -f skaffold.aws.yaml
+dev-skaffold-aws: export AWS_REGION=$(shell aws configure get region)
+dev-skaffold-aws: export CLUSTER_NAME=substratus
+dev-skaffold-aws: export PRINCIPAL=substratus
+dev-skaffold-aws: export SKAFFOLD_DEFAULT_REPO=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/substratus
+dev-skaffold-aws: skaffold dev -f skaffold.aws.yaml
 
 .PHONY: dev-run-aws
-# Controller manager configuration #
-dev-run-aws: export CLOUD=aws
+# Controller manager configuration
 dev-run-aws: export AWS_ACCOUNT_ID="$(shell aws sts get-caller-identity --query Account --output text)"
+dev-run-aws: export CLOUD=aws
 dev-run-aws: export CLUSTER_NAME=substratus
 dev-run-aws: export PRINCIPAL=substratus
 # Run the controller manager and the cloud manager.
@@ -302,6 +302,8 @@ installation-manifests: manifests kustomize
 	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
 	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
 	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
+	cd config/sci-aws && $(KUSTOMIZE) edit set image sci=${IMG_SCI_AWS}
+	$(KUSTOMIZE) build config/install-aws > install/kubernetes/aws/system.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs

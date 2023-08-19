@@ -3,7 +3,7 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
-  region: ${REGION}
+  region: ${AWS_REGION}
   version: "1.27"
   tags:
     createdBy: eksctl
