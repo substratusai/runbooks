@@ -137,7 +137,7 @@ dev-up-kind:
 
 .PHONY: dev-up-kind-gpu
 dev-up-kind-gpu:
-	cd install/scripts && ./kind-gpu-up.sh
+	cd install/kind && ./up-gpu.sh
 
 #
 # TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
