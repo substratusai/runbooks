@@ -31,7 +31,10 @@ EOF
 
 
 set -x
+# The nvidia operator needs the below symlink
+# https://github.com/NVIDIA/nvidia-docker/issues/614#issuecomment-423991632
 docker exec -ti substratus-control-plane ln -s /sbin/ldconfig /sbin/ldconfig.real || true
+
 helm repo add nvidia https://helm.ngc.nvidia.com/nvidia || true
 helm repo update
 helm install --wait --generate-name \
