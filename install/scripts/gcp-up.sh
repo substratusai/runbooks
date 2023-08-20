@@ -94,5 +94,15 @@ kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container
 
 # Install cluster components.
 if [ "${INSTALL_OPERATOR}" == "yes" ]; then
+  kubectl create ns substratus
+  kubectl apply -f - << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: system
+  namespace: substratus
+data:
+  CLOUD: gcp
+EOF
   kubectl apply -f kubernetes/gcp/system.yaml
 fi
