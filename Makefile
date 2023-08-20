@@ -133,7 +133,7 @@ dev-down-gcp: build-installer
 
 .PHONY: dev-up-kind
 dev-up-kind:
-	cd install/scripts && ./kind-up.sh
+	cd install/kind && ./up.sh
 
 #
 # TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
@@ -156,7 +156,7 @@ dev-skaffold-kind: skaffold
 
 .PHONY: dev-down-kind
 dev-down-kind:
-	cd install/scripts && ./kind-down.sh
+	cd install/kind && ./down.sh
 
 .PHONY: dev-skaffold-gcp
 dev-skaffold-gcp: PROJECT_ID ?=$(shell gcloud config get project)
@@ -279,7 +279,7 @@ installation-scripts:
 installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
-	$(KUSTOMIZE) build config/install-kind > install/kubernetes/kind/system.yaml
+	$(KUSTOMIZE) build config/install-kind > install/kind/manifests/system.yaml
 	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
 	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
 
