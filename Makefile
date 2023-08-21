@@ -123,7 +123,6 @@ dev-up-gcp:
 dev-down-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-down-gcp:
 	cd install/gcp && down.sh
-	rm ./secrets/substratus-sa.json
 
 .PHONY: dev-up-kind
 dev-up-kind:
