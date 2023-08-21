@@ -135,6 +135,10 @@ dev-down-gcp: build-installer
 dev-up-kind:
 	cd install/kind && ./up.sh
 
+.PHONY: dev-up-kind-gpu
+dev-up-kind-gpu:
+	cd install/kind && ./up-gpu.sh
+
 #
 # TODO(nstogner): Running outside of cluster is tricky to support b/c of how substratus
 # Pods need to mount the same directories as the SCI.
@@ -157,6 +161,9 @@ dev-skaffold-kind: skaffold
 .PHONY: dev-down-kind
 dev-down-kind:
 	cd install/kind && ./down.sh
+
+.PHONY: dev-down-kind-gpu
+dev-down-kind-gpu: dev-down-kind
 
 .PHONY: dev-skaffold-gcp
 dev-skaffold-gcp: PROJECT_ID ?=$(shell gcloud config get project)
