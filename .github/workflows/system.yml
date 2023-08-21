@@ -1,4 +1,4 @@
-name: Integration tests
+name: System tests
 run-name: ${{ github.actor }} triggered integration tests 🚀
 on: [pull_request]
 jobs:
@@ -7,4 +7,4 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-      - run: make test-integration
+      - run: make test-system

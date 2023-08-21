@@ -93,8 +93,12 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: manifests generate protogen fmt vet envtest ## Run tests.
+.PHONY: test-system
+test-system:
+	./test/run.sh kind
+
+.PHONY: test-integration
+test-integration: manifests generate protogen fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -v -coverprofile cover.out
 
 .PHONY: test-kubectl
@@ -286,7 +290,7 @@ installation-scripts:
 installation-manifests: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
-	$(KUSTOMIZE) build config/install-kind > install/kind/manifests/system.yaml
+	$(KUSTOMIZE) build config/install-kind > install/kind/manifests.yaml
 	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
 	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
 
