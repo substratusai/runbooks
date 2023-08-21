@@ -61,7 +61,7 @@ export GAR_REPO_NAME=substratus
 export REGISTRY_URL=${REGION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPO_NAME}
 if ! gcloud artifacts repositories describe ${GAR_REPO_NAME} --location ${REGION} -q > /dev/null; then
 gcloud artifacts repositories create ${GAR_REPO_NAME} \
-  --repository-format=docker --location=${REGION} \
+  --repository-format=docker --location=${REGION}
 fi
 
 # Create Google Service Account used by all of Substratus to access GCS and GAR
