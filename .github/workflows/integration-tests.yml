@@ -1,6 +1,6 @@
 name: Integration tests
 run-name: ${{ github.actor }} triggered integration tests 🚀
-on: [pull_request]
+on: [merge_group]
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
