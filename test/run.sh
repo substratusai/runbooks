@@ -30,6 +30,8 @@ else
 	./install/${cloud}/up.sh
 fi
 
+kubectl get events -A -w &
+
 # Install Substratus
 kubectl apply -k ${repo}/test/install/${cloud}
 
@@ -41,8 +43,8 @@ kubectl apply -f ${repo}/examples/${example}/base-server.yaml
 
 # Wait until both are ready
 # TODO: Consider adding common "Ready" condition to make this check easier.
-kubectl wait --for=condition=modelled models --all --timeout 600s
-kubectl wait --for=condition=deployed servers --all --timeout 600s
+kubectl wait --for=condition=modelled models --all --timeout 720s
+kubectl wait --for=condition=deployed servers --all --timeout 720s
 
 # Forward ports to localhost
 kubectl port-forward service/$example-server 8080:8080 &
