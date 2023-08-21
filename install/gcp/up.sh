@@ -60,8 +60,10 @@ if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" -q >/dev/null; then
 gcloud storage buckets create "${ARTIFACTS_BUCKET}" --location ${REGION}
 fi
 
-if ! gcloud artifacts repositories describe substratus --location us-central1 -q > /dev/null; then
-gcloud artifacts repositories create substratus \
+export GAR_REPO_NAME=substratus
+export REGISTRY_URL=${REGION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPO_NAME}
+if ! gcloud artifacts repositories describe ${GAR_REPO_NAME} --location ${REGION} -q > /dev/null; then
+gcloud artifacts repositories create ${GAR_REPO_NAME} \
   --repository-format=docker --location=${REGION} \
 fi
 
