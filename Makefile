@@ -281,7 +281,7 @@ installation-manifests: manifests kustomize
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
 	$(KUSTOMIZE) build config/install-kind > install/kind/manifests.yaml
 	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
-	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
+	$(KUSTOMIZE) build config/install-gcp > install/gcp/substratus.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs

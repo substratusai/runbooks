@@ -112,5 +112,5 @@ data:
   REGISTRY_URL: ${REGISTRY_URL}
   PRINCIPAL: ${SERVICE_ACCOUNT}
 EOF
-kubectl apply -f https://raw.githubusercontent.com/substratusai/substratus/main/install/kubernetes/gcp/system.yaml
+kubectl apply -f https://raw.githubusercontent.com/substratusai/substratus/main/install/gcp/substratus.yaml
 fi
