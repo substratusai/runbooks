@@ -273,7 +273,7 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 
 .PHONY: installation-scripts
 installation-scripts:
-	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
+	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/kubectl-plugins.sh
 
 .PHONY: installation-manifests
 installation-manifests: manifests kustomize
