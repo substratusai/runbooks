@@ -10,8 +10,8 @@ ZONE=${ZONE:=${REGION}-a}
 INSTALL_OPERATOR=no # set to yes if you want to install operator
 
 # Enable required services.
-gcloud services enable --project ${PROJECT_ID} container.googleapis.com
-gcloud services enable --project ${PROJECT_ID} artifactregistry.googleapis.com
+gcloud services enable container.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 
 export CLUSTER_NAME=substratus
 gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
@@ -22,7 +22,6 @@ gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
   --max-cpu 960 --max-memory 9600 --ephemeral-storage-local-ssd=count=2 \
   --autoprovisioning-scopes=logging.write,monitoring,devstorage.read_only,compute \
   --addons GcsFuseCsiDriver
-  
 
 # Configure a maintenance exclusion to prevent automatic upgrades for 160 days
 START=$(date -I --date="-1 day")
@@ -58,57 +57,51 @@ gcloud container node-pools create g2-standard-48 \
 
 export ARTIFACTS_BUCKET="gs://${PROJECT_ID}-substratus-artifacts"
 if ! gcloud storage buckets describe "${ARTIFACTS_BUCKET}" -q >/dev/null; then
-## Create a bucket for substratus models and datasets
-gcloud storage buckets create --project ${PROJECT_ID} "${ARTIFACTS_BUCKET}" \
-  --location ${REGION}
-## END
+gcloud storage buckets create "${ARTIFACTS_BUCKET}" --location ${REGION}
 fi
 
-# Create Artifact Registry to host container images
-if ! gcloud artifacts repositories describe substratus --location us-central1 --project ${PROJECT_ID} -q > /dev/null; then
-  gcloud artifacts repositories create substratus \
-    --repository-format=docker --location=${REGION} \
-    --project ${PROJECT_ID}
+if ! gcloud artifacts repositories describe substratus --location us-central1 -q > /dev/null; then
+gcloud artifacts repositories create substratus \
+  --repository-format=docker --location=${REGION} \
 fi
 
 # Create Google Service Account used by all of Substratus to access GCS and GAR
 export SERVICE_ACCOUNT="substratus@${PROJECT_ID}.iam.gserviceaccount.com"
-if ! gcloud iam service-accounts describe ${SERVICE_ACCOUNT} --project ${PROJECT_ID}; then
-  gcloud iam service-accounts create substratus --project ${PROJECT_ID}
+if ! gcloud iam service-accounts describe ${SERVICE_ACCOUNT}; then
+gcloud iam service-accounts create substratus
 fi
 
 # Give required permissions to Service Account
 gcloud storage buckets add-iam-policy-binding ${ARTIFACTS_BUCKET} \
-  --member="serviceAccount:${SERVICE_ACCOUNT}" --role=roles/storage.admin \
-  --project ${PROJECT_ID}
+  --member="serviceAccount:${SERVICE_ACCOUNT}" --role=roles/storage.admin
+
 
 gcloud artifacts repositories add-iam-policy-binding substratus \
   --location us-central1 --member="serviceAccount:${SERVICE_ACCOUNT}" \
-  --role=roles/artifactregistry.admin --project ${PROJECT_ID}
+  --role=roles/artifactregistry.admin
 
 # Allow the Service Account to bind K8s Service Account to this Service Account
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountAdmin --project ${PROJECT_ID} \
-   --member "serviceAccount:${SERVICE_ACCOUNT}"
+   --role roles/iam.serviceAccountAdmin --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 # Allow to create signed URLs
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.serviceAccountTokenCreator --project ${PROJECT_ID} \
+   --role roles/iam.serviceAccountTokenCreator \
    --member "serviceAccount:${SERVICE_ACCOUNT}"
 
 gcloud iam service-accounts add-iam-policy-binding ${SERVICE_ACCOUNT} \
-   --role roles/iam.workloadIdentityUser --project ${PROJECT_ID} \
+   --role roles/iam.workloadIdentityUser \
    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[substratus/sci]"
 
 # Configure kubectl.
-gcloud container clusters get-credentials --project ${PROJECT_ID} --region ${REGION} ${CLUSTER_NAME}
+gcloud container clusters get-credentials --region ${REGION} ${CLUSTER_NAME}
 # Install nvidia driver
 kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml
 
 # Install cluster components.
 if [ "${INSTALL_OPERATOR}" == "yes" ]; then
-  kubectl create ns substratus
-  kubectl apply -f - << EOF
+kubectl create ns substratus
+kubectl apply -f - << EOF
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -117,5 +110,5 @@ metadata:
 data:
   CLOUD: gcp
 EOF
-  kubectl apply -f kubernetes/gcp/system.yaml
+kubectl apply -f https://raw.githubusercontent.com/substratusai/substratus/main/install/kubernetes/gcp/system.yaml
 fi
