@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 set -u
 set -x
 
@@ -13,6 +14,7 @@ gcloud services enable container.googleapis.com
 gcloud services enable artifactregistry.googleapis.com
 
 export CLUSTER_NAME=substratus
+if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} -q >/dev/null; then
 gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
   --machine-type n2d-standard-8 --num-nodes 1 --min-nodes 1 --max-nodes 5 \
   --node-locations ${ZONE} --workload-pool ${PROJECT_ID}.svc.id.goog \
@@ -21,8 +23,11 @@ gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
   --max-cpu 960 --max-memory 9600 --ephemeral-storage-local-ssd=count=2 \
   --autoprovisioning-scopes=logging.write,monitoring,devstorage.read_only,compute \
   --addons GcsFuseCsiDriver
+fi
 
 # Configure a maintenance exclusion to prevent automatic upgrades for 160 days
+
+if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} -q >/dev/null; then
 START=$(date -I --date="-1 day")
 END=$(date -I --date="+160 days")
 gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
@@ -30,7 +35,10 @@ gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
     --add-maintenance-exclusion-start ${START} \
     --add-maintenance-exclusion-end ${END} \
     --add-maintenance-exclusion-scope no_minor_or_node_upgrades
+fi
 
+
+if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} -q >/dev/null; then
 nodepool_args=(--spot --enable-autoscaling --enable-image-streaming
   --num-nodes=0 --min-nodes=0 --max-nodes=3 --cluster ${CLUSTER_NAME}
   --node-locations ${REGION}-a,${REGION}-b --region ${REGION} --async)
@@ -49,6 +57,7 @@ gcloud container node-pools create g2-standard-48 \
   --accelerator type=nvidia-l4,count=4,gpu-driver-version=latest \
   --machine-type g2-standard-48 --ephemeral-storage-local-ssd=count=4 \
   "${nodepool_args[@]}"
+fi
 
 
 export ARTIFACTS_BUCKET="gs://${PROJECT_ID}-substratus-artifacts"
