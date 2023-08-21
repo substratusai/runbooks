@@ -31,10 +31,7 @@ gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
     --add-maintenance-exclusion-start ${START} \
     --add-maintenance-exclusion-end ${END} \
     --add-maintenance-exclusion-scope no_minor_or_node_upgrades
-  
-# Note there are 2 spaces on purpose for embedmd to mark end of a code inclusion
 
-# Create L4 GPU nodepools
 nodepool_args=(--spot --enable-autoscaling --enable-image-streaming
   --num-nodes=0 --min-nodes=0 --max-nodes=3 --cluster ${CLUSTER_NAME}
   --node-locations ${REGION}-a,${REGION}-b --region ${REGION} --async)
@@ -68,15 +65,15 @@ gcloud artifacts repositories create ${GAR_REPO_NAME} \
 fi
 
 # Create Google Service Account used by all of Substratus to access GCS and GAR
-export SERVICE_ACCOUNT="substratus@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_NAME=substratus
+export SERVICE_ACCOUNT="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 if ! gcloud iam service-accounts describe ${SERVICE_ACCOUNT}; then
-gcloud iam service-accounts create substratus
+gcloud iam service-accounts create ${SERVICE_ACCOUNT_NAME}
 fi
 
 # Give required permissions to Service Account
 gcloud storage buckets add-iam-policy-binding ${ARTIFACTS_BUCKET} \
   --member="serviceAccount:${SERVICE_ACCOUNT}" --role=roles/storage.admin
-
 
 gcloud artifacts repositories add-iam-policy-binding substratus \
   --location us-central1 --member="serviceAccount:${SERVICE_ACCOUNT}" \
