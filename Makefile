@@ -112,13 +112,8 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: dev-up-gcp
 dev-up-gcp: PROJECT_ID ?=$(shell gcloud config get project)
-dev-up-gcp: build-installer
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=${PROJECT_ID} \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		-e INSTALL_OPERATOR=false \
-		substratus-installer gcp-up.sh
+dev-up-gcp:
+	cd install/gcp && up.sh
 	mkdir -p secrets
 	gcloud iam service-accounts keys create \
 	  --iam-account=substratus@${PROJECT_ID}.iam.gserviceaccount.com \
@@ -126,13 +121,8 @@ dev-up-gcp: build-installer
 
 .PHONY: dev-down-gcp
 dev-down-gcp: PROJECT_ID ?=$(shell gcloud config get project)
-dev-down-gcp: build-installer
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=${PROJECT_ID} \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
-		substratus-installer gcp-down.sh
+dev-down-gcp:
+	cd install/gcp && down.sh
 	rm ./secrets/substratus-sa.json
 
 .PHONY: dev-up-kind
