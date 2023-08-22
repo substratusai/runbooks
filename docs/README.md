@@ -1,8 +1,6 @@
 # Substratus
 
-Deploy and fine-tune large language models on K8s
-
-[![Substratus.AI](../assets/ssai-logo.png "Substratus.AI")](https://www.substratus.ai)
+Deploy and fine-tune large language models on Kubernetes.
 
 [Substratus](https://www.substratus.ai) is a cross-cloud substrate for training
 and serving ML models. It extends the Kubernetes control plane to orchestrate ML
