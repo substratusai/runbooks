@@ -47,9 +47,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 			podSpec.NodeSelector = map[string]string{}
 		}
 
-		// TODO: Make spot configurable.
 		// TODO: Move this GCP code into cloud-specific configuration.
-		podSpec.NodeSelector["cloud.google.com/gke-spot"] = "true"
 		// Toleration is needed to trigger NAP
 		// https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#support_for_spot_vms
 		podSpec.Tolerations = append(podSpec.Tolerations, corev1.Toleration{
