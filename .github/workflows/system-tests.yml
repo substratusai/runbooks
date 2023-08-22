@@ -7,7 +7,7 @@ on:
       # Should run before a release.
       - main
   workflow_run:
-    workflows: [Run Tests]
+    workflows: [Docker pipeline]
     types:
       - completed
 jobs:
