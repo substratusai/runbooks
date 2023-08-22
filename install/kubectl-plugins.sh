@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -xe
 
-version=v0.8.1
+version=v0.8.2
 os=$(uname -s)
 arch=$(uname -m | sed 's/aarch64/arm64/g' | sed 's/x86_64/amd64/g')
 

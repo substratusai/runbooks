@@ -8,4 +8,4 @@ kind: Kustomization
 images:
 - name: sci
   newName: docker.io/substratusai/sci-kind
-  newTag: v0.8.1
+  newTag: v0.8.2

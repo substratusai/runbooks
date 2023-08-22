@@ -10,7 +10,7 @@ Generating releases is done by doing the following:
 2. Generate the new install manifest that points to the new image
 
    ```sh
-   make install/kubernetes/system.yaml
+   make prepare-release
    ```
 
 3. Submit a PR
