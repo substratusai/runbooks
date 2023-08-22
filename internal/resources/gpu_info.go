@@ -11,6 +11,17 @@ type GPUInfo struct {
 	NodeSelector map[string]string
 }
 
+func GetGPUInfo(cloudName string, gpuType apiv1.GPUType) (*GPUInfo, bool) {
+	if cloudName == cloud.KindName {
+		return &GPUInfo{
+			ResourceName: corev1.ResourceName("nvidia.com/gpu"),
+			NodeSelector: map[string]string{},
+		}, true
+	}
+	gpuInfo, ok := cloudGPUs[cloudName][gpuType]
+	return gpuInfo, ok
+}
+
 var cloudGPUs = map[string]map[apiv1.GPUType]*GPUInfo{
 	cloud.GCPName: {
 		// https://cloud.google.com/compute/docs/gpus#nvidia_t4_gpus

@@ -35,7 +35,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 	resources.Requests[corev1.ResourceMemory] = *resource.NewQuantity(res.Memory*gigabyte, resource.BinarySI)
 
 	if res.GPU != nil {
-		gpuInfo, ok := cloudGPUs[cloudName][res.GPU.Type]
+		gpuInfo, ok := GetGPUInfo(cloudName, res.GPU.Type)
 		if !ok {
 			return fmt.Errorf("GPU %s is not supported on cloud %s", res.GPU.Type, cloudName)
 		}
