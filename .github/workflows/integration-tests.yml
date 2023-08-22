@@ -2,7 +2,7 @@ name: Integration tests
 run-name: ${{ github.actor }} triggered integration tests 🚀
 on: [pull_request]
 jobs:
-  unit-tests:
+  integration-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
