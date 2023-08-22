@@ -32,3 +32,6 @@ build:
         dockerfile: Dockerfile.sci-kind
   local:
     push: false
+deploy:
+  kubectl:
+    defaultNamespace: substratus
