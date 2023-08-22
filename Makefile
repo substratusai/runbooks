@@ -112,13 +112,8 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: dev-up-gcp
 dev-up-gcp: PROJECT_ID ?=$(shell gcloud config get project)
-dev-up-gcp: build-installer
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=${PROJECT_ID} \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		-e INSTALL_OPERATOR=false \
-		substratus-installer gcp-up.sh
+dev-up-gcp:
+	cd install/gcp && up.sh
 	mkdir -p secrets
 	gcloud iam service-accounts keys create \
 	  --iam-account=substratus@${PROJECT_ID}.iam.gserviceaccount.com \
@@ -126,14 +121,8 @@ dev-up-gcp: build-installer
 
 .PHONY: dev-down-gcp
 dev-down-gcp: PROJECT_ID ?=$(shell gcloud config get project)
-dev-down-gcp: build-installer
-	docker run -it \
-		-v ${HOME}/.kube:/root/.kube \
-		-e PROJECT=${PROJECT_ID} \
-		-e TOKEN=$(shell gcloud auth print-access-token) \
-		-e TF_VAR_attach_gpu_nodepools=${ATTACH_GPU_NODEPOOLS} \
-		substratus-installer gcp-down.sh
-	rm ./secrets/substratus-sa.json
+dev-down-gcp:
+	cd install/gcp && down.sh
 
 .PHONY: dev-up-kind
 dev-up-kind:
@@ -284,7 +273,7 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 
 .PHONY: installation-scripts
 installation-scripts:
-	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/scripts/install-kubectl-plugins.sh
+	perl -pi -e "s/version=.*/version=$(VERSION)/g" install/kubectl-plugins.sh
 
 .PHONY: installation-manifests
 installation-manifests: manifests kustomize
@@ -292,7 +281,7 @@ installation-manifests: manifests kustomize
 	cd config/sci-kind && $(KUSTOMIZE) edit set image sci=${IMG_SCI_KIND}
 	$(KUSTOMIZE) build config/install-kind > install/kind/manifests.yaml
 	cd config/sci-gcp && $(KUSTOMIZE) edit set image sci=${IMG_SCI_GCP}
-	$(KUSTOMIZE) build config/install-gcp > install/kubernetes/gcp/system.yaml
+	$(KUSTOMIZE) build config/install-gcp > install/gcp/manifests.yaml
 
 .PHONY: prepare-release
 prepare-release: installation-scripts installation-manifests docs
