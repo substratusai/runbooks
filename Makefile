@@ -361,9 +361,8 @@ $(PROTOC): $(LOCALBIN)
 skaffold: $(SKAFFOLD)
 $(SKAFFOLD): $(LOCALBIN)
 	@ test -s $(LOCALBIN)/skaffold || \
-	curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
-	chmod +x $(LOCALBIN)/skaffold && \
-	mv skaffold $(LOCALBIN)/skaffold
+	curl -Lo $(LOCALBIN)/skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-$(SKAFFOLD_PLATFORM) && \
+	chmod +x $(LOCALBIN)/skaffold
 
 .PHONY: envsubst
 envsubst:
