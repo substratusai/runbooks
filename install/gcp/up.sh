@@ -26,8 +26,7 @@ gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
 fi
 
 # Configure a maintenance exclusion to prevent automatic upgrades for 160 days
-
-if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} -q >/dev/null; then
+if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} | grep -q notouchy; then
 START=$(date -I --date="-1 day")
 END=$(date -I --date="+160 days")
 gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
@@ -38,7 +37,7 @@ gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
 fi
 
 
-if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} -q >/dev/null; then
+if ! gcloud container node-pools describe g2-standard-8 --cluster ${CLUSTER_NAME} --region ${REGION} -q >/dev/null; then
 nodepool_args=(--spot --enable-autoscaling --enable-image-streaming
   --num-nodes=0 --min-nodes=0 --max-nodes=3 --cluster ${CLUSTER_NAME}
   --node-locations ${REGION}-a,${REGION}-b --region ${REGION} --async)
