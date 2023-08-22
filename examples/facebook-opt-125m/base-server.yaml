@@ -6,7 +6,3 @@ spec:
   image: substratusai/model-server-basaran
   model:
     name: facebook-opt-125m
-  resources:
-    cpu: 1 
-    memory: 1 
-    disk: 1

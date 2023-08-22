@@ -3,18 +3,26 @@ package resources
 import (
 	"fmt"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerName string, cloudName string, res *apiv1.Resources) error {
 	// TODO: Auto-determine resources if nil.
 	if res == nil {
-		res = &apiv1.Resources{
-			CPU:    2,
-			Memory: 4,
+		// TODO(nstogner): Cloud-specific conditional should go away...
+		// Most likely this stuff will all go into a ConfigMap that contains cloud-specific
+		// information.
+		if cloudName == "kind" {
+			res = &apiv1.Resources{}
+		} else {
+			res = &apiv1.Resources{
+				CPU:    2,
+				Memory: 4,
+			}
 		}
 	}
 

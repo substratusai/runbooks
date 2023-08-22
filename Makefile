@@ -95,7 +95,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test-system
 test-system:
-	./test/run.sh kind
+	./test/system.sh kind
 
 .PHONY: test-integration
 test-integration: manifests generate protogen fmt vet envtest ## Run tests.
