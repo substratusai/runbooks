@@ -1,0 +1,20 @@
+name: System tests
+run-name: ${{ github.actor }} triggered integration tests 🚀
+on:
+  push:
+    branches:
+      # Must run after docker images are built and pushed.
+      # Should run before a release.
+      - main
+  workflow_run:
+    workflows: [Run Tests]
+    types:
+      - completed
+jobs:
+  system-tests:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - run: make test-system
