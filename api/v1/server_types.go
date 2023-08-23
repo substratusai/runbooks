@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -21,6 +22,9 @@ type ServerSpec struct {
 
 	// Model references the Model object to be served.
 	Model ObjectRef `json:"model,omitempty"`
+
+	// Params will be passed into the loading process as environment variables.
+	Params map[string]intstr.IntOrString `json:"params,omitempty"`
 }
 
 // ServerStatus defines the observed state of Server
@@ -51,6 +55,10 @@ type Server struct {
 	Spec ServerSpec `json:"spec,omitempty"`
 	// Status is the observed state of the Server.
 	Status ServerStatus `json:"status,omitempty"`
+}
+
+func (s *Server) GetParams() map[string]intstr.IntOrString {
+	return s.Spec.Params
 }
 
 func (s *Server) GetBuild() *Build {

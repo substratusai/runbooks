@@ -347,6 +347,7 @@ _Appears in:_
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
 | `model` _[ObjectRef](#objectref)_ | Model references the Model object to be served. |
+| `params` _object (keys:string, values:IntOrString)_ | Params will be passed into the loading process as environment variables. |
 
 
 ### ServerStatus

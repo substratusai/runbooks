@@ -1,0 +1,13 @@
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: falcon-7b-instruct
+spec:
+  image: substratusai/model-server-basaran
+  model:
+    name: falcon-7b-instruct
+  params:
+    load_in_4bit: "true"
+  resources:
+    gpu:
+      count: 1

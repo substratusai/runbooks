@@ -34,6 +34,8 @@ type ServerReconciler struct {
 	Cloud cloud.Cloud
 	SCI   sci.ControllerClient
 
+	*ParamsReconciler
+
 	// log should be used outside the context of Reconcile()
 	log logr.Logger
 }
@@ -59,6 +61,10 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if server.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
+	}
+
+	if result, err := r.ReconcileParamsConfigMap(ctx, &server); !result.success {
+		return result.Result, err
 	}
 
 	if result, err := r.reconcileServer(ctx, &server); !result.success {
@@ -142,6 +148,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
 							Command:         server.Spec.Command,
+							Env:             paramsToEnv(server.Spec.Params),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,
@@ -164,6 +171,10 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 				},
 			},
 		},
+	}
+
+	if err := mountParamsConfigMap(&deploy.Spec.Template.Spec, server, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
 	}
 
 	if err := r.Cloud.MountBucket(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, model, cloud.MountBucketConfig{
