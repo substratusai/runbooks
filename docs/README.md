@@ -10,7 +10,7 @@ We created Substratus because we believe:
 * Installing an ML platform should take minutes not weeks.
 * Running state of the art LLMs should be single-command-simple.
 * Finetuning on your own data should work out of the box.
-* Simplicity should not sacrifice on flexibility - Jupyter Notebooks should seamlessly integrate into your workflow.
+* Simplicity should not exclude flexibility - all ML code should be customizable through a seamless Notebook experience.
 
 Learn more on the website:
 
@@ -96,7 +96,7 @@ kubectl port-forward service/facebook-opt-125m-server 8080:8080
 
 Open your browser to [http://localhost:8080/](http://localhost:8080/) or curl the LLM's API.
 
-*PS: Because of the small size of this particular LLM, the answers are more comical than anything.*
+*PS: Because of the small size of this particular LLM, expect comically bad answers to your prompts.*
 
 ```bash
 curl http://localhost:8080/v1/completions \
@@ -114,3 +114,5 @@ Delete the local cluster.
 ```bash
 kind delete cluster --name substratus
 ```
+
+If you want to try out a more capable LLM, running on substantial hardware, try deploying Substratus in the cloud via the [GCP quickstart guide](https://www.substratus.ai/docs/quickstart/gcp).
