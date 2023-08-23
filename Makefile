@@ -227,6 +227,7 @@ docs: crd-ref-docs embedmd
 		--renderer=markdown
 	# TODO: Embed YAML examples into the generate API documentation.
 	# $(EMBEDMD) -w ./docs/api/generated.md
+	$(EMBEDMD) -w ./docs/*.md
 
 # PLATFORMS defines the target platforms for the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
