@@ -115,6 +115,10 @@ func TestMain(m *testing.M) {
 		Scheme: mgr.GetScheme(),
 		Cloud:  testCloud,
 		SCI:    sciClient,
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr)
 	requireNoError(err)
 	err = (&controller.BuildReconciler{

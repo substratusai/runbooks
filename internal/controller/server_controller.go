@@ -34,6 +34,8 @@ type ServerReconciler struct {
 	Cloud cloud.Cloud
 	SCI   sci.ControllerClient
 
+	*ParamsReconciler
+
 	// log should be used outside the context of Reconcile()
 	log logr.Logger
 }
@@ -59,6 +61,10 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if server.GetImage() == "" {
 		// Image must be building.
 		return ctrl.Result{}, nil
+	}
+
+	if result, err := r.ReconcileParamsConfigMap(ctx, &server); !result.success {
+		return result.Result, err
 	}
 
 	if result, err := r.reconcileServer(ctx, &server); !result.success {

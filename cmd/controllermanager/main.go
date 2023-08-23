@@ -159,6 +159,10 @@ func main() {
 		Scheme: mgr.GetScheme(),
 		Cloud:  cld,
 		SCI:    sciClient,
+		ParamsReconciler: &controller.ParamsReconciler{
+			Scheme: mgr.GetScheme(),
+			Client: mgr.GetClient(),
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
