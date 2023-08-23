@@ -18,7 +18,6 @@ spec:
       containers:
         - name: sci
           image: sci
-          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: system

@@ -35,7 +35,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 	resources.Requests[corev1.ResourceMemory] = *resource.NewQuantity(res.Memory*gigabyte, resource.BinarySI)
 
 	if res.GPU != nil {
-		gpuInfo, ok := cloudGPUs[cloudName][res.GPU.Type]
+		gpuInfo, ok := GetGPUInfo(cloudName, res.GPU.Type)
 		if !ok {
 			return fmt.Errorf("GPU %s is not supported on cloud %s", res.GPU.Type, cloudName)
 		}
@@ -47,9 +47,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 			podSpec.NodeSelector = map[string]string{}
 		}
 
-		// TODO: Make spot configurable.
 		// TODO: Move this GCP code into cloud-specific configuration.
-		podSpec.NodeSelector["cloud.google.com/gke-spot"] = "true"
 		// Toleration is needed to trigger NAP
 		// https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#support_for_spot_vms
 		podSpec.Tolerations = append(podSpec.Tolerations, corev1.Toleration{
