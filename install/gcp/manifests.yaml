@@ -965,6 +965,15 @@ spec:
                 required:
                 - name
                 type: object
+              params:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Params will be passed into the loading process as environment
+                  variables.
+                type: object
               resources:
                 description: Resources are the compute resources required by the container.
                 properties:
@@ -1566,7 +1575,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.8.2
+        image: docker.io/substratusai/controller-manager:v0.8.3
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1616,8 +1625,7 @@ spec:
       - envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/sci-gcp:v0.8.2
-        imagePullPolicy: Always
+        image: docker.io/substratusai/sci-gcp:v0.8.3
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15
