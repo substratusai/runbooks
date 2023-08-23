@@ -148,6 +148,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
 							Command:         server.Spec.Command,
+							Env:             paramsToEnv(server.Spec.Params),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,
@@ -170,6 +171,10 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 				},
 			},
 		},
+	}
+
+	if err := mountParamsConfigMap(&deploy.Spec.Template.Spec, server, containerName); err != nil {
+		return nil, fmt.Errorf("mounting params configmap: %w", err)
 	}
 
 	if err := r.Cloud.MountBucket(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, model, cloud.MountBucketConfig{
