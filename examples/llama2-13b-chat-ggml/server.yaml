@@ -1,7 +1,7 @@
 apiVersion: substratus.ai/v1
 kind: Server
 metadata:
-  name: falcon-7b-instruct
+  name: llama2-13b-chat-ggml
 spec:
   build:
     git:
