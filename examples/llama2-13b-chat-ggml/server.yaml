@@ -1,0 +1,16 @@
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: falcon-7b-instruct
+spec:
+  build:
+    git:
+      url: https://github.com/substratusai/images
+      path: model-server-llama-cpp
+      branch: model-server-llama-cpp
+        # image: substratusai/model-server-basaran
+  model:
+    name: llama2-13b-chat-ggml
+  resources:
+    gpu:
+      count: 1
