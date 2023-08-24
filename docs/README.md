@@ -88,7 +88,7 @@ Checkout the progress of the Model and the Server.
 kubectl get ai
 ```
 
-When they report a `Ready` status, start a port-forward.
+When they report a `Ready` status, start a port-forward. Note: issues with downloading the image can be resolved by ```docker pull substratusai/model-server-basaran```
 
 ```bash
 kubectl port-forward service/facebook-opt-125m-server 8080:8080
