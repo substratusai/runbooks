@@ -25,6 +25,9 @@ var NewUUID = func() string {
 	return uuid.New().String()
 }
 
+// buildConfigFromFlags is a modified version of clientcmd.BuildConfigFromFlags
+// that returns the namespace set in the kubeconfig to make sure we play nicely
+// with tools like kubens.
 func buildConfigFromFlags(masterUrl, kubeconfigPath string) (string, *restclient.Config, error) {
 	if kubeconfigPath == "" && masterUrl == "" {
 		klog.Warning("Neither --kubeconfig nor --master was specified.  Using the inClusterConfig.  This might not work.")
