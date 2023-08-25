@@ -16,8 +16,6 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/kubectl/internal/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -25,10 +23,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/kubectl/internal/client"
 )
 
 func Notebook() *cobra.Command {
-	var cfg struct {
+	var flags struct {
 		dir            string
 		build          string
 		kubeconfig     string
@@ -41,7 +42,7 @@ func Notebook() *cobra.Command {
 		timeout        time.Duration
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "notebook [flags] NAME",
 		Short:   "Start a Jupyter Notebook development environment",
 		Args:    cobra.MaximumNArgs(1),
@@ -62,19 +63,19 @@ func Notebook() *cobra.Command {
 				verbose = true
 			}
 
-			if cfg.dir != "" {
-				if cfg.build == "" {
-					cfg.build = cfg.dir
+			if flags.dir != "" {
+				if flags.build == "" {
+					flags.build = flags.dir
 				}
 				// If the user specified a directory, we assume they want to sync
 				// unless they explicitly set --sync themselves.
 				if !cmd.Flag("sync").Changed {
-					cfg.sync = true
+					flags.sync = true
 				}
 				// If the user specified a directory, we assume they have a notebook.yaml
 				// file in their directory unless they explicitly set --filename themselves.
 				if !cmd.Flag("filename").Changed {
-					cfg.filename = filepath.Join(cfg.dir, "notebook.yaml")
+					flags.filename = filepath.Join(flags.dir, "notebook.yaml")
 				}
 			}
 
@@ -87,9 +88,16 @@ func Notebook() *cobra.Command {
 
 			spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
-			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
+			kubeconfigNamespace, restConfig, err := buildConfigFromFlags("", flags.kubeconfig)
 			if err != nil {
 				return fmt.Errorf("rest config: %w", err)
+			}
+
+			namespace := "default"
+			if flags.namespace != "" {
+				namespace = flags.namespace
+			} else if kubeconfigNamespace != "" {
+				namespace = kubeconfigNamespace
 			}
 
 			clientset, err := kubernetes.NewForConfig(restConfig)
@@ -110,13 +118,13 @@ func Notebook() *cobra.Command {
 
 			var obj client.Object
 			if len(args) == 1 {
-				fetched, err := notebooks.Get(defaultNamespace(cfg.namespace), args[0])
+				fetched, err := notebooks.Get(namespace, args[0])
 				if err != nil {
 					return fmt.Errorf("getting notebook: %w", err)
 				}
 				obj = fetched.(client.Object)
-			} else if cfg.filename != "" {
-				manifest, err := os.ReadFile(cfg.filename)
+			} else if flags.filename != "" {
+				manifest, err := os.ReadFile(flags.filename)
 				if err != nil {
 					return fmt.Errorf("reading file: %w", err)
 				}
@@ -125,8 +133,18 @@ func Notebook() *cobra.Command {
 					return fmt.Errorf("decoding: %w", err)
 				}
 				if obj.GetNamespace() == "" {
-					// TODO: Add -n flag to specify namespace.
-					obj.SetNamespace("default")
+					// When there is no .metadata.namespace set in the manifest...
+					obj.SetNamespace(namespace)
+				} else {
+					// TODO: Closer match kubectl behavior here by differentiaing between
+					// the short -n and long --namespace flags.
+					// See example kubectl error:
+					// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
+					if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
+						// When there is .metadata.namespace set in the manifest and
+						// a conflicting -n or --namespace flag...
+						return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
+					}
 				}
 			} else {
 				return fmt.Errorf("must specify -f (--filename) flag or NAME argument")
@@ -139,12 +157,12 @@ func Notebook() *cobra.Command {
 			nb.Spec.Suspend = ptr.To(false)
 
 			var tarball *client.Tarball
-			if cfg.build != "" {
+			if flags.build != "" {
 				spin.Suffix = " Preparing tarball..."
 				spin.Start()
 
 				var err error
-				tarball, err = client.PrepareImageTarball(ctx, cfg.build)
+				tarball, err = client.PrepareImageTarball(ctx, flags.build)
 				if err != nil {
 					return fmt.Errorf("preparing tarball: %w", err)
 				}
@@ -161,15 +179,15 @@ func Notebook() *cobra.Command {
 				}
 			}
 
-			if err := notebooks.Apply(nb, cfg.forceConflicts); err != nil {
+			if err := notebooks.Apply(nb, flags.forceConflicts); err != nil {
 				return fmt.Errorf("applying: %w", err)
 			}
 
 			cleanup := func() {
 				// Use a new context to avoid using the cancelled one.
-				//ctx := context.Background()
+				// ctx := context.Background()
 
-				if cfg.noSuspend {
+				if flags.noSuspend {
 					fmt.Fprintln(NotebookStdout, "Skipping notebook suspension, it will keep running.")
 				} else {
 					// Suspend notebook.
@@ -186,7 +204,7 @@ func Notebook() *cobra.Command {
 			}
 			defer cleanup()
 
-			if cfg.build != "" {
+			if flags.build != "" {
 				spin.Suffix = " Uploading tarball..."
 				spin.Start()
 
@@ -201,7 +219,7 @@ func Notebook() *cobra.Command {
 			spin.Suffix = " Waiting for Notebook to be ready..."
 			spin.Start()
 
-			waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, cfg.timeout)
+			waitReadyCtx, cancelWaitReady := context.WithTimeout(ctx, flags.timeout)
 			defer cancelWaitReady() // Avoid context leak.
 			if err := notebooks.WaitReady(waitReadyCtx, nb); err != nil {
 				return fmt.Errorf("waiting for notebook to be ready: %w", err)
@@ -212,7 +230,7 @@ func Notebook() *cobra.Command {
 
 			var wg sync.WaitGroup
 
-			if cfg.sync {
+			if flags.sync {
 				wg.Add(1)
 				go func() {
 					defer func() {
@@ -292,7 +310,7 @@ func Notebook() *cobra.Command {
 
 			// TODO(nstogner): Grab token from Notebook status.
 			url := "http://localhost:8888?token=default"
-			if !cfg.noOpenBrowser {
+			if !flags.noOpenBrowser {
 				fmt.Fprintf(NotebookStdout, "Opening browser to %s\n", url)
 				browser.OpenURL(url)
 			} else {
@@ -311,19 +329,19 @@ func Notebook() *cobra.Command {
 	if defaultKubeconfig == "" {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
-	cmd.Flags().StringVarP(&cfg.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
+	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
 
-	cmd.Flags().StringVarP(&cfg.dir, "dir", "d", "", "Directory to launch the Notebook for. Equivalent to -f <dir>/notebook.yaml -b <dir> -s")
-	cmd.Flags().StringVarP(&cfg.build, "build", "b", "", "Build the Notebook from this local directory")
-	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to develop against.")
-	cmd.Flags().BoolVarP(&cfg.sync, "sync", "s", false, "Sync local directory with Notebook")
+	cmd.Flags().StringVarP(&flags.dir, "dir", "d", "", "Directory to launch the Notebook for. Equivalent to -f <dir>/notebook.yaml -b <dir> -s")
+	cmd.Flags().StringVarP(&flags.build, "build", "b", "", "Build the Notebook from this local directory")
+	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Filename identifying the resource to develop against.")
+	cmd.Flags().BoolVarP(&flags.sync, "sync", "s", false, "Sync local directory with Notebook")
 
-	cmd.Flags().StringVarP(&cfg.namespace, "namespace", "n", "default", "Namespace of Notebook")
+	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "Namespace of Notebook")
 
-	cmd.Flags().BoolVar(&cfg.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
-	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
-	cmd.Flags().BoolVar(&cfg.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
-	cmd.Flags().DurationVarP(&cfg.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
+	cmd.Flags().BoolVar(&flags.noSuspend, "no-suspend", false, "Do not suspend the Notebook when exiting")
+	cmd.Flags().BoolVar(&flags.forceConflicts, "force-conflicts", true, "If true, server-side apply will force the changes against conflicts.")
+	cmd.Flags().BoolVar(&flags.noOpenBrowser, "no-open-browser", false, "Do not open the Notebook in a browser")
+	cmd.Flags().DurationVarP(&flags.timeout, "timeout", "t", 20*time.Minute, "Timeout for Notebook to become ready")
 
 	// Add standard kubectl logging flags (for example: -v=2).
 	goflags := flag.NewFlagSet("", flag.PanicOnError)

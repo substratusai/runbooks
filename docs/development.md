@@ -30,11 +30,9 @@ You can test out the latest kubectl plugin by building from source directly:
 
 ```sh
 go build ./kubectl/cmd/notebook &&
-    mv notebook /usr/local/bin/kubectl-notebook ||
-    sudo mv notebook /usr/local/bin/kubectl-notebook
+    mv notebook /usr/local/bin/kubectl-notebook
 go build ./kubectl/cmd/applybuild &&
-    mv applybuild /usr/local/bin/kubectl-applybuild ||
-    sudo mv applybuild /usr/local/bin/kubectl-applybuild
+    mv applybuild /usr/local/bin/kubectl-applybuild
 ```
 
 The `kubectl notebook` command depends on container-tools for live-syncing. The plugin will try
