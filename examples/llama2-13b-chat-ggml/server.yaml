@@ -3,12 +3,7 @@ kind: Server
 metadata:
   name: llama2-13b-chat-ggml
 spec:
-  build:
-    git:
-      url: https://github.com/substratusai/images
-      path: model-server-llama-cpp
-      branch: model-server-llama-cpp
-        # image: substratusai/model-server-basaran
+  image: substratusai/model-server-basaran
   model:
     name: llama2-13b-chat-ggml
   resources:
