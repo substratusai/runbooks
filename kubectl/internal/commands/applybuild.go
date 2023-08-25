@@ -5,23 +5,24 @@ import (
 	"fmt"
 	"os"
 
-	"k8s.io/klog/v2"
-
 	"github.com/spf13/cobra"
-	"github.com/substratusai/substratus/kubectl/internal/client"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+
+	"github.com/substratusai/substratus/kubectl/internal/client"
 )
 
 func ApplyBuild() *cobra.Command {
-	var cfg struct {
+	var flags struct {
+		namespace      string
 		filename       string
 		build          string
 		kubeconfig     string
 		forceConflicts bool
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "applybuild [flags] BUILD_CONTEXT",
 		Args:    cobra.ExactArgs(1),
 		Short:   "Apply a Substratus object, upload and build container in-cluster from a local directory",
@@ -31,20 +32,27 @@ func ApplyBuild() *cobra.Command {
 
 			ctx := cmd.Context()
 
-			if cfg.filename == "" {
+			if flags.filename == "" {
 				return fmt.Errorf("-f (--filename) is required")
 			}
-			cfg.build = args[0]
+			flags.build = args[0]
 
-			tarball, err := client.PrepareImageTarball(ctx, cfg.build)
+			tarball, err := client.PrepareImageTarball(ctx, flags.build)
 			if err != nil {
 				return fmt.Errorf("preparing tarball: %w", err)
 			}
 			defer os.Remove(tarball.TempDir)
 
-			restConfig, err := clientcmd.BuildConfigFromFlags("", cfg.kubeconfig)
+			kubeconfigNamespace, restConfig, err := buildConfigFromFlags("", flags.kubeconfig)
 			if err != nil {
 				return fmt.Errorf("rest config: %w", err)
+			}
+
+			namespace := "default"
+			if flags.namespace != "" {
+				namespace = flags.namespace
+			} else if kubeconfigNamespace != "" {
+				namespace = kubeconfigNamespace
 			}
 
 			clientset, err := kubernetes.NewForConfig(restConfig)
@@ -52,7 +60,7 @@ func ApplyBuild() *cobra.Command {
 				return fmt.Errorf("clientset: %w", err)
 			}
 
-			manifest, err := os.ReadFile(cfg.filename)
+			manifest, err := os.ReadFile(flags.filename)
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
@@ -61,9 +69,20 @@ func ApplyBuild() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("decoding: %w", err)
 			}
+
 			if obj.GetNamespace() == "" {
-				// TODO: Add -n flag to specify namespace.
-				obj.SetNamespace("default")
+				// When there is no .metadata.namespace set in the manifest...
+				obj.SetNamespace(namespace)
+			} else {
+				// TODO: Closer match kubectl behavior here by differentiaing between
+				// the short -n and long --namespace flags.
+				// See example kubectl error:
+				// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
+				if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
+					// When there is .metadata.namespace set in the manifest and
+					// a conflicting -n or --namespace flag...
+					return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
+				}
 			}
 
 			c := NewClient(clientset, restConfig)
@@ -79,7 +98,7 @@ func ApplyBuild() *cobra.Command {
 				return fmt.Errorf("clearing image: %w", err)
 			}
 
-			if err := r.Apply(obj, cfg.forceConflicts); err != nil {
+			if err := r.Apply(obj, flags.forceConflicts); err != nil {
 				return fmt.Errorf("applying: %w", err)
 			}
 
@@ -95,9 +114,11 @@ func ApplyBuild() *cobra.Command {
 	if defaultKubeconfig == "" {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
-	cmd.Flags().StringVarP(&cfg.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
-	cmd.Flags().StringVarP(&cfg.filename, "filename", "f", "", "Filename identifying the resource to apply and build.")
-	cmd.Flags().BoolVar(&cfg.forceConflicts, "force-conflicts", false, "If true, server-side apply will force the changes against conflicts.")
+	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
+	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Filename identifying the resource to apply and build.")
+	cmd.Flags().BoolVar(&flags.forceConflicts, "force-conflicts", false, "If true, server-side apply will force the changes against conflicts.")
+
+	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "Namespace of Notebook")
 
 	// Add standard kubectl logging flags (for example: -v=2).
 	goflags := flag.NewFlagSet("", flag.PanicOnError)
