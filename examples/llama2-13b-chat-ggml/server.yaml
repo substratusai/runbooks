@@ -3,7 +3,7 @@ kind: Server
 metadata:
   name: llama2-13b-chat-ggml
 spec:
-  image: substratusai/model-server-basaran
+  image: substratusai/model-server-llama-cpp
   model:
     name: llama2-13b-chat-ggml
   resources:
