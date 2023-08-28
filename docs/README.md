@@ -12,6 +12,10 @@ We created Substratus because we believe:
 * Finetuning on your own data should work out of the box.
 * Simplicity should not exclude flexibility - all ML code should be customizable through a seamless Notebook experience.
 
+Support the project by adding a star on GitHub! ❤️
+
+🗣 Join our Discord: [https://discord.gg/JeXhcmjZVm](https://discord.gg/JeXhcmjZVm)
+
 Learn more on the website:
 
 * [Intro Post](https://www.substratus.ai/blog/introducing-substratus)
@@ -115,4 +119,6 @@ Delete the local cluster.
 kind delete cluster --name substratus
 ```
 
-If you want to try out a more capable LLM, running on substantial hardware, try deploying Substratus in the cloud via the [GCP quickstart guide](https://www.substratus.ai/docs/quickstart/gcp).
+If you want to try out a more capable LLM, running on substantial hardware, try [Kind with
+GPU support](https://www.substratus.ai/docs/quickstart/local-kind?kind-mode=gpu),
+or try [deploying Substratus in GKE](https://www.substratus.ai/docs/quickstart/gcp).
