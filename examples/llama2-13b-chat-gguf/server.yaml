@@ -1,0 +1,16 @@
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: llama2-13b-chat-gguf
+spec:
+  #  build:
+  #    git:
+  #      url: https://github.com/substratusai/images
+  #      path: model-server-llama-cpp
+  #      branch: model-server-llama-cpp-gpu
+  image: substratusai/model-server-llama-cpp
+  model:
+    name: llama2-13b-chat-gguf
+  resources:
+    gpu:
+      count: 1

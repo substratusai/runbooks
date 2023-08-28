@@ -1,9 +1,0 @@
-apiVersion: substratus.ai/v1
-kind: Model
-metadata:
-  name: llama2-13b-chat-ggml
-spec:
-  image: substratusai/model-loader-huggingface
-  params:
-    name: TheBloke/Llama-2-13B-chat-GGML
-    files: "config.json,llama-2-13b-chat.ggmlv3.q4_K_S.bin"
