@@ -1,0 +1,9 @@
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: llama2-13b-chat-gguf
+spec:
+  image: substratusai/model-loader-huggingface
+  params:
+    name: substratusai/Llama-2-13B-chat-GGUF
+    files: "model.bin"

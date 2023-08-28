@@ -1,11 +1,13 @@
 apiVersion: substratus.ai/v1
 kind: Server
 metadata:
-  name: llama2-13b-chat-ggml
+  name: llama2-13b-chat-gguf
 spec:
   image: substratusai/model-server-llama-cpp
   model:
-    name: llama2-13b-chat-ggml
+    name: llama2-13b-chat-gguf
+  params:
+    n_gpu_layers: 30
   resources:
     gpu:
       count: 1
