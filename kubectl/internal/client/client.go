@@ -33,7 +33,7 @@ var _ Interface = &Client{}
 type Interface interface {
 	PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
-	SyncFilesFromNotebook(context.Context, *apiv1.Notebook) error
+	SyncFilesFromNotebook(context.Context, *apiv1.Notebook, string) error
 }
 
 func NewClient(inf kubernetes.Interface, cfg *rest.Config) Interface {
@@ -79,14 +79,14 @@ func (c *Client) Resource(obj Object) (*Resource, error) {
 
 	helper := resource.NewHelper(restClient, mapping)
 	helper.FieldManager = FieldManager
-	//helper.FieldValidation = "Strict"
+	// helper.FieldValidation = "Strict"
 
 	// Use the REST helper to create the object in the "default" namespace.
 	return &Resource{Helper: helper}, nil
 }
 
 func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
-	//restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	// restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
 	restConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	restConfig.GroupVersion = &gv
 	if len(gv.Group) == 0 {

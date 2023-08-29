@@ -239,7 +239,7 @@ func Notebook() *cobra.Command {
 						// Stop other goroutines.
 						cancel()
 					}()
-					if err := c.SyncFilesFromNotebook(ctx, nb); err != nil {
+					if err := c.SyncFilesFromNotebook(ctx, nb, flags.build); err != nil {
 						if !errors.Is(err, context.Canceled) {
 							klog.Errorf("Error syncing files from notebook: %v", err)
 						}

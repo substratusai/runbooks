@@ -14,17 +14,18 @@ import (
 	"strings"
 	"sync"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/kubectl/internal/cp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/kubectl/internal/cp"
 )
 
-func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) error {
+func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, localDir string) error {
 	podRef := podForNotebook(nb)
 	const containerName = "notebook"
 
@@ -88,8 +89,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 				continue
 			}
 
-			localDir := "src"
-			localPath := filepath.Join(localDir, relPath)
+			localPath := filepath.Join(localDir, "src", relPath)
 
 			// Possible: CREATE, REMOVE, WRITE, RENAME, CHMOD
 			if event.Op == "WRITE" || event.Op == "CREATE" {
@@ -125,7 +125,8 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook) 
 }
 
 func (c *Client) exec(ctx context.Context, podRef types.NamespacedName,
-	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer,
+) error {
 	cmd := []string{
 		"sh",
 		"-c",
