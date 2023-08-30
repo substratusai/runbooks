@@ -135,11 +135,12 @@ func (c *Client) exec(ctx context.Context, podRef types.NamespacedName,
 	req := c.Interface.CoreV1().RESTClient().Post().Resource("pods").Name(podRef.Name).
 		Namespace(podRef.Namespace).SubResource("exec")
 	option := &corev1.PodExecOptions{
-		Command: cmd,
-		Stdin:   true,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     true,
+		Command:   cmd,
+		Stdin:     true,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       true,
+		Container: "notebook",
 	}
 	if stdin == nil {
 		option.Stdin = false
