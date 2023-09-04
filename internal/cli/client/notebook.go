@@ -3,12 +3,21 @@ package client
 import (
 	"fmt"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
-func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
+type NotebookPurpose int
+
+const (
+	// NotebookPurposeDevelop simulates the environment an Object will run in.
+	NotebookPurposeDevelop = iota
+	// NotebookPurposeReview mounts existing artifacts.
+	NotebookPurposeReview = iota
+)
+
+func NotebookForObject(obj Object, purpose NotebookPurpose) (*apiv1.Notebook, error) {
 	var nb *apiv1.Notebook
 
 	switch obj := obj.DeepCopyObject().(type) {
@@ -16,20 +25,37 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 		nb = obj
 
 	case *apiv1.Model:
-		return nil, fmt.Errorf("notebooks for models are not yet supported")
-		/*
+		switch purpose {
+		case NotebookPurposeDevelop:
 			nb = &apiv1.Notebook{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      obj.Name,
+					Name:      obj.Name + "-model-develop",
 					Namespace: obj.Namespace,
 				},
 				Spec: apiv1.NotebookSpec{
-					// TODO: How to map base model / saved model to notebook mounts?
 					Image:  obj.Spec.Image,
 					Params: obj.Spec.Params,
+					// Empty ObjectRef signals that we would like to mount an empty volume.
+					Model:     &apiv1.ObjectRef{},
+					BaseModel: obj.Spec.Model,
+					Dataset:   obj.Spec.Dataset,
 				},
 			}
-		*/
+		case NotebookPurposeReview:
+			nb = &apiv1.Notebook{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      obj.Name + "-model-review",
+					Namespace: obj.Namespace,
+				},
+				Spec: apiv1.NotebookSpec{
+					Image:  obj.Spec.Image,
+					Params: obj.Spec.Params,
+					Model: &apiv1.ObjectRef{
+						Name: obj.Name,
+					},
+				},
+			}
+		}
 
 	case *apiv1.Server:
 		return nil, fmt.Errorf("notebooks for servers are not yet supported")

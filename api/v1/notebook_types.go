@@ -27,6 +27,9 @@ type NotebookSpec struct {
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
 
+	// BaseModel to load into the notebook container.
+	BaseModel *ObjectRef `json:"baseModel,omitempty"`
+
 	// Model to load into the notebook container.
 	Model *ObjectRef `json:"model,omitempty"`
 
@@ -44,6 +47,7 @@ func (n *Notebook) GetParams() map[string]intstr.IntOrString {
 func (n *Notebook) GetBuild() *Build {
 	return n.Spec.Build
 }
+
 func (n *Notebook) SetBuild(b *Build) {
 	n.Spec.Build = b
 }

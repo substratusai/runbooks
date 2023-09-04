@@ -167,7 +167,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	}
 
 	var model *apiv1.Model
-	if notebook.Spec.Model != nil {
+	if notebook.Spec.Model != nil && notebook.Spec.Model.Name != "" {
 		model = &apiv1.Model{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -210,7 +210,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	}
 
 	var dataset *apiv1.Dataset
-	if notebook.Spec.Dataset != nil {
+	if notebook.Spec.Dataset != nil && notebook.Spec.Dataset.Name != "" {
 		dataset = &apiv1.Dataset{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Dataset.Name, Namespace: notebook.Namespace}, dataset); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -346,7 +346,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 					Name:    containerName,
 					Image:   notebook.GetImage(),
 					Command: notebook.Spec.Command,
-					//WorkingDir: "/home/jovyan",
+					// WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "notebook",
@@ -392,8 +392,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "data", ContentSubdir: "data"},
-				{BucketSubdir: "logs", ContentSubdir: "data-logs"},
+				{BucketSubdir: "artifacts", ContentSubdir: "data"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
@@ -404,16 +403,25 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 
 	if model != nil {
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
-			Name: "basemodel",
+			Name: "model",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "model", ContentSubdir: "saved-model"},
-				{BucketSubdir: "logs", ContentSubdir: "saved-model-logs"},
+				{BucketSubdir: "artifacts", ContentSubdir: "model"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
 		}); err != nil {
 			return nil, fmt.Errorf("mounting model: %w", err)
 		}
+	}
+
+	// Mounts specific to this Notebook.
+	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
+		Name:      "notebook",
+		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "output"}},
+		Container: containerName,
+		ReadOnly:  true,
+	}); err != nil {
+		return nil, fmt.Errorf("mounting notebook: %w", err)
 	}
 
 	if err := ctrl.SetControllerReference(notebook, pod, r.Scheme); err != nil {

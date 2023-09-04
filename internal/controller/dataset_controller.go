@@ -178,8 +178,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
 		Name: "dataset",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "data", ContentSubdir: "data"},
-			{BucketSubdir: "logs", ContentSubdir: "logs"},
+			{BucketSubdir: "artifacts", ContentSubdir: "output"},
 		},
 		Container: containerName,
 		ReadOnly:  false,

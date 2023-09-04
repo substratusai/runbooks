@@ -23,12 +23,12 @@ type ModelSpec struct {
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
 
-	// BaseModel should be set in order to mount another model to be
+	// Model should be set in order to mount another model to be
 	// used for transfer learning.
-	BaseModel *ObjectRef `json:"baseModel,omitempty"`
+	Model *ObjectRef `json:"model,omitempty"`
 
 	// Dataset to mount for training.
-	TrainingDataset *ObjectRef `json:"trainingDataset,omitempty"`
+	Dataset *ObjectRef `json:"dataset,omitempty"`
 
 	// Parameters are passing into the model training/loading container as environment variables.
 	// Environment variable name will be `"PARAM_" + uppercase(key)`.
@@ -42,6 +42,7 @@ func (m *Model) GetParams() map[string]intstr.IntOrString {
 func (m *Model) GetBuild() *Build {
 	return m.Spec.Build
 }
+
 func (m *Model) SetBuild(b *Build) {
 	m.Spec.Build = b
 }

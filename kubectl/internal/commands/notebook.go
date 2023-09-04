@@ -1,9 +1,4 @@
 package commands
-			nb, err := client.NotebookForObject(obj)
-			if err != nil {
-				return fmt.Errorf("notebook for object: %w", err)
-			}
-			nb.Spec.Suspend = ptr.To(false)
 
 import (
 	"context"

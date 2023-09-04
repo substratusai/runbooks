@@ -8,10 +8,11 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"github.com/go-playground/validator/v10"
 	"github.com/sethvargo/go-envconfig"
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 const CloudEnvVar = "CLOUD"

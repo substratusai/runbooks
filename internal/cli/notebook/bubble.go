@@ -481,7 +481,7 @@ func suspendNotebookCmd(ctx context.Context, res *client.Resource, nb *apiv1.Not
 		log.Println("Suspending notebook")
 		_, err := res.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{})
 		if err != nil {
-			log.Println("Error suspending notebook: %v", err)
+			log.Printf("Error suspending notebook: %v", err)
 			return suspendedMsg{error: err}
 		}
 		return suspendedMsg{}
@@ -493,7 +493,7 @@ func deleteNotebookCmd(ctx context.Context, res *client.Resource, nb *apiv1.Note
 		log.Println("Deleting notebook")
 		_, err := res.Delete(nb.Namespace, nb.Name)
 		if err != nil {
-			log.Println("Error deleting notebook: %v", err)
+			log.Printf("Error deleting notebook: %v", err)
 			return deletedMsg{error: err}
 		}
 		return deletedMsg{}

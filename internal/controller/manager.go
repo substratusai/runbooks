@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 const (
@@ -42,20 +43,20 @@ func SetupIndexes(mgr manager.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelBaseModelIndex, func(rawObj client.Object) []string {
 		model := rawObj.(*apiv1.Model)
-		if model.Spec.BaseModel == nil {
+		if model.Spec.Model == nil {
 			return []string{}
 		}
-		return []string{model.Spec.BaseModel.Name}
+		return []string{model.Spec.Model.Name}
 	}); err != nil {
 		return fmt.Errorf("model: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelTrainingDatasetIndex, func(rawObj client.Object) []string {
 		model := rawObj.(*apiv1.Model)
-		if model.Spec.TrainingDataset == nil {
+		if model.Spec.Dataset == nil {
 			return []string{}
 		}
-		return []string{model.Spec.TrainingDataset.Name}
+		return []string{model.Spec.Dataset.Name}
 	}); err != nil {
 		return fmt.Errorf("model: %w", err)
 	}
