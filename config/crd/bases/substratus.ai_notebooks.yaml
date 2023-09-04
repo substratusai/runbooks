@@ -47,15 +47,6 @@ spec:
           spec:
             description: Spec is the observed state of the Notebook.
             properties:
-              baseModel:
-                description: BaseModel to load into the notebook container.
-                properties:
-                  name:
-                    description: Name of Kubernetes object.
-                    type: string
-                required:
-                - name
-                type: object
               build:
                 description: Build specifies how to build an image.
                 properties:

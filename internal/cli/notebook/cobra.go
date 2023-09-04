@@ -108,7 +108,7 @@ func Command() *cobra.Command {
 			}
 		}
 
-		nb, err := client.NotebookForObject(obj, client.NotebookPurposeDevelop)
+		nb, err := client.NotebookForObject(obj)
 		if err != nil {
 			return fmt.Errorf("notebook for object: %w", err)
 		}

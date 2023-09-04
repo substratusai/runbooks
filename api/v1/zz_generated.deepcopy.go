@@ -468,11 +468,6 @@ func (in *NotebookSpec) DeepCopyInto(out *NotebookSpec) {
 		*out = new(Resources)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.BaseModel != nil {
-		in, out := &in.BaseModel, &out.BaseModel
-		*out = new(ObjectRef)
-		**out = **in
-	}
 	if in.Model != nil {
 		in, out := &in.Model, &out.Model
 		*out = new(ObjectRef)

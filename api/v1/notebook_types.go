@@ -27,9 +27,6 @@ type NotebookSpec struct {
 	// Resources are the compute resources required by the container.
 	Resources *Resources `json:"resources,omitempty"`
 
-	// BaseModel to load into the notebook container.
-	BaseModel *ObjectRef `json:"baseModel,omitempty"`
-
 	// Model to load into the notebook container.
 	Model *ObjectRef `json:"model,omitempty"`
 
@@ -83,6 +80,10 @@ func (n *Notebook) GetStatusUpload() UploadStatus {
 	return n.Status.BuildUpload
 }
 
+func (n *Notebook) GetStatusArtifacts() ArtifactsStatus {
+	return n.Status.Artifacts
+}
+
 func (n *Notebook) IsSuspended() bool {
 	return n.Spec.Suspend != nil && *n.Spec.Suspend
 }
@@ -95,6 +96,9 @@ type NotebookStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Artifacts status.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
 	// BuildUpload contains the status of the build context upload.
 	BuildUpload UploadStatus `json:"buildUpload,omitempty"`

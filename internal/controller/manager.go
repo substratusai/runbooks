@@ -14,8 +14,8 @@ const (
 	notebookModelIndex   = "spec.model.name"
 	notebookDatasetIndex = "spec.dataset.name"
 
-	modelBaseModelIndex       = "spec.baseModel.name"
-	modelTrainingDatasetIndex = "spec.trainingDataset.name"
+	modelModelIndex   = "spec.model.name"
+	modelDatasetIndex = "spec.dataset.name"
 
 	modelServerModelIndex = "spec.model.name"
 )
@@ -41,7 +41,7 @@ func SetupIndexes(mgr manager.Manager) error {
 		return fmt.Errorf("notebook: %w", err)
 	}
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelBaseModelIndex, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelModelIndex, func(rawObj client.Object) []string {
 		model := rawObj.(*apiv1.Model)
 		if model.Spec.Model == nil {
 			return []string{}
@@ -51,7 +51,7 @@ func SetupIndexes(mgr manager.Manager) error {
 		return fmt.Errorf("model: %w", err)
 	}
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelTrainingDatasetIndex, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.Model{}, modelDatasetIndex, func(rawObj client.Object) []string {
 		model := rawObj.(*apiv1.Model)
 		if model.Spec.Dataset == nil {
 			return []string{}

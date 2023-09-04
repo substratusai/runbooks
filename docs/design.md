@@ -184,11 +184,11 @@ All mount points will are made under a standardized `/content` directory which s
 ```
 /content/params.json        # Populated from .spec.params (also available as env vars).
 
-/content/data/              # Mounted RO: from .spec.trainingDataset
+/content/data/              # Mounted RO: from .spec.dataset
 
-/content/model/       # Mounted RO: from .spec.baseModel
+/content/model/             # Mounted RO: from .spec.model
 
-/content/output/             # Mounted RW: initially empty dir for writing new files
+/content/output/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Notebook
@@ -202,52 +202,7 @@ NOTE: The `saved-model/` directory is the same as the container for the Model ob
 
 /content/model/             # Mounted RO: from .spec.model
 
-/content/output/            # Mounted RW: Always
-```
-
-Notebook for Developing a Model trainer.
-
-```yaml
-kind: Notebook
-spec:
-  baseModel:
-    name: base-model # /content/{saved-model,saved-model-logs} (mounted RO by ref)
-  dataset:
-    name: abc # /content/{data,data-logs} (mounted RO)
-```
-
-Notebook for Developing a Model loader.
-
-```yaml
-kind: Notebook
-spec:
-  model: {} # /content/{model,logs} (empty)
-```
-
-Notebook for Reviewing a trained or loaded Model.
-
-```yaml
-kind: Notebook
-spec:
-  model:
-    name: trained-model # /content/{model,logs} (mounted by ref)
-```
-
-Notebook for Developing a Dataset.
-
-```yaml
-kind: Notebook
-spec:
-  dataset: {} # /content/{data,logs} (empty)
-```
-
-Notebook for Reviewing a Dataset.
-
-```yaml
-kind: Notebook
-spec:
-  dataset:
-    name: some-dataset # /content/{model,logs} (mounted by ref)
+/content/output/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Server:
@@ -255,7 +210,7 @@ spec:
 ```
 /content/params.json        # Populated from .spec.params (also available as env vars).
 
-/content/saved-model/       # Mounted RO: from .spec.model
+/content/model/             # Mounted RO: from .spec.model
 ```
 
 ### Naming

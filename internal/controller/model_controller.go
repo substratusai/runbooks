@@ -230,7 +230,7 @@ func (r *ModelReconciler) findModelsForBaseModel(ctx context.Context, obj client
 
 	var models apiv1.ModelList
 	if err := r.List(ctx, &models,
-		client.MatchingFields{modelBaseModelIndex: model.Name},
+		client.MatchingFields{modelModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
 		log.Log.Error(err, "unable to list models for base model")
@@ -254,7 +254,7 @@ func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.O
 
 	var models apiv1.ModelList
 	if err := r.List(ctx, &models,
-		client.MatchingFields{modelTrainingDatasetIndex: dataset.Name},
+		client.MatchingFields{modelDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
 		log.Log.Error(err, "unable to list models for dataset")

@@ -317,10 +317,22 @@ func nbPodName(nb *apiv1.Notebook) string {
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
 
-	envVars, err := resolveEnv(notebook.Spec.Env)
+	cmd := notebook.Spec.Command
+	if cmd == nil {
+		cmd = []string{
+			"jupyter", "lab",
+			"--allow-root",
+			"--ip=0.0.0.0",
+			"--NotebookApp.token=$(NOTEBOOK_TOKEN)",
+			"--notebook-dir=/content",
+		}
+	}
+
+	env, err := resolveEnv(notebook.Spec.Env)
 	if err != nil {
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}
+	env = append(env, corev1.EnvVar{Name: "NOTEBOOK_TOKEN", Value: "default"})
 
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -345,7 +357,8 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 				{
 					Name:    containerName,
 					Image:   notebook.GetImage(),
-					Command: notebook.Spec.Command,
+					Command: cmd,
+
 					// WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
@@ -353,7 +366,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 							ContainerPort: 8888,
 						},
 					},
-					Env: envVars,
+					Env: env,
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{
@@ -415,11 +428,11 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 	}
 
 	// Mounts specific to this Notebook.
-	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
+	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, notebook, cloud.MountBucketConfig{
 		Name:      "notebook",
 		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "output"}},
 		Container: containerName,
-		ReadOnly:  true,
+		ReadOnly:  false,
 	}); err != nil {
 		return nil, fmt.Errorf("mounting notebook: %w", err)
 	}
