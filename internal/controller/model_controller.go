@@ -303,6 +303,17 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 							Image:   model.GetImage(),
 							Command: model.Spec.Command,
 							Env:     paramsToEnv(model.Spec.Params),
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "substratus-secrets",
+										},
+										// just trying to return a pointer to true here
+										Optional: func(b bool) *bool { return &b }(true),
+									},
+								},
+							},
 						},
 					},
 					RestartPolicy: "Never",
