@@ -51,12 +51,15 @@ func Test_resolveEnv(t *testing.T) {
 			{Name: "TEST", Value: "ai"},
 		}},
 	}
-	secret := corev1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "ai", Namespace: "default"},
 		Data:       map[string][]byte{"MYKEY": []byte("ai")},
 	}
-	client := fake.NewClientBuilder().WithObjects(&secret).Build()
+	client := fake.NewClientBuilder().WithObjects(secret).Build()
+
 	for _, tc := range testCases {
+		t.Log("running Test_resolveEnv with input", tc.input)
+
 		actual, err := resolveEnv(context.Background(), client, "default", tc.input)
 		if err != nil {
 			t.Errorf("error with case %v: %v", tc.input, err)
