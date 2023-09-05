@@ -135,6 +135,10 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 
 func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset) (*batchv1.Job, error) {
 	const containerName = "load"
+	envVars, err := resolveEnv(ctx, r.Client, dataset.Namespace, dataset.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dataset.Name + "-data-loader",
@@ -158,7 +162,7 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 							Name:    containerName,
 							Image:   dataset.GetImage(),
 							Command: dataset.Spec.Command,
-							Env:     paramsToEnv(dataset.Spec.Params),
+							Env:     envVars,
 						},
 					},
 					RestartPolicy: "Never",

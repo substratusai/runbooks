@@ -277,6 +277,11 @@ func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.O
 func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *apiv1.Model, dataset *apiv1.Dataset) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
+	envVars, err := resolveEnv(ctx, r.Client, model.Namespace, model.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
+
 	const containerName = "model"
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -302,18 +307,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 							Name:    containerName,
 							Image:   model.GetImage(),
 							Command: model.Spec.Command,
-							Env:     paramsToEnv(model.Spec.Params),
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "substratus-secrets",
-										},
-										// just trying to return a pointer to true here
-										Optional: func(b bool) *bool { return &b }(true),
-									},
-								},
-							},
+							Env:     envVars,
 						},
 					},
 					RestartPolicy: "Never",

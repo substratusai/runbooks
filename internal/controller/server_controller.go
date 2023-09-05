@@ -112,8 +112,13 @@ func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.O
 	return reqs
 }
 
-func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
+func (r *ServerReconciler) serverDeployment(ctx context.Context, server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
+
+	envVars, err := resolveEnv(ctx, r.Client, server.Namespace, server.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
 
 	const containerName = "serve"
 	deploy := &appsv1.Deployment{
@@ -148,7 +153,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
 							Command:         server.Spec.Command,
-							Env:             paramsToEnv(server.Spec.Params),
+							Env:             envVars,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,
@@ -261,7 +266,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 		return result{}, fmt.Errorf("failed to apply service: %w", err)
 	}
 
-	deploy, err := r.serverDeployment(server, &model)
+	deploy, err := r.serverDeployment(ctx, server, &model)
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct deployment: %w", err)
 	}

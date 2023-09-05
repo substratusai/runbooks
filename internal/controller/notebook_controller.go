@@ -259,7 +259,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	//	return result{}, fmt.Errorf("failed to apply pvc: %w", err)
 	//}
 
-	pod, err := r.notebookPod(notebook, model, dataset)
+	pod, err := r.notebookPod(ctx, notebook, model, dataset)
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
@@ -314,8 +314,13 @@ func nbPodName(nb *apiv1.Notebook) string {
 }
 
 // notebookPod constructs a Pod for the given Notebook.
-func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
+func (r *NotebookReconciler) notebookPod(ctx context.Context, notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
+
+	envVars, err := resolveEnv(ctx, r.Client, notebook.Namespace, notebook.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
 
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -348,7 +353,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 							ContainerPort: 8888,
 						},
 					},
-					Env: paramsToEnv(notebook.Spec.Params),
+					Env: envVars,
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{

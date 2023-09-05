@@ -11,6 +11,9 @@ type DatasetSpec struct {
 	// Command to run in the container.
 	Command []string `json:"command,omitempty"`
 
+	// Environment variables in the container
+	Env map[string]intstr.IntOrString `json:"env,omitempty"`
+
 	// Image that contains dataset loading code and dependencies.
 	Image *string `json:"image,omitempty"`
 
