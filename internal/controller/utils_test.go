@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +61,10 @@ func Test_resolveEnv(t *testing.T) {
 	for _, tc := range testCases {
 		t.Log("running Test_resolveEnv with input", tc.input)
 
-		actual, err := resolveEnv(context.Background(), client, "default", tc.input)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		actual, err := resolveEnv(ctx, client, "default", tc.input)
 		if err != nil {
 			t.Errorf("error with case %v: %v", tc.input, err)
 		}
