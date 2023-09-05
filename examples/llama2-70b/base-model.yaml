@@ -4,10 +4,11 @@ metadata:
   name: llama-2-70b
 spec:
   image: substratusai/model-loader-huggingface
+  env:
+    # You would first have to create a secret named `ai` that
+    # has the key `HUGGING_FACE_HUB_TOKEN` set to your token.
+    # E.g. create the secret by running:
+    # kubectl create secret generic ai --from-literal="HUGGING_FACE_HUB_TOKEN=<my-token>
+    HUGGING_FACE_HUB_TOKEN: ${{ secrets.ai.HUGGING_FACE_HUB_TOKEN }}
   params:
     name: meta-llama/Llama-2-70b-hf
-    # Make sure to replace ${HUGGINGFACE_TOKEN} with your token
-    # for example run this to use your own token:
-    # export HUGGINGFACE_TOKEN=replace-me-with-your-token
-    # cat base-model.yaml | envsubst | kubectl apply -f -
-    hugging_face_hub_token: ${HUGGINGFACE_TOKEN}
