@@ -58,18 +58,19 @@ func resolveEnv(ctx context.Context, c client.Client, namespace string, env map[
 	for key, value := range env {
 		var finalValue string = value.String()
 		// Format ${{ secrets.my-name.my-key }} and spaces optional, following syntax of GitHub actions
-		secretRegex := regexp.MustCompile(`\$\{\{ ?secrets\.(.+)\.(.+) ?}}`)
-		if secretRegex.MatchString(key) {
-			matches := secretRegex.FindStringSubmatch(key)
+		secretRegex := regexp.MustCompile(`\${{ ?secrets\.(.+)\.(.+) ?}}`)
+		if secretRegex.MatchString(value.StrVal) {
+			matches := secretRegex.FindStringSubmatch(value.StrVal)
 			if len(matches) != 3 {
-				return nil, fmt.Errorf("error parsing environment key %s, expecting format ${{ secrets.name.key }} but got  %v", key, value)
+				fmt.Println("matches", matches)
+				return nil, fmt.Errorf("error parsing environment key %s, expecting format ${{ secrets.name.key }} but got  %v", key, value.StrVal)
 			}
 			secretName := matches[1]
 			secretKeyName := matches[2]
 
-			var secret *corev1.Secret
-			if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, secret); err != nil {
-				return nil, fmt.Errorf("geting Secret: %w", err)
+			var secret corev1.Secret
+			if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
+				return nil, fmt.Errorf("getting Secret: %w", err)
 			}
 			if secretVal, exists := secret.Data[secretKeyName]; exists {
 				finalValue = string(secretVal)
