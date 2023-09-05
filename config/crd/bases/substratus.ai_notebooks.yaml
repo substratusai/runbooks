@@ -117,10 +117,7 @@ spec:
                 type: object
               env:
                 additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  x-kubernetes-int-or-string: true
+                  type: string
                 description: Environment variables in the container
                 type: object
               image:

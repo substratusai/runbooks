@@ -154,7 +154,7 @@ func (in *DatasetSpec) DeepCopyInto(out *DatasetSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make(map[string]intstr.IntOrString, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -301,7 +301,7 @@ func (in *ModelSpec) DeepCopyInto(out *ModelSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make(map[string]intstr.IntOrString, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -443,7 +443,7 @@ func (in *NotebookSpec) DeepCopyInto(out *NotebookSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make(map[string]intstr.IntOrString, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -624,7 +624,7 @@ func (in *ServerSpec) DeepCopyInto(out *ServerSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make(map[string]intstr.IntOrString, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

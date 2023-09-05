@@ -277,7 +277,7 @@ func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.O
 func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *apiv1.Model, dataset *apiv1.Dataset) (*batchv1.Job, error) {
 	var job *batchv1.Job
 
-	envVars, err := resolveEnv(ctx, r.Client, model.Namespace, model.Spec.Env)
+	envVars, err := resolveEnv(model.Spec.Env)
 	if err != nil {
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}

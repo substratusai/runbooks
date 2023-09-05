@@ -317,7 +317,7 @@ func nbPodName(nb *apiv1.Notebook) string {
 func (r *NotebookReconciler) notebookPod(ctx context.Context, notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
 
-	envVars, err := resolveEnv(ctx, r.Client, notebook.Namespace, notebook.Spec.Env)
+	envVars, err := resolveEnv(notebook.Spec.Env)
 	if err != nil {
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}

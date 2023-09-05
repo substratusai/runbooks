@@ -12,7 +12,7 @@ type NotebookSpec struct {
 	Command []string `json:"command,omitempty"`
 
 	// Environment variables in the container
-	Env map[string]intstr.IntOrString `json:"env,omitempty"`
+	Env map[string]string `json:"env,omitempty"`
 
 	// Suspend should be set to true to stop the notebook (Pod) from running.
 	// This is a pointer to distinguish between explicit false and not specified.

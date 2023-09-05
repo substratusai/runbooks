@@ -115,7 +115,7 @@ func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.O
 func (r *ServerReconciler) serverDeployment(ctx context.Context, server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
-	envVars, err := resolveEnv(ctx, r.Client, server.Namespace, server.Spec.Env)
+	envVars, err := resolveEnv(server.Spec.Env)
 	if err != nil {
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}
