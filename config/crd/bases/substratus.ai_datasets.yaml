@@ -111,6 +111,14 @@ spec:
                 items:
                   type: string
                 type: array
+              env:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  x-kubernetes-int-or-string: true
+                description: Environment variables in the container
+                type: object
               image:
                 description: Image that contains dataset loading code and dependencies.
                 type: string

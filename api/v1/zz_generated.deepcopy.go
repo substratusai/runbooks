@@ -152,6 +152,13 @@ func (in *DatasetSpec) DeepCopyInto(out *DatasetSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]intstr.IntOrString, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
 		*out = new(string)
@@ -292,6 +299,13 @@ func (in *ModelSpec) DeepCopyInto(out *ModelSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]intstr.IntOrString, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
 		*out = new(string)
@@ -426,6 +440,13 @@ func (in *NotebookSpec) DeepCopyInto(out *NotebookSpec) {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]intstr.IntOrString, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Suspend != nil {
 		in, out := &in.Suspend, &out.Suspend
@@ -600,6 +621,13 @@ func (in *ServerSpec) DeepCopyInto(out *ServerSpec) {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make(map[string]intstr.IntOrString, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
