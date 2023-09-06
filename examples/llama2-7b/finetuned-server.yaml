@@ -6,6 +6,8 @@ spec:
   image: substratusai/model-server-basaran
   model:
     name: llama-2-7b-k8s
+  env:
+    MODEL_LOAD_IN_8BIT: "true"
   resources:
     gpu:
       type: nvidia-l4
