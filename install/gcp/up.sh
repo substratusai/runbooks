@@ -25,18 +25,6 @@ gcloud container clusters create ${CLUSTER_NAME} --location ${REGION} \
   --addons GcsFuseCsiDriver
 fi
 
-# Configure a maintenance exclusion to prevent automatic upgrades for 160 days
-if ! gcloud container clusters describe ${CLUSTER_NAME} --location ${REGION} | grep -q notouchy; then
-START=$(date -I --date="-1 day")
-END=$(date -I --date="+160 days")
-gcloud container clusters update ${CLUSTER_NAME} --region ${REGION} \
-    --add-maintenance-exclusion-name notouchy \
-    --add-maintenance-exclusion-start ${START} \
-    --add-maintenance-exclusion-end ${END} \
-    --add-maintenance-exclusion-scope no_minor_or_node_upgrades
-fi
-
-
 if ! gcloud container node-pools describe g2-standard-8 --cluster ${CLUSTER_NAME} --region ${REGION} -q >/dev/null; then
 nodepool_args=(--spot --enable-autoscaling --enable-image-streaming
   --num-nodes=0 --min-nodes=0 --max-nodes=3 --cluster ${CLUSTER_NAME}
