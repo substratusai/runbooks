@@ -7,7 +7,7 @@ set -x
 PROJECT_ID=${PROJECT_ID:=$(gcloud config get project)}
 REGION=${REGION:-us-central1}
 ZONE=${ZONE:=${REGION}-a}
-INSTALL_OPERATOR=${INSTALL_OPERATOR:-no} # set to yes if you want to install operator
+INSTALL_OPERATOR=${INSTALL_OPERATOR:-yes} # set to yes if you want to install operator
 
 # Enable required services.
 gcloud services enable container.googleapis.com
