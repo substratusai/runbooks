@@ -113,6 +113,7 @@ build: manifests generate fmt vet ## Build manager binary.
 .PHONY: dev-up-gcp
 dev-up-gcp: PROJECT_ID ?=$(shell gcloud config get project)
 dev-up-gcp:
+	export INSTALL_OPERATOR=no
 	cd install/gcp && up.sh
 	mkdir -p secrets
 	gcloud iam service-accounts keys create \
