@@ -116,6 +116,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
+| `env` _object (keys:string, values:string)_ | Environment variables in the container |
 | `image` _string_ | Image that contains dataset loading code and dependencies. |
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
@@ -197,6 +198,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
+| `env` _object (keys:string, values:string)_ | Environment variables in the container |
 | `image` _string_ | Image that contains model code and dependencies. |
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
@@ -253,6 +255,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
+| `env` _object (keys:string, values:string)_ | Environment variables in the container |
 | `suspend` _boolean_ | Suspend should be set to true to stop the notebook (Pod) from running. This is a pointer to distinguish between explicit false and not specified. |
 | `image` _string_ | Image that contains notebook and dependencies. |
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
@@ -343,6 +346,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `command` _string array_ | Command to run in the container. |
+| `env` _object (keys:string, values:string)_ | Environment variables in the container |
 | `image` _string_ | Image that contains model serving application and dependencies. |
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
