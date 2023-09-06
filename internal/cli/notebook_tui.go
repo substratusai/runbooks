@@ -1,4 +1,4 @@
-package notebook
+package cli
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/browser"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,18 +19,12 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
-	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
-const (
-	maxWidth = 80
-	padding  = 2
-)
-
-// A model can be more or less any type of data. It holds all the data for a
+// A notebookModel can be more or less any type of data. It holds all the data for a
 // program, so often it's a struct. For this simple example, however, all
 // we'll need is a simple integer.
-type model struct {
+type notebookModel struct {
 	// Cancellation
 	ctx context.Context
 
@@ -43,6 +36,9 @@ type model struct {
 	// Clients
 	client   client.Interface
 	resource *client.Resource
+
+	// Original Object (could be a Dataset, Model, or Server)
+	object client.Object
 
 	// Current Notebook
 	notebook *apiv1.Notebook
@@ -75,6 +71,7 @@ type operation string
 const (
 	tarring        = operation("Tarring")
 	applying       = operation("Applying")
+	creating       = operation("Creating")
 	uploading      = operation("Uploading")
 	waitingReady   = operation("WaitingReady")
 	syncingFiles   = operation("SyncingFiles")
@@ -89,47 +86,19 @@ const (
 	completed  = status(2)
 )
 
-func (m model) cleanupAndQuitCmd() tea.Msg {
+func (m notebookModel) cleanupAndQuitCmd() tea.Msg {
 	log.Println("Cleaning up")
 	os.Remove(m.tarball.TempDir)
 	return tea.Quit()
 }
 
-func (m model) Init() tea.Cmd {
+func (m notebookModel) Init() tea.Cmd {
+	log.Println("Init")
 	m.operations[tarring] = inProgress
 	return prepareTarballCmd(m.ctx, m.path)
 }
 
 type (
-	fileTarredMsg        string
-	tarballCompleteMsg   *client.Tarball
-	appliedWithUploadMsg struct {
-		client.Object
-	}
-	tarballUploadedMsg struct {
-		client.Object
-	}
-	uploadProgressMsg float64
-
-	objectReadyMsg struct {
-		client.Object
-	}
-
-	deletedMsg struct {
-		error error
-	}
-	suspendedMsg struct {
-		error error
-	}
-
-	fileSyncMsg struct {
-		file     string
-		complete bool
-		error    error
-	}
-
-	portForwardReadyMsg struct{}
-
 	operationMsg struct {
 		operation
 		status
@@ -138,7 +107,7 @@ type (
 	localURLMsg string
 )
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -148,24 +117,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = false
 				return m, nil
 			case "s":
-				return m, suspendNotebookCmd(context.Background(), m.resource, m.notebook)
+				return m, notebookSuspendCmd(context.Background(), m.resource, m.notebook)
 			case "d":
-				return m, deleteNotebookCmd(context.Background(), m.resource, m.notebook)
+				return m, notebookDeleteCmd(context.Background(), m.resource, m.notebook)
 			}
 		} else {
 			if msg.String() == "q" {
 				m.quitting = true
 				return m, nil
 			}
-			if m.operations[applying] == completed {
-				if msg.String() == "a" {
-					// TODO.
-					return m, nil
-				}
-			}
 		}
 
-	case suspendedMsg:
+	case notebookSuspendedMsg:
 		if msg.error != nil {
 			m.finalError = msg.error
 		} else {
@@ -173,7 +136,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.cleanupAndQuitCmd
 
-	case deletedMsg:
+	case notebookDeletedMsg:
 		if msg.error != nil {
 			m.finalError = msg.error
 		} else {
@@ -194,11 +157,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case appliedWithUploadMsg:
 		m.operations[applying] = completed
 		m.notebook = msg.Object.(*apiv1.Notebook)
-		log.Println("Hey")
+		m.operations[uploading] = inProgress
 		return m, uploadTarballCmd(m.ctx, m.resource, m.notebook.DeepCopy(), m.tarball)
 
-	case uploadProgressMsg:
-		m.operations[uploading] = inProgress
+	case uploadTarballProgressMsg:
 		return m, m.uploadProgress.SetPercent(float64(msg))
 
 	case tarballUploadedMsg:
@@ -212,11 +174,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.notebook = msg.Object.(*apiv1.Notebook)
 		m.operations[syncingFiles] = inProgress
 		return m, tea.Batch(
-			syncFilesCmd(m.ctx, m.client, m.notebook.DeepCopy(), m.path),
-			portForwardNotebookCmd(m.ctx, m.client, m.notebook.DeepCopy()),
+			notebookSyncFilesCmd(m.ctx, m.client, m.notebook.DeepCopy(), m.path),
+			noteookPortForwardCmd(m.ctx, m.client, m.notebook.DeepCopy()),
 		)
 
-	case fileSyncMsg:
+	case notebookFileSyncMsg:
 		if msg.complete {
 			m.currentSyncingFile = ""
 		} else {
@@ -229,8 +191,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case portForwardReadyMsg:
-		return m, openNotebookInBrowser(m.notebook.DeepCopy())
+	case notebookPortForwardReadyMsg:
+		return m, notebookOpenInBrowser(m.notebook.DeepCopy())
 
 	case localURLMsg:
 		m.localURL = string(msg)
@@ -253,23 +215,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.uploadProgress.Update(msg)
 		m.uploadProgress = progressModel.(progress.Model)
 		return m, cmd
+
+	case error:
+		m.finalError = msg
+		return m, nil
 	}
+
 	return m, nil
 }
 
-var (
-	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
-)
-
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m model) View() string {
+func (m notebookModel) View() string {
 	pad := strings.Repeat(" ", padding)
 	v := "\n"
 
 	if m.finalError != nil {
-		v += pad + errorStyle("Error: "+m.finalError.Error()) + "\n\n"
+		v += pad + errorStyle("Error: "+m.finalError.Error()) + "\n"
+		v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n\n"
 		return v
 	}
 
@@ -335,74 +298,21 @@ func (m model) View() string {
 		v += pad + fmt.Sprintf("Notebook URL: %v\n", m.localURL)
 	}
 
-	if m.localURL != "" {
-		v += "\n" + pad + helpStyle("Press \"q\" to quit, \"a\" to apply") + "\n"
-	} else {
-		v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n"
-	}
+	v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n"
 
 	return v
 }
 
-func prepareTarballCmd(ctx context.Context, dir string) tea.Cmd {
-	return func() tea.Msg {
-		log.Println("Preparing tarball")
-		tarball, err := client.PrepareImageTarball(ctx, dir, func(file string) {
-			log.Println("tarred", file)
-			p.Send(fileTarredMsg(file))
-		})
-		if err != nil {
-			log.Println("Error", err)
-			return fmt.Errorf("preparing tarball: %w", err)
-		}
-		return tarballCompleteMsg(tarball)
-	}
+type notebookFileSyncMsg struct {
+	file     string
+	complete bool
+	error    error
 }
 
-func applyWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Object, tarball *client.Tarball) tea.Cmd {
-	return func() tea.Msg {
-		if err := client.ClearImage(obj); err != nil {
-			return fmt.Errorf("clearing image in spec: %w", err)
-		}
-		if err := client.SetUploadContainerSpec(obj, tarball, utils.NewUUID()); err != nil {
-			return fmt.Errorf("setting upload in spec: %w", err)
-		}
-		if err := res.Apply(obj, true); err != nil {
-			return fmt.Errorf("applying: %w", err)
-		}
-		return appliedWithUploadMsg{Object: obj}
-	}
-}
-
-func uploadTarballCmd(ctx context.Context, res *client.Resource, obj *apiv1.Notebook, tarball *client.Tarball) tea.Cmd {
-	return func() tea.Msg {
-		log.Println("Uploading tarball")
-		err := res.Upload(ctx, obj, tarball, func(percentage float64) {
-			log.Printf("Upload percentage: %v", percentage)
-			p.Send(uploadProgressMsg(percentage))
-		})
-		if err != nil {
-			log.Println("Upload failed", err)
-			return fmt.Errorf("uploading: %w", err)
-		}
-		log.Println("Upload completed")
-		return tarballUploadedMsg{Object: obj}
-	}
-}
-
-func waitReadyCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
-	return func() tea.Msg {
-		if err := res.WaitReady(ctx, obj); err != nil {
-			return fmt.Errorf("waiting to be ready: %w", err)
-		}
-		return objectReadyMsg{Object: obj}
-	}
-}
-
-func syncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook, dir string) tea.Cmd {
+func notebookSyncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook, dir string) tea.Cmd {
 	return func() tea.Msg {
 		if err := c.SyncFilesFromNotebook(ctx, nb, dir, func(file string, complete bool, syncErr error) {
-			p.Send(fileSyncMsg{
+			p.Send(notebookFileSyncMsg{
 				file:     file,
 				complete: complete,
 				error:    syncErr,
@@ -416,7 +326,9 @@ func syncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook, d
 	}
 }
 
-func portForwardNotebookCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook) tea.Cmd {
+type notebookPortForwardReadyMsg struct{}
+
+func noteookPortForwardCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook) tea.Cmd {
 	return func() tea.Msg {
 		p.Send(operationMsg{operation: portForwarding, status: inProgress})
 		defer p.Send(operationMsg{operation: portForwarding, status: completed})
@@ -441,7 +353,7 @@ func portForwardNotebookCmd(ctx context.Context, c client.Interface, nb *apiv1.N
 				log.Println("Waiting for port-forward to be ready")
 				<-ready
 				log.Println("Port-forward ready")
-				p.Send(portForwardReadyMsg{})
+				p.Send(notebookPortForwardReadyMsg{})
 			}()
 
 			if err := c.PortForwardNotebook(portFwdCtx, false, nb, ready); err != nil {
@@ -466,7 +378,7 @@ func portForwardNotebookCmd(ctx context.Context, c client.Interface, nb *apiv1.N
 	}
 }
 
-func openNotebookInBrowser(nb *apiv1.Notebook) tea.Cmd {
+func notebookOpenInBrowser(nb *apiv1.Notebook) tea.Cmd {
 	return func() tea.Msg {
 		// TODO(nstogner): Grab token from Notebook status.
 		url := "http://localhost:8888?token=default"
@@ -476,26 +388,34 @@ func openNotebookInBrowser(nb *apiv1.Notebook) tea.Cmd {
 	}
 }
 
-func suspendNotebookCmd(ctx context.Context, res *client.Resource, nb *apiv1.Notebook) tea.Cmd {
+type notebookSuspendedMsg struct {
+	error error
+}
+
+func notebookSuspendCmd(ctx context.Context, res *client.Resource, nb *apiv1.Notebook) tea.Cmd {
 	return func() tea.Msg {
 		log.Println("Suspending notebook")
 		_, err := res.Patch(nb.Namespace, nb.Name, types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{})
 		if err != nil {
 			log.Printf("Error suspending notebook: %v", err)
-			return suspendedMsg{error: err}
+			return notebookSuspendedMsg{error: err}
 		}
-		return suspendedMsg{}
+		return notebookSuspendedMsg{}
 	}
 }
 
-func deleteNotebookCmd(ctx context.Context, res *client.Resource, nb *apiv1.Notebook) tea.Cmd {
+type notebookDeletedMsg struct {
+	error error
+}
+
+func notebookDeleteCmd(ctx context.Context, res *client.Resource, nb *apiv1.Notebook) tea.Cmd {
 	return func() tea.Msg {
 		log.Println("Deleting notebook")
 		_, err := res.Delete(nb.Namespace, nb.Name)
 		if err != nil {
 			log.Printf("Error deleting notebook: %v", err)
-			return deletedMsg{error: err}
+			return notebookDeletedMsg{error: err}
 		}
-		return deletedMsg{}
+		return notebookDeletedMsg{}
 	}
 }

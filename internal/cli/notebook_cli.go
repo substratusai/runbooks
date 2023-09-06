@@ -1,8 +1,7 @@
-package notebook
+package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -19,17 +18,13 @@ import (
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
-var p *tea.Program
-
-// NewClient is a dirty hack to allow the client to be mocked out in tests.
-var NewClient = client.NewClient
-
-func Command() *cobra.Command {
+func notebookCommand() *cobra.Command {
 	var flags struct {
 		resume     string
 		namespace  string
 		filename   string
 		kubeconfig string
+		fullscreen bool
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
@@ -45,7 +40,7 @@ func Command() *cobra.Command {
 		}
 
 		if flags.filename == "" {
-			flags.filename = filepath.Join(args[0], "ai.yaml")
+			flags.filename = filepath.Join(args[0], defaultFilename)
 		}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
@@ -114,19 +109,26 @@ func Command() *cobra.Command {
 		}
 		nb.Spec.Suspend = ptr.To(false)
 
+		var pOpts []tea.ProgramOption
+		if flags.fullscreen {
+			pOpts = append(pOpts, tea.WithAltScreen())
+		}
+
 		// Initialize our program
-		p = tea.NewProgram(model{
+		p = tea.NewProgram(notebookModel{
 			ctx:       cmd.Context(),
 			path:      args[0],
 			namespace: namespace,
-			notebook:  nb,
+
+			notebook: nb,
+			object:   obj,
 
 			client:   c,
 			resource: notebooks,
 
 			uploadProgress: progress.New(progress.WithDefaultGradient()),
 			operations:     map[operation]status{},
-		})
+		}, pOpts...)
 		if _, err := p.Run(); err != nil {
 			return err
 		}
@@ -141,7 +143,8 @@ func Command() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
-				log.Fatal(err)
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 		},
 	}
@@ -155,6 +158,8 @@ func Command() *cobra.Command {
 	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "Namespace of Notebook")
 	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Manifest file")
 	cmd.Flags().StringVarP(&flags.resume, "resume", "r", "", "Name of notebook to resume")
+
+	cmd.Flags().BoolVar(&flags.fullscreen, "fullscreen", true, "Fullscreen mode")
 
 	return cmd
 }

@@ -180,6 +180,12 @@ spec:
           status:
             description: Status is the observed state of the Notebook.
             properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
               buildUpload:
                 description: BuildUpload contains the status of the build context
                   upload.
