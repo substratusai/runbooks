@@ -71,6 +71,24 @@ vocab.json
 strat run .
 ```
 
+## View
+
+* Grab `run.html` (converted notebook) and serve on localhost.
+* Open browser.
+
+```bash
+strat view model/falcon-7b
+strat view dataset/squad
+```
+
+Alternative names:
+
+```bash
+strat logs
+strat show
+strat inspect
+```
+
 ## Inference Client
 
 ```bash
