@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -57,13 +58,8 @@ func Test_resolveEnv(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Log("running Test_resolveEnv with input", tc.input)
-
 		actual, err := resolveEnv(tc.input)
-		if err != nil {
-			t.Errorf("error with case %v: %v", tc.input, err)
-		}
-		if !reflect.DeepEqual(actual, tc.expected) {
-			t.Errorf("resolveEnv(%v): expected %v, actual %v", tc.input, tc.expected, actual)
-		}
+		require.NoErrorf(t, err, "error with case %v: %v", tc.input, err)
+		require.Truef(t, reflect.DeepEqual(actual, tc.expected), "resolveEnv(%v): expected %v, actual %v", tc.input, tc.expected, actual)
 	}
 }
