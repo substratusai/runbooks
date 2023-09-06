@@ -259,7 +259,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	//	return result{}, fmt.Errorf("failed to apply pvc: %w", err)
 	//}
 
-	pod, err := r.notebookPod(ctx, notebook, model, dataset)
+	pod, err := r.notebookPod(notebook, model, dataset)
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct pod: %w", err)
 	}
@@ -314,7 +314,7 @@ func nbPodName(nb *apiv1.Notebook) string {
 }
 
 // notebookPod constructs a Pod for the given Notebook.
-func (r *NotebookReconciler) notebookPod(ctx context.Context, notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
+func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
 
 	envVars, err := resolveEnv(notebook.Spec.Env)

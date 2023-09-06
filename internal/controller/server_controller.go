@@ -112,7 +112,7 @@ func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.O
 	return reqs
 }
 
-func (r *ServerReconciler) serverDeployment(ctx context.Context, server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
+func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
 	envVars, err := resolveEnv(server.Spec.Env)
@@ -266,7 +266,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 		return result{}, fmt.Errorf("failed to apply service: %w", err)
 	}
 
-	deploy, err := r.serverDeployment(ctx, server, &model)
+	deploy, err := r.serverDeployment(server, &model)
 	if err != nil {
 		return result{}, fmt.Errorf("failed to construct deployment: %w", err)
 	}
