@@ -3,12 +3,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"sort"
+	"regexp"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -18,14 +17,6 @@ import (
 type result struct {
 	ctrl.Result
 	success bool
-}
-
-func nextPowOf2(n int64) int64 {
-	k := int64(1)
-	for k < n {
-		k = k << 1
-	}
-	return k
 }
 
 func reconcileJob(ctx context.Context, c client.Client, job *batchv1.Job, condition string) (result, error) {
@@ -60,17 +51,30 @@ func isPodReady(pod *corev1.Pod) bool {
 	return false
 }
 
-func paramsToEnv(params map[string]intstr.IntOrString) []corev1.EnvVar {
+func resolveEnv(env map[string]string) ([]corev1.EnvVar, error) {
 	envs := []corev1.EnvVar{}
 
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
+	for key, value := range env {
+		// Format ${{ secrets.my-name.my-key }} and spaces optional, following syntax of GitHub actions
+		secretRegex := regexp.MustCompile(`\${{ *secrets\.(.+)\.(.+) *}}`)
+		if secretRegex.MatchString(value) {
+			matches := secretRegex.FindStringSubmatch(value)
+			if len(matches) != 3 {
+				return nil, fmt.Errorf("error parsing environment key %s, expecting format ${{ secrets.name.key }} but got  %v", key, value)
+			}
+			secretName := strings.TrimSpace(matches[1])
+			secretKeyName := strings.TrimSpace(matches[2])
+
+			envVarSource := &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+					Key:                  secretKeyName,
+				},
+			}
+			envs = append(envs, corev1.EnvVar{Name: key, ValueFrom: envVarSource})
+		} else {
+			envs = append(envs, corev1.EnvVar{Name: key, Value: value})
+		}
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		p := params[k]
-		envs = append(envs, corev1.EnvVar{Name: "PARAM_" + strings.ToUpper(k), Value: p.String()})
-	}
-	return envs
+	return envs, nil
 }

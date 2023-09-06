@@ -6,7 +6,9 @@ spec:
   image: substratusai/model-server-basaran
   model:
     name: llama-2-70b
+  env:
+    MODEL_LOAD_IN_4BIT: "true"
   resources:
     gpu:
       type: nvidia-a100
-      count: 2
+      count: 1

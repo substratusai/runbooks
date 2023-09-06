@@ -6,7 +6,9 @@ spec:
   image: substratusai/model-server-basaran
   model:
     name: falcon-40b
+  env:
+    MODEL_LOAD_IN_4BIT: "true"
   resources:
     gpu:
       type: nvidia-l4
-      count: 4
+      count: 1

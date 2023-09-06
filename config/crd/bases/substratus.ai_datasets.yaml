@@ -111,6 +111,11 @@ spec:
                 items:
                   type: string
                 type: array
+              env:
+                additionalProperties:
+                  type: string
+                description: Environment variables in the container
+                type: object
               image:
                 description: Image that contains dataset loading code and dependencies.
                 type: string

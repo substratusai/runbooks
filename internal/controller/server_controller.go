@@ -115,6 +115,11 @@ func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.O
 func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.Model) (*appsv1.Deployment, error) {
 	replicas := int32(1)
 
+	envVars, err := resolveEnv(server.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
+
 	const containerName = "serve"
 	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -148,7 +153,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 							Image:           server.GetImage(),
 							ImagePullPolicy: "Always",
 							Command:         server.Spec.Command,
-							Env:             paramsToEnv(server.Spec.Params),
+							Env:             envVars,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          modelServerHTTPServePortName,

@@ -317,6 +317,11 @@ func nbPodName(nb *apiv1.Notebook) string {
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
 
+	envVars, err := resolveEnv(notebook.Spec.Env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving env: %w", err)
+	}
+
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -348,7 +353,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 							ContainerPort: 8888,
 						},
 					},
-					Env: paramsToEnv(notebook.Spec.Params),
+					Env: envVars,
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{

@@ -115,6 +115,11 @@ spec:
                 required:
                 - name
                 type: object
+              env:
+                additionalProperties:
+                  type: string
+                description: Environment variables in the container
+                type: object
               image:
                 description: Image that contains notebook and dependencies.
                 type: string

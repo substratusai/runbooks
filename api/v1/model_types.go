@@ -11,6 +11,9 @@ type ModelSpec struct {
 	// Command to run in the container.
 	Command []string `json:"command,omitempty"`
 
+	// Environment variables in the container
+	Env map[string]string `json:"env,omitempty"`
+
 	// Image that contains model code and dependencies.
 	Image *string `json:"image,omitempty"`
 
