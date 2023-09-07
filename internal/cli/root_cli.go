@@ -13,6 +13,7 @@ func Command() *cobra.Command {
 	}
 	cmd.AddCommand(notebookCommand())
 	cmd.AddCommand(runCommand())
+	cmd.AddCommand(listCommand())
 
 	return cmd
 }

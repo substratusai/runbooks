@@ -6,8 +6,11 @@ import (
 	"time"
 
 	meta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -119,4 +122,24 @@ func (r *Resource) WaitReady(ctx context.Context, obj Object) error {
 	}
 
 	return nil
+}
+
+func (r *Resource) Watch(ctx context.Context, namespace string, obj Object) (watch.Interface, error) {
+	// NOTE: The r.Helper.Watch() method does not support passing a context, calling the code
+	// below instead (it was pulled from the Helper implementation).
+	w := r.RESTClient.Get().
+		NamespaceIfScoped(namespace, r.NamespaceScoped).
+		Resource(r.Resource)
+
+	if obj != nil && obj.GetName() != "" {
+		w = w.VersionedParams(&metav1.ListOptions{
+			ResourceVersion: obj.GetResourceVersion(),
+			Watch:           true,
+			FieldSelector:   fields.OneTermEqualSelector("metadata.name", obj.GetName()).String(),
+		}, metav1.ParameterCodec)
+	} else {
+		w = w.VersionedParams(&metav1.ListOptions{Watch: true}, metav1.ParameterCodec)
+	}
+
+	return w.Watch(ctx)
 }

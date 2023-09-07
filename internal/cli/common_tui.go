@@ -25,6 +25,9 @@ const (
 var (
 	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
+	checkMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")).SetString("✓")
+	// TODO: Better X mark?
+	xMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).SetString("x")
 )
 
 type (

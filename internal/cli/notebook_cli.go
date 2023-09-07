@@ -159,7 +159,7 @@ func notebookCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Manifest file")
 	cmd.Flags().StringVarP(&flags.resume, "resume", "r", "", "Name of notebook to resume")
 
-	cmd.Flags().BoolVar(&flags.fullscreen, "fullscreen", true, "Fullscreen mode")
+	cmd.Flags().BoolVar(&flags.fullscreen, "fullscreen", false, "Fullscreen mode")
 
 	return cmd
 }
