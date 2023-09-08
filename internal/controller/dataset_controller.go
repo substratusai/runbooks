@@ -151,6 +151,10 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/default-container": containerName,
 					},
+					Labels: map[string]string{
+						"dataset": dataset.Name,
+						"role":    "run",
+					},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{

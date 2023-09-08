@@ -157,7 +157,7 @@ func watchCmd(ctx context.Context, c client.Interface, namespace, scope string) 
 			kind := obj.GetObjectKind().GroupVersionKind().Kind
 			log.Printf("Starting watch: %v", kind)
 
-			w, err := res.Watch(ctx, namespace, obj)
+			w, err := res.Watch(ctx, namespace, obj, &metav1.ListOptions{})
 			if err != nil {
 				return fmt.Errorf("watch: %w", err)
 			}

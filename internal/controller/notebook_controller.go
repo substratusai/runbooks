@@ -345,6 +345,10 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			Annotations: map[string]string{
 				"kubectl.kubernetes.io/default-container": containerName,
 			},
+			Labels: map[string]string{
+				"notebook": notebook.Name,
+				"role":     "run",
+			},
 		},
 		Spec: corev1.PodSpec{
 			//SecurityContext: &corev1.PodSecurityContext{

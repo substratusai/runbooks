@@ -296,6 +296,10 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/default-container": containerName,
 					},
+					Labels: map[string]string{
+						"model": model.Name,
+						"role":  "run",
+					},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{

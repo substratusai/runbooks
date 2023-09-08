@@ -8,10 +8,6 @@ import (
 	"strings"
 	"time"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cloud"
-	"github.com/substratusai/substratus/internal/resources"
-	"github.com/substratusai/substratus/internal/sci"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,6 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
+	"github.com/substratusai/substratus/internal/cloud"
+	"github.com/substratusai/substratus/internal/resources"
+	"github.com/substratusai/substratus/internal/sci"
 )
 
 const latestUploadPath = "uploads/latest.tar.gz"
@@ -327,8 +328,10 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 			corev1.Container{
 				Name:  "gcp-workload-identity-readiness-check",
 				Image: "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine",
-				Args: []string{"/bin/bash", "-c",
-					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1"},
+				Args: []string{
+					"/bin/bash", "-c",
+					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1",
+				},
 			})
 	}
 
@@ -364,6 +367,10 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: annotations,
+					Labels: map[string]string{
+						strings.ToLower(r.Kind): obj.GetName(),
+						"role":                  "build",
+					},
 				},
 				Spec: corev1.PodSpec{
 					InitContainers: initContainers,
@@ -466,8 +473,10 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 			corev1.Container{
 				Name:  "gcp-workload-identity-readiness-check",
 				Image: "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine",
-				Args: []string{"/bin/bash", "-c",
-					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1"},
+				Args: []string{
+					"/bin/bash", "-c",
+					"curl -sS -H 'Metadata-Flavor: Google' 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token' --retry 30 --retry-connrefused --retry-max-time 60 --connect-timeout 3 --fail --retry-all-errors > /dev/null && exit 0 || echo 'Retry limit exceeded. Failed to wait for metadata server to be available. Check if the gke-metadata-server Pod in the kube-system namespace is healthy.' >&2; exit 1",
+				},
 			})
 	}
 
@@ -487,6 +496,10 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: podAnnotations,
+					Labels: map[string]string{
+						strings.ToLower(r.Kind): obj.GetName(),
+						"role":                  "build",
+					},
 				},
 				Spec: corev1.PodSpec{
 					InitContainers: initContainers,

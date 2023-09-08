@@ -124,22 +124,19 @@ func (r *Resource) WaitReady(ctx context.Context, obj Object) error {
 	return nil
 }
 
-func (r *Resource) Watch(ctx context.Context, namespace string, obj Object) (watch.Interface, error) {
+func (r *Resource) Watch(ctx context.Context, namespace string, obj Object, opts *metav1.ListOptions) (watch.Interface, error) {
+	opts.Watch = true
+	if obj != nil && obj.GetName() != "" {
+		opts.ResourceVersion = obj.GetResourceVersion()
+		opts.FieldSelector = fields.OneTermEqualSelector("metadata.name", obj.GetName()).String()
+	}
+
 	// NOTE: The r.Helper.Watch() method does not support passing a context, calling the code
 	// below instead (it was pulled from the Helper implementation).
 	w := r.RESTClient.Get().
 		NamespaceIfScoped(namespace, r.NamespaceScoped).
-		Resource(r.Resource)
-
-	if obj != nil && obj.GetName() != "" {
-		w = w.VersionedParams(&metav1.ListOptions{
-			ResourceVersion: obj.GetResourceVersion(),
-			Watch:           true,
-			FieldSelector:   fields.OneTermEqualSelector("metadata.name", obj.GetName()).String(),
-		}, metav1.ParameterCodec)
-	} else {
-		w = w.VersionedParams(&metav1.ListOptions{Watch: true}, metav1.ParameterCodec)
-	}
+		Resource(r.Resource).
+		VersionedParams(opts, metav1.ParameterCodec)
 
 	return w.Watch(ctx)
 }

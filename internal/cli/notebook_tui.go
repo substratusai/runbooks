@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
@@ -36,6 +39,7 @@ type notebookModel struct {
 	// Clients
 	client   client.Interface
 	resource *client.Resource
+	k8s      *kubernetes.Clientset
 
 	// Original Object (could be a Dataset, Model, or Server)
 	object client.Object
@@ -59,6 +63,9 @@ type notebookModel struct {
 
 	// Ready to open browser
 	localURL string
+
+	// Watch Pods
+	pods map[string]podWatchMsg
 
 	// End times
 	quitting   bool
@@ -167,7 +174,14 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.operations[uploading] = completed
 		m.notebook = msg.Object.(*apiv1.Notebook)
 		m.operations[waitingReady] = inProgress
-		return m, waitReadyCmd(m.ctx, m.resource, m.notebook.DeepCopy())
+		return m, tea.Batch(
+			watchPods(m.ctx, m.client, m.notebook.DeepCopy()),
+			waitReadyCmd(m.ctx, m.resource, m.notebook.DeepCopy()),
+		)
+
+	case podWatchMsg:
+		m.pods[msg.Pod.Name] = msg
+		return m, nil
 
 	case objectReadyMsg:
 		m.operations[waitingReady] = completed
@@ -218,6 +232,7 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case error:
 		m.finalError = msg
+		m.quitting = true
 		return m, nil
 	}
 
@@ -271,6 +286,19 @@ func (m notebookModel) View() string {
 		v += pad + "Waiting for notebook to be ready...\n"
 	} else if m.operations[waitingReady] == completed {
 		v += pad + "Notebook ready.\n"
+	}
+
+	var podNames []string
+	for name := range m.pods {
+		podNames = append(podNames, name)
+	}
+	sort.Strings(podNames)
+	for _, name := range podNames {
+		p := m.pods[name]
+		if p.Type == watch.Deleted {
+			continue
+		}
+		v += pad + "> " + p.Pod.Labels["role"] + ": " + string(p.Pod.Status.Phase) + "\n"
 	}
 
 	if m.operations[syncingFiles] == inProgress {

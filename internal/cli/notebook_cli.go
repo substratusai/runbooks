@@ -122,9 +122,11 @@ func notebookCommand() *cobra.Command {
 
 			notebook: nb,
 			object:   obj,
+			pods:     map[string]podWatchMsg{},
 
 			client:   c,
 			resource: notebooks,
+			k8s:      clientset,
 
 			uploadProgress: progress.New(progress.WithDefaultGradient()),
 			operations:     map[operation]status{},
