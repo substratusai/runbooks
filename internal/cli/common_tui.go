@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -29,6 +30,13 @@ const (
 )
 
 var (
+	// Padding
+	style = lipgloss.NewStyle().
+		PaddingTop(1).
+		PaddingRight(1).
+		PaddingBottom(1).
+		PaddingLeft(2)
+
 	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
 	checkMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")).SetString("✓")
@@ -172,10 +180,32 @@ func watchPods(ctx context.Context, c client.Interface, obj client.Object) tea.C
 	}
 }
 
-func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod) tea.Cmd {
+type podLogsMsg struct {
+	role string
+	name string
+	logs string
+}
+
+func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, container string) tea.Cmd {
 	return func() tea.Msg {
-		k8s.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{})
-		log.Println("Starting to get logs")
+		log.Printf("Starting to get logs for pod: %v", pod.Name)
+		req := k8s.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
+			Container: container,
+		})
+		logs, err := req.Stream(ctx)
+		if err != nil {
+			return err
+		}
+
+		scanner := bufio.NewScanner(logs)
+		for scanner.Scan() {
+			logs := scanner.Text()
+			log.Println("Pod logs for: %v: %v", pod.Name, logs)
+			p.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
 		return nil
 	}
 }

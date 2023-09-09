@@ -122,7 +122,10 @@ func notebookCommand() *cobra.Command {
 
 			notebook: nb,
 			object:   obj,
-			pods:     map[string]podWatchMsg{},
+			pods: map[string]map[string]podInfo{
+				"build": {},
+				"run":   {},
+			},
 
 			client:   c,
 			resource: notebooks,

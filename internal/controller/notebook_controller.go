@@ -433,8 +433,8 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 
 	// Mounts specific to this Notebook.
 	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, notebook, cloud.MountBucketConfig{
-		Name:      "notebook",
-		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "output"}},
+		Name:      "artifacts",
+		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "artifacts"}},
 		Container: containerName,
 		ReadOnly:  false,
 	}); err != nil {

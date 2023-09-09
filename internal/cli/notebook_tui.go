@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/browser"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -65,12 +67,22 @@ type notebookModel struct {
 	localURL string
 
 	// Watch Pods
-	pods map[string]podWatchMsg
+	// map[role][podName]
+	pods map[string]map[string]podInfo
 
 	// End times
 	quitting   bool
 	goodbye    string
 	finalError error
+}
+
+type podInfo struct {
+	lastEvent watch.EventType
+	pod       *corev1.Pod
+
+	logs         string
+	logsStarted  bool
+	logsViewport viewport.Model
 }
 
 type operation string
@@ -180,7 +192,32 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case podWatchMsg:
-		m.pods[msg.Pod.Name] = msg
+		pi := m.pods[msg.Pod.Labels["role"]][msg.Pod.Name]
+		pi.lastEvent = msg.Type
+		pi.pod = msg.Pod.DeepCopy()
+
+		var cmd tea.Cmd
+		if !pi.logsStarted {
+			const containerName = "builder"
+			for _, status := range pi.pod.Status.ContainerStatuses {
+				if status.Name == containerName && status.Ready {
+					cmd = getLogs(m.ctx, m.k8s, pi.pod, containerName)
+					pi.logsStarted = true
+					pi.logsViewport = viewport.New(maxWidth, 6)
+					break
+				}
+			}
+		}
+
+		m.pods[msg.Pod.Labels["role"]][msg.Pod.Name] = pi
+		return m, cmd
+
+	case podLogsMsg:
+		pi := m.pods[msg.role][msg.name]
+		pi.logs += msg.logs + "\n"
+		pi.logsViewport.SetContent(pi.logs)
+		pi.logsViewport.GotoBottom()
+		m.pods[msg.role][msg.name] = pi
 		return m, nil
 
 	case objectReadyMsg:
@@ -262,43 +299,57 @@ func (m notebookModel) View() string {
 		return v
 	}
 
+	var totalInProgress int
+	for _, status := range m.operations {
+		if status == inProgress {
+			totalInProgress++
+		}
+	}
+
 	if m.operations[tarring] == inProgress {
 		v += pad + "Tarring...\n"
 		v += pad + fmt.Sprintf("File count: %v\n", m.tarredFileCount)
-	} else if m.operations[tarring] == completed {
+	} else if totalInProgress == 0 && (m.operations[tarring] == completed) {
 		v += pad + "Tarring complete.\n"
 	}
 
 	if m.operations[applying] == inProgress {
 		v += pad + "Applying...\n"
-	} else if m.operations[applying] == completed {
+	} else if totalInProgress == 0 && (m.operations[applying] == completed) {
 		v += pad + "Notebook applied.\n"
 	}
 
 	if m.operations[uploading] == inProgress {
 		v += pad + "Uploading...\n\n"
 		v += pad + m.uploadProgress.View() + "\n\n"
-	} else if m.operations[uploading] == completed {
+	} else if totalInProgress == 0 && (m.operations[uploading] == completed) {
 		v += pad + "Upload complete.\n"
 	}
 
 	if m.operations[waitingReady] == inProgress {
 		v += pad + "Waiting for notebook to be ready...\n"
-	} else if m.operations[waitingReady] == completed {
-		v += pad + "Notebook ready.\n"
-	}
 
-	var podNames []string
-	for name := range m.pods {
-		podNames = append(podNames, name)
-	}
-	sort.Strings(podNames)
-	for _, name := range podNames {
-		p := m.pods[name]
-		if p.Type == watch.Deleted {
-			continue
+		roles := []string{"build", "run"}
+
+		for _, role := range roles {
+			var pods []podInfo
+			for _, p := range m.pods[role] {
+				pods = append(pods, p)
+			}
+			sort.Slice(pods, func(i, j int) bool {
+				return pods[i].pod.CreationTimestamp.Before(&pods[j].pod.CreationTimestamp)
+			})
+			for _, p := range pods {
+				if p.lastEvent == watch.Deleted {
+					continue
+				}
+				v += pad + "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
+				v += "\n" + p.logsViewport.View() + "\n"
+			}
 		}
-		v += pad + "> " + p.Pod.Labels["role"] + ": " + string(p.Pod.Status.Phase) + "\n"
+
+	} else if totalInProgress == 0 && (m.operations[waitingReady] == completed) {
+		v += pad + "Notebook ready.\n"
 	}
 
 	if m.operations[syncingFiles] == inProgress {
@@ -311,17 +362,17 @@ func (m notebookModel) View() string {
 			v += "\n"
 			v += pad + errorStyle("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
 		}
-	} else if m.operations[syncingFiles] == completed {
+	} else if totalInProgress == 0 && (m.operations[syncingFiles] == completed) {
 		v += pad + "Done syncing files.\n"
 	}
 
 	if m.operations[portForwarding] == inProgress {
 		v += pad + "Port-forwarding...\n"
-	} else if m.operations[portForwarding] == completed {
+	} else if totalInProgress == 0 && (m.operations[portForwarding] == completed) {
 		v += pad + "Done port-forwarding.\n"
 	}
 
-	if m.localURL != "" {
+	if m.localURL != "" && m.operations[portForwarding] == inProgress {
 		v += "\n"
 		v += pad + fmt.Sprintf("Notebook URL: %v\n", m.localURL)
 	}

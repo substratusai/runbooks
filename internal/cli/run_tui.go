@@ -81,6 +81,7 @@ func (m runModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case createdWithUploadMsg:
 		m.object = msg.Object
+		m.operations[creating] = completed
 		return m, uploadTarballCmd(m.ctx, m.resource, m.object.DeepCopyObject().(client.Object), m.tarball)
 
 	case uploadTarballProgressMsg:
@@ -137,23 +138,30 @@ func (m runModel) View() string {
 		return v
 	}
 
+	var totalInProgress int
+	for _, status := range m.operations {
+		if status == inProgress {
+			totalInProgress++
+		}
+	}
+
 	if m.operations[tarring] == inProgress {
 		v += pad + "Tarring...\n"
 		v += pad + fmt.Sprintf("File count: %v\n", m.tarredFileCount)
-	} else if m.operations[tarring] == completed {
+	} else if totalInProgress == 0 && (m.operations[tarring] == completed) {
 		v += pad + "Tarring complete.\n"
 	}
 
 	if m.operations[creating] == inProgress {
 		v += pad + "Creating...\n"
-	} else if m.operations[creating] == completed {
+	} else if totalInProgress == 0 && (m.operations[creating] == completed) {
 		v += pad + fmt.Sprintf("%s created.\n", m.kind())
 	}
 
 	if m.operations[uploading] == inProgress {
 		v += pad + "Uploading...\n\n"
 		v += pad + m.uploadProgress.View() + "\n\n"
-	} else if m.operations[uploading] == completed {
+	} else if totalInProgress == 0 && (m.operations[uploading] == completed) {
 		v += pad + "Upload complete.\n"
 	}
 

@@ -168,7 +168,7 @@ All mount points will are made under a standardized `/content` directory which s
 ```
 /content/params.json  # Populated from .spec.params (also available as env vars).
 
-/content/output/        # Mounted RW: initially empty dir to write new files
+/content/artifacts/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (importing)
@@ -176,7 +176,7 @@ All mount points will are made under a standardized `/content` directory which s
 ```
 /content/params.json  # Populated from .spec.params (also available as env vars).
 
-/content/output/       # Mounted RW: initially empty dir to write new files
+/content/artifacts/       # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (training)
@@ -188,7 +188,7 @@ All mount points will are made under a standardized `/content` directory which s
 
 /content/model/             # Mounted RO: from .spec.model
 
-/content/output/            # Mounted RW: initially empty dir for writing new files
+/content/artifacts/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Notebook
@@ -202,7 +202,7 @@ NOTE: The `saved-model/` directory is the same as the container for the Model ob
 
 /content/model/             # Mounted RO: from .spec.model
 
-/content/output/            # Mounted RW: initially empty dir for writing new files
+/content/artifacts/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Server:

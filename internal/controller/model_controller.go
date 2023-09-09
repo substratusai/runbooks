@@ -325,9 +325,9 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 	}
 
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, model, cloud.MountBucketConfig{
-		Name: "output",
+		Name: "artifacts",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "artifacts", ContentSubdir: "output"},
+			{BucketSubdir: "artifacts", ContentSubdir: "artifacts"},
 		},
 		Container: containerName,
 		ReadOnly:  false,
