@@ -283,7 +283,8 @@ func (r *BuildReconciler) gitBuildJob(ctx context.Context, obj BuildableObject) 
 		// Disable compressed caching to decrease memory usage.
 		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
 		"--compressed-caching=false",
-		"--log-format=text",
+		"--log-format=color",
+		"--log-timestamp=false",
 	}
 
 	var initContainers []corev1.Container
@@ -415,7 +416,8 @@ func (r *BuildReconciler) storageBuildJob(ctx context.Context, obj BuildableObje
 		// Disable compressed caching to decrease memory usage.
 		// (See https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#flag---compressed-caching)
 		"--compressed-caching=false",
-		"--log-format=text",
+		"--log-format=color",
+		"--log-timestamp=false",
 	}
 
 	var initContainers []corev1.Container

@@ -30,18 +30,32 @@ const (
 )
 
 var (
-	// Padding
-	style = lipgloss.NewStyle().
-		PaddingTop(1).
-		PaddingRight(1).
-		PaddingBottom(1).
-		PaddingLeft(2)
+	appStyle = lipgloss.NewStyle().
+			PaddingTop(1).
+			PaddingRight(1).
+			PaddingBottom(1).
+			PaddingLeft(2).
+			Render
 
-	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render
-	checkMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("#008000")).SetString("✓")
+	podStyle = lipgloss.NewStyle().PaddingLeft(2).Render
+
+	// https://coolors.co/palette/264653-2a9d8f-e9c46a-f4a261-e76f51
+	//
+	logStyle = lipgloss.NewStyle().PaddingLeft(1).Border(lipgloss.NormalBorder(), false, false, false, true) /*lipgloss.Border{
+		TopLeft:    "| ",
+		BottomLeft: "| ",
+		Left:       "| ",
+	})*/
+
+	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).
+			MarginTop(1).
+			MarginBottom(1).
+			Render
+
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).Render
+	checkMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("#2a9d8f")).SetString("✓")
 	// TODO: Better X mark?
-	xMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).SetString("x")
+	xMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).SetString("x")
 )
 
 type (
@@ -190,7 +204,9 @@ func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, co
 	return func() tea.Msg {
 		log.Printf("Starting to get logs for pod: %v", pod.Name)
 		req := k8s.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
-			Container: container,
+			Container:  container,
+			Follow:     true,
+			Timestamps: false,
 		})
 		logs, err := req.Stream(ctx)
 		if err != nil {
@@ -200,7 +216,7 @@ func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, co
 		scanner := bufio.NewScanner(logs)
 		for scanner.Scan() {
 			logs := scanner.Text()
-			log.Println("Pod logs for: %v: %v", pod.Name, logs)
+			log.Printf("Pod logs for: %v: %q", pod.Name, logs)
 			p.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
 		}
 		if err := scanner.Err(); err != nil {

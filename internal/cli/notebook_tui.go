@@ -8,12 +8,12 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/pkg/browser"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,6 +69,9 @@ type notebookModel struct {
 	// Watch Pods
 	// map[role][podName]
 	pods map[string]map[string]podInfo
+
+	// Size
+	width int
 
 	// End times
 	quitting   bool
@@ -203,7 +206,8 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if status.Name == containerName && status.Ready {
 					cmd = getLogs(m.ctx, m.k8s, pi.pod, containerName)
 					pi.logsStarted = true
-					pi.logsViewport = viewport.New(maxWidth, 6)
+					pi.logsViewport = viewport.New(m.width-10, 7)
+					pi.logsViewport.Style = logStyle
 					break
 				}
 			}
@@ -215,7 +219,7 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case podLogsMsg:
 		pi := m.pods[msg.role][msg.name]
 		pi.logs += msg.logs + "\n"
-		pi.logsViewport.SetContent(pi.logs)
+		pi.logsViewport.SetContent(wordwrap.String(pi.logs, m.width-14))
 		pi.logsViewport.GotoBottom()
 		m.pods[msg.role][msg.name] = pi
 		return m, nil
@@ -255,6 +259,17 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.WindowSizeMsg:
+		log.Println("width =", msg.Width)
+		m.width = msg.Width
+		for role := range m.pods {
+			for name := range m.pods[role] {
+				pi := m.pods[role][name]
+				if pi.logsViewport.Width > 0 {
+					pi.logsViewport.Width = msg.Width - 10
+					m.pods[role][name] = pi
+				}
+			}
+		}
 		m.uploadProgress.Width = msg.Width - padding*2 - 4
 		if m.uploadProgress.Width > maxWidth {
 			m.uploadProgress.Width = maxWidth
@@ -278,24 +293,25 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m notebookModel) View() string {
-	pad := strings.Repeat(" ", padding)
-	v := "\n"
+func (m notebookModel) View() (v string) {
+	defer func() {
+		v = appStyle(v)
+	}()
 
 	if m.finalError != nil {
-		v += pad + errorStyle("Error: "+m.finalError.Error()) + "\n"
-		v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n\n"
+		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
+		v += helpStyle("Press \"q\" to quit")
 		return v
 	}
 
 	if m.goodbye != "" {
-		v += pad + m.goodbye + "\n\n"
+		v += m.goodbye + "\n\n"
 		return v
 	}
 
 	if m.quitting {
-		v += pad + "Quitting...\n"
-		v += "\n" + pad + helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel") + "\n"
+		v += "Quitting...\n"
+		v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		return v
 	}
 
@@ -307,30 +323,31 @@ func (m notebookModel) View() string {
 	}
 
 	if m.operations[tarring] == inProgress {
-		v += pad + "Tarring...\n"
-		v += pad + fmt.Sprintf("File count: %v\n", m.tarredFileCount)
+		v += "Tarring...\n"
+		v += fmt.Sprintf("File count: %v\n", m.tarredFileCount)
 	} else if totalInProgress == 0 && (m.operations[tarring] == completed) {
-		v += pad + "Tarring complete.\n"
+		v += "Tarring complete.\n"
 	}
 
 	if m.operations[applying] == inProgress {
-		v += pad + "Applying...\n"
+		v += "Applying...\n"
 	} else if totalInProgress == 0 && (m.operations[applying] == completed) {
-		v += pad + "Notebook applied.\n"
+		v += "Notebook applied.\n"
 	}
 
 	if m.operations[uploading] == inProgress {
-		v += pad + "Uploading...\n\n"
-		v += pad + m.uploadProgress.View() + "\n\n"
+		v += "Uploading...\n\n"
+		v += m.uploadProgress.View() + "\n\n"
 	} else if totalInProgress == 0 && (m.operations[uploading] == completed) {
-		v += pad + "Upload complete.\n"
+		v += "Upload complete.\n"
 	}
 
 	if m.operations[waitingReady] == inProgress {
-		v += pad + "Waiting for notebook to be ready...\n"
+		v += "Waiting for notebook to be ready...\n"
 
 		roles := []string{"build", "run"}
 
+		var vv string
 		for _, role := range roles {
 			var pods []podInfo
 			for _, p := range m.pods[role] {
@@ -343,41 +360,46 @@ func (m notebookModel) View() string {
 				if p.lastEvent == watch.Deleted {
 					continue
 				}
-				v += pad + "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
-				v += "\n" + p.logsViewport.View() + "\n"
+				vv += "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
+				if p.pod.Status.Phase != corev1.PodSucceeded {
+					vv += "\n" + p.logsViewport.View() + "\n"
+				}
 			}
 		}
 
+		// Further indent this section.
+		v += podStyle(vv)
+
 	} else if totalInProgress == 0 && (m.operations[waitingReady] == completed) {
-		v += pad + "Notebook ready.\n"
+		v += "Notebook ready.\n"
 	}
 
 	if m.operations[syncingFiles] == inProgress {
 		if m.currentSyncingFile != "" {
-			v += pad + fmt.Sprintf("Syncing from notebook: %v\n", m.currentSyncingFile)
+			v += fmt.Sprintf("Syncing from notebook: %v\n", m.currentSyncingFile)
 		} else {
-			v += pad + "Watching for files to sync...\n"
+			v += "Watching for files to sync...\n"
 		}
 		if m.lastSyncFailure != nil {
 			v += "\n"
-			v += pad + errorStyle("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
+			v += errorStyle("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
 		}
 	} else if totalInProgress == 0 && (m.operations[syncingFiles] == completed) {
-		v += pad + "Done syncing files.\n"
+		v += "Done syncing files.\n"
 	}
 
 	if m.operations[portForwarding] == inProgress {
-		v += pad + "Port-forwarding...\n"
+		v += "Port-forwarding...\n"
 	} else if totalInProgress == 0 && (m.operations[portForwarding] == completed) {
-		v += pad + "Done port-forwarding.\n"
+		v += "Done port-forwarding.\n"
 	}
 
 	if m.localURL != "" && m.operations[portForwarding] == inProgress {
 		v += "\n"
-		v += pad + fmt.Sprintf("Notebook URL: %v\n", m.localURL)
+		v += fmt.Sprintf("Notebook URL: %v\n", m.localURL)
 	}
 
-	v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n"
+	v += helpStyle("Press \"q\" to quit")
 
 	return v
 }
