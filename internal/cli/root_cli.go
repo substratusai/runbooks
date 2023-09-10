@@ -16,6 +16,7 @@ func Command() *cobra.Command {
 	cmd.AddCommand(runCommand())
 	cmd.AddCommand(listCommand())
 	cmd.AddCommand(inferCommand())
+	cmd.AddCommand(deleteCommand())
 
 	return cmd
 }

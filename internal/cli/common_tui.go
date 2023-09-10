@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
+	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
@@ -136,6 +139,40 @@ func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.O
 		if err := specifyUpload(obj, tarball); err != nil {
 			return fmt.Errorf("specifying upload: %w", err)
 		}
+
+		lowerKind := strings.ToLower(obj.GetObjectKind().GroupVersionKind().Kind)
+		if obj.GetLabels() == nil {
+			obj.SetLabels(map[string]string{})
+		}
+		obj.GetLabels()[lowerKind] = obj.GetName()
+
+		list, err := res.List(obj.GetNamespace(), obj.GetObjectKind().GroupVersionKind().Version, &metav1.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				lowerKind: obj.GetName(),
+			}).String(),
+		})
+		if err != nil {
+			return fmt.Errorf("listing: %w", err)
+		}
+
+		var version int
+		switch list := list.(type) {
+		case *apiv1.ModelList:
+			version, err = nextModelVersion(list)
+			if err != nil {
+				return fmt.Errorf("next model version: %w", err)
+			}
+		case *apiv1.DatasetList:
+			version, err = nextDatasetVersion(list)
+			if err != nil {
+				return fmt.Errorf("next dataset version: %w", err)
+			}
+		default:
+			return fmt.Errorf("unrecognized list type: %T", list)
+		}
+
+		obj.SetName(fmt.Sprintf("%v.v%v", obj.GetName(), version))
+		obj.GetLabels()["version"] = fmt.Sprintf("%v", version)
 		if _, err := res.Create(obj.GetNamespace(), true, obj); err != nil {
 			return fmt.Errorf("creating: %w", err)
 		}
@@ -224,4 +261,62 @@ func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, co
 		}
 		return nil
 	}
+}
+
+func nextModelVersion(list *apiv1.ModelList) (int, error) {
+	if len(list.Items) == 0 {
+		return 0, nil
+	}
+
+	var sortErr error
+	sort.Slice(list.Items, func(i, j int) bool {
+		vi, err := strconv.Atoi(list.Items[i].GetLabels()["version"])
+		if err != nil {
+			sortErr = err
+		}
+		vj, err := strconv.Atoi(list.Items[j].GetLabels()["version"])
+		if err != nil {
+			sortErr = err
+		}
+		return vi > vj
+	})
+	if sortErr != nil {
+		return 0, sortErr
+	}
+
+	v, err := strconv.Atoi(list.Items[0].GetLabels()["version"])
+	if err != nil {
+		return 0, err
+	}
+
+	return v + 1, nil
+}
+
+func nextDatasetVersion(list *apiv1.DatasetList) (int, error) {
+	if len(list.Items) == 0 {
+		return 0, nil
+	}
+
+	var sortErr error
+	sort.Slice(list.Items, func(i, j int) bool {
+		vi, err := strconv.Atoi(list.Items[i].GetLabels()["version"])
+		if err != nil {
+			sortErr = err
+		}
+		vj, err := strconv.Atoi(list.Items[j].GetLabels()["version"])
+		if err != nil {
+			sortErr = err
+		}
+		return vi < vj
+	})
+	if sortErr != nil {
+		return 0, sortErr
+	}
+
+	v, err := strconv.Atoi(list.Items[0].GetLabels()["version"])
+	if err != nil {
+		return 0, err
+	}
+
+	return v + 1, nil
 }

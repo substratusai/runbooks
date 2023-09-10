@@ -24,13 +24,15 @@ ai run .
 ## Notebook
 
 ```bash
-strat nb (notebook)
+strat notebook .
+strat nb .
 ```
 
 ## List
 
 ```bash
-strat ls (list)
+strat list
+strat ls
 ```
 
 ```
@@ -89,10 +91,22 @@ strat show
 strat inspect
 ```
 
+## Delete
+
+```bash
+strat delete <resource>/<name>
+strat del
+
+# By name
+strat delete models/facebook-opt-125m
+strat delete datasets/squad
+```
+
 ## Inference Client
 
 ```bash
-strat in (interact)
+strat infer
+strat inf 
 
 # OR:
 strat cl (client)
