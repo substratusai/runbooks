@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
@@ -128,13 +127,14 @@ func (m runModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m runModel) View() string {
-	pad := strings.Repeat(" ", padding)
-	v := "\n"
+func (m runModel) View() (v string) {
+	defer func() {
+		v = appStyle(v)
+	}()
 
 	if m.finalError != nil {
-		v += pad + errorStyle("Error: "+m.finalError.Error()) + "\n"
-		v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n\n"
+		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
+		v += helpStyle("Press \"q\" to quit")
 		return v
 	}
 
@@ -146,32 +146,32 @@ func (m runModel) View() string {
 	}
 
 	if m.operations[tarring] == inProgress {
-		v += pad + "Tarring...\n"
-		v += pad + fmt.Sprintf("File count: %v\n", m.tarredFileCount)
+		v += "Tarring...\n"
+		v += fmt.Sprintf("File count: %v\n", m.tarredFileCount)
 	} else if totalInProgress == 0 && (m.operations[tarring] == completed) {
-		v += pad + "Tarring complete.\n"
+		v += "Tarring complete.\n"
 	}
 
 	if m.operations[creating] == inProgress {
-		v += pad + "Creating...\n"
+		v += "Creating...\n"
 	} else if totalInProgress == 0 && (m.operations[creating] == completed) {
-		v += pad + fmt.Sprintf("%s created.\n", m.kind())
+		v += fmt.Sprintf("%s created.\n", m.kind())
 	}
 
 	if m.operations[uploading] == inProgress {
-		v += pad + "Uploading...\n\n"
-		v += pad + m.uploadProgress.View() + "\n\n"
+		v += "Uploading...\n\n"
+		v += m.uploadProgress.View() + "\n\n"
 	} else if totalInProgress == 0 && (m.operations[uploading] == completed) {
-		v += pad + "Upload complete.\n"
+		v += "Upload complete.\n"
 	}
 
 	if m.operations[waitingReady] == inProgress {
-		v += pad + fmt.Sprintf("Waiting for %v to be ready...\n", m.kind())
+		v += fmt.Sprintf("Waiting for %v to be ready...\n", m.kind())
 	} else if m.operations[waitingReady] == completed {
-		v += pad + fmt.Sprintf("%v ready.\n", m.kind())
+		v += fmt.Sprintf("%v ready.\n", m.kind())
 	}
 
-	v += "\n" + pad + helpStyle("Press \"q\" to quit") + "\n"
+	v += helpStyle("Press \"q\" to quit")
 
 	return v
 }

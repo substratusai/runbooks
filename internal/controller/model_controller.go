@@ -178,30 +178,27 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		return result{}, nil
 	}
 
-	model.Status.Ready = false
-	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionComplete,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
-		ObservedGeneration: model.Generation,
-		Message:            "Waiting for modeller Job to complete",
-	})
-	if err := r.Status().Update(ctx, model); err != nil {
-		return result{}, fmt.Errorf("updating status: %w", err)
-	}
-
 	jobResult, err := reconcileJob(ctx, r.Client, modellerJob)
 	if !jobResult.success {
-		if jobResult.failure {
+		model.Status.Ready = false
+		if !jobResult.failure {
+			meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobNotComplete,
+				ObservedGeneration: model.Generation,
+				Message:            "Waiting for modeller Job to complete",
+			})
+		} else {
 			meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
 				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonJobFailed,
 				ObservedGeneration: model.Generation,
 			})
-			if err := r.Status().Update(ctx, model); err != nil {
-				return result{}, fmt.Errorf("updating status: %w", err)
-			}
+		}
+		if err := r.Status().Update(ctx, model); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
 		}
 		return jobResult, err
 	}

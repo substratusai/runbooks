@@ -103,30 +103,31 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		return result{}, nil
 	}
 
-	dataset.Status.Ready = false
-	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionComplete,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
-		ObservedGeneration: dataset.Generation,
-		Message:            "Waiting for data loader Job to complete",
-	})
 	if err := r.Status().Update(ctx, dataset); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
 	jobResult, err := reconcileJob(ctx, r.Client, loadJob)
 	if !jobResult.success {
-		if jobResult.failure {
+		dataset.Status.Ready = false
+		if !jobResult.failure {
+			meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobNotComplete,
+				ObservedGeneration: dataset.Generation,
+				Message:            "Waiting for data loader Job to complete",
+			})
+		} else {
 			meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
 				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonJobFailed,
 				ObservedGeneration: dataset.Generation,
 			})
-			if err := r.Status().Update(ctx, dataset); err != nil {
-				return result{}, fmt.Errorf("updating status: %w", err)
-			}
+		}
+		if err := r.Status().Update(ctx, dataset); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
 		}
 		return jobResult, err
 	}

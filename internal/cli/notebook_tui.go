@@ -305,7 +305,7 @@ func (m notebookModel) View() (v string) {
 	}
 
 	if m.goodbye != "" {
-		v += m.goodbye + "\n\n"
+		v += m.goodbye + "\n"
 		return v
 	}
 

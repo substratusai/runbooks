@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -56,7 +55,9 @@ var (
 			Render
 
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).Render
-	checkMark  = lipgloss.NewStyle().Foreground(lipgloss.Color("#2a9d8f")).SetString("✓")
+
+	activeSpinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#E9C46A"))
+	checkMark          = lipgloss.NewStyle().Foreground(lipgloss.Color("#2a9d8f")).SetString("✓")
 	// TODO: Better X mark?
 	xMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).SetString("x")
 )
@@ -171,6 +172,8 @@ func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.O
 			return fmt.Errorf("unrecognized list type: %T", list)
 		}
 
+		log.Printf("Next version: %v", version)
+
 		obj.SetName(fmt.Sprintf("%v.v%v", obj.GetName(), version))
 		obj.GetLabels()["version"] = fmt.Sprintf("%v", version)
 		if _, err := res.Create(obj.GetNamespace(), true, obj); err != nil {
@@ -264,59 +267,31 @@ func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, co
 }
 
 func nextModelVersion(list *apiv1.ModelList) (int, error) {
-	if len(list.Items) == 0 {
-		return 0, nil
-	}
-
-	var sortErr error
-	sort.Slice(list.Items, func(i, j int) bool {
-		vi, err := strconv.Atoi(list.Items[i].GetLabels()["version"])
+	var highestVersion int
+	for _, item := range list.Items {
+		v, err := strconv.Atoi(item.GetLabels()["version"])
 		if err != nil {
-			sortErr = err
+			return 0, fmt.Errorf("version label to int: %w", err)
 		}
-		vj, err := strconv.Atoi(list.Items[j].GetLabels()["version"])
-		if err != nil {
-			sortErr = err
+		if v > highestVersion {
+			highestVersion = v
 		}
-		return vi > vj
-	})
-	if sortErr != nil {
-		return 0, sortErr
 	}
 
-	v, err := strconv.Atoi(list.Items[0].GetLabels()["version"])
-	if err != nil {
-		return 0, err
-	}
-
-	return v + 1, nil
+	return highestVersion + 1, nil
 }
 
 func nextDatasetVersion(list *apiv1.DatasetList) (int, error) {
-	if len(list.Items) == 0 {
-		return 0, nil
-	}
-
-	var sortErr error
-	sort.Slice(list.Items, func(i, j int) bool {
-		vi, err := strconv.Atoi(list.Items[i].GetLabels()["version"])
+	var highestVersion int
+	for _, item := range list.Items {
+		v, err := strconv.Atoi(item.GetLabels()["version"])
 		if err != nil {
-			sortErr = err
+			return 0, fmt.Errorf("version label to int: %w", err)
 		}
-		vj, err := strconv.Atoi(list.Items[j].GetLabels()["version"])
-		if err != nil {
-			sortErr = err
+		if v > highestVersion {
+			highestVersion = v
 		}
-		return vi < vj
-	})
-	if sortErr != nil {
-		return 0, sortErr
 	}
 
-	v, err := strconv.Atoi(list.Items[0].GetLabels()["version"])
-	if err != nil {
-		return 0, err
-	}
-
-	return v + 1, nil
+	return highestVersion + 1, nil
 }
