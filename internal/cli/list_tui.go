@@ -58,7 +58,7 @@ func (m lsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case watch.Deleted:
 			delete(m.objects[msg.resource], msg.Object.(object).GetName())
 		case watch.Error:
-			log.Println("Watch error: %v", msg.Object)
+			log.Printf("Watch error: %v", msg.Object)
 		default:
 			o := msg.Object.(client.Object)
 			name := o.GetName()

@@ -59,7 +59,7 @@ func testModelLoad(t *testing.T, model *apiv1.Model) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionComplete))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
 	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
@@ -152,7 +152,7 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionComplete))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
 	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")

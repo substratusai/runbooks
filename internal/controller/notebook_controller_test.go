@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 func TestNotebookFromGitWithModelOnly(t *testing.T) {
@@ -75,7 +76,7 @@ func TestNotebookFromGitWithModelOnly(t *testing.T) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(notebook), notebook)
 		assert.NoError(t, err, "getting the notebook")
-		assert.True(t, meta.IsStatusConditionTrue(notebook.Status.Conditions, apiv1.ConditionDeployed))
+		assert.True(t, meta.IsStatusConditionTrue(notebook.Status.Conditions, apiv1.ConditionServing))
 		assert.True(t, notebook.Status.Ready)
 	}, timeout, interval, "waiting for the notebook to be ready")
 }

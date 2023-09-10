@@ -507,6 +507,7 @@ func (in *NotebookStatus) DeepCopyInto(out *NotebookStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	out.Artifacts = in.Artifacts
 	in.BuildUpload.DeepCopyInto(&out.BuildUpload)
 }
 

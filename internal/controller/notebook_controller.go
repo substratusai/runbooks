@@ -134,7 +134,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if notebook.IsSuspended() {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonSuspended,
 			ObservedGeneration: notebook.Generation,
@@ -175,7 +175,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 				// Update this Model's status.
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDeployed,
+					Type:               apiv1.ConditionServing,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonModelNotFound,
 					ObservedGeneration: notebook.Generation,
@@ -195,7 +195,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonModelNotReady,
 				ObservedGeneration: notebook.Generation,
@@ -217,7 +217,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 				log.Error(err, "Dataset not found")
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDeployed,
+					Type:               apiv1.ConditionServing,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: notebook.Generation,
@@ -236,7 +236,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 			log.Info("Dataset not ready", "dataset", dataset.Name)
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonDatasetNotReady,
 				ObservedGeneration: notebook.Generation,
@@ -288,7 +288,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if isPodReady(pod) {
 		notebook.Status.Ready = true
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionTrue,
 			Reason:             apiv1.ReasonPodReady,
 			ObservedGeneration: notebook.Generation,
@@ -296,7 +296,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	} else {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonPodNotReady,
 			ObservedGeneration: notebook.Generation,

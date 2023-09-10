@@ -213,7 +213,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 			// Update this Model's status.
 			server.Status.Ready = false
 			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonModelNotFound,
 				ObservedGeneration: server.Generation,
@@ -233,7 +233,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 
 		server.Status.Ready = false
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonModelNotReady,
 			ObservedGeneration: server.Generation,
@@ -280,7 +280,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	if deploy.Status.ReadyReplicas == 0 {
 		server.Status.Ready = false
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonDeploymentNotReady,
 			ObservedGeneration: server.Generation,
@@ -288,7 +288,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	} else {
 		server.Status.Ready = true
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionTrue,
 			Reason:             apiv1.ReasonDeploymentReady,
 			ObservedGeneration: server.Generation,

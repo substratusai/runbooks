@@ -97,7 +97,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 				// Update this Model's status.
 				model.Status.Ready = false
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionModelled,
+					Type:               apiv1.ConditionComplete,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonBaseModelNotFound,
 					ObservedGeneration: model.Generation,
@@ -116,7 +116,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 			// Update this Model's status.
 			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionModelled,
+				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonBaseModelNotReady,
 				ObservedGeneration: model.Generation,
@@ -138,7 +138,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 				// Update this Model's status.
 				model.Status.Ready = false
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionModelled,
+					Type:               apiv1.ConditionComplete,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: model.Generation,
@@ -157,7 +157,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 			// Update this Model's status.
 			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionModelled,
+				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonDatasetNotReady,
 				ObservedGeneration: model.Generation,
@@ -180,7 +180,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 
 	model.Status.Ready = false
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionModelled,
+		Type:               apiv1.ConditionComplete,
 		Status:             metav1.ConditionFalse,
 		Reason:             apiv1.ReasonJobNotComplete,
 		ObservedGeneration: model.Generation,
@@ -190,13 +190,25 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, modellerJob, apiv1.ConditionModelled); !result.success {
-		return result, err
+	jobResult, err := reconcileJob(ctx, r.Client, modellerJob)
+	if !jobResult.success {
+		if jobResult.failure {
+			meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobFailed,
+				ObservedGeneration: model.Generation,
+			})
+			if err := r.Status().Update(ctx, model); err != nil {
+				return result{}, fmt.Errorf("updating status: %w", err)
+			}
+		}
+		return jobResult, err
 	}
 
 	model.Status.Ready = true
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionModelled,
+		Type:               apiv1.ConditionComplete,
 		Status:             metav1.ConditionTrue,
 		Reason:             apiv1.ReasonJobComplete,
 		ObservedGeneration: model.Generation,
@@ -282,6 +294,17 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}
 
+	// Don't retry expensive Jobs by default.
+	var backoffLimit int32
+	if model.Spec.Resources != nil &&
+		model.Spec.Resources.CPU <= 3 &&
+		model.Spec.Resources.GPU != nil &&
+		model.Spec.Resources.GPU.Count == 0 {
+		// If the Job is not super expensive (No GPUs, low CPUs), then assume
+		// it is an import Job and up the retry count.
+		backoffLimit = 2 // 2 = 3 retries
+	}
+
 	const containerName = "model"
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -290,7 +313,8 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 			Namespace: model.Namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.To(int32(1)),
+			// TODO: Allow for configurable retries for Jobs that import models...
+			BackoffLimit: ptr.To(backoffLimit),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{

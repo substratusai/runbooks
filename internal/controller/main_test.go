@@ -11,26 +11,24 @@ import (
 	"testing"
 	"time"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/controller"
 	"github.com/substratusai/substratus/internal/sci"
-	//+kubebuilder:scaffold:imports
 )
 
 const (
@@ -46,10 +44,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	//var buf bytes.Buffer
+	// var buf bytes.Buffer
 	logf.SetLogger(zap.New(
 		zap.UseDevMode(true),
-		//zap.WriteTo(&buf),
+		// zap.WriteTo(&buf),
 	))
 
 	ctx, cancel = context.WithCancel(context.TODO())
@@ -87,8 +85,8 @@ func TestMain(m *testing.M) {
 
 	sciClient := &sci.FakeSCIControllerClient{}
 
-	//runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
-	//requireNoError(err)
+	// runtimeMgr, err := controller.NewRuntimeManager(controller.GPUTypeNvidiaL4)
+	// requireNoError(err)
 
 	err = (&controller.ModelReconciler{
 		Client: mgr.GetClient(),
@@ -247,6 +245,12 @@ func testParamsConfigMap(t *testing.T, obj testObject, kind string, content stri
 func fakeJobComplete(t *testing.T, job *batchv1.Job) {
 	updated := job.DeepCopy()
 	updated.Status.Succeeded = 1
+	updated.Status.Conditions = []batchv1.JobCondition{
+		{
+			Type:   batchv1.JobComplete,
+			Status: corev1.ConditionTrue,
+		},
+	}
 	require.NoError(t, k8sClient.Status().Patch(ctx, updated, client.MergeFrom(job)), "patching the job with completed count")
 }
 
