@@ -23,6 +23,7 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 			},
 			Spec: apiv1.NotebookSpec{
 				Image:     obj.Spec.Image,
+				Env:       obj.Spec.Env,
 				Params:    obj.Spec.Params,
 				Model:     obj.Spec.Model,
 				Dataset:   obj.Spec.Dataset,
@@ -38,6 +39,7 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 			},
 			Spec: apiv1.NotebookSpec{
 				Image:     obj.Spec.Image,
+				Env:       obj.Spec.Env,
 				Params:    obj.Spec.Params,
 				Model:     &obj.Spec.Model,
 				Resources: obj.Spec.Resources,
@@ -52,6 +54,7 @@ func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 			},
 			Spec: apiv1.NotebookSpec{
 				Image:     obj.Spec.Image,
+				Env:       obj.Spec.Env,
 				Params:    obj.Spec.Params,
 				Resources: obj.Spec.Resources,
 			},
