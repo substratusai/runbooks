@@ -11,7 +11,15 @@ my-model/
 
 ## Alternative Names
 
-"AI CLI":
+### "ai" CLI
+
+Pros
+
+* Short and sweet
+
+Cons
+
+* Generic
 
 ```bash
 # Looks for "ai.yaml"...
@@ -21,22 +29,37 @@ ai nb .
 ai run .
 ```
 
-## Notebook
+### "strat" CLI
+
+Pros
+
+* More specific than `sub`
+
+Cons
+
+* Longer than `sub`
 
 ```bash
 strat notebook .
 strat nb .
+strat run .
 ```
 
-## List
+## Notebook
 
 ```bash
-strat list
-strat ls
+sub notebook .
+sub nb .
+```
+
+## Get
+
+```bash
+sub get
 ```
 
 ```
-strat ls
+sub get
 
 models/
   facebook-opt-125m
@@ -50,27 +73,45 @@ servers/
 ```
 
 ```
-strat ls models
+sub get models
 
 facebook-opt-125m
 falcon-7b
 ```
 
 ```
-strat ls models/falcon-7b
+sub get models/falcon-7b
 
-model.bin
-vocab.json
+v3
+v2
+v1
 ```
 
-## Run
+```
+sub get models/falcon-7b.v3
+
+metrics:
+  loss: 0.9
+  abc: 123
+```
+
+## Apply
+
+```
+# Alternative names???
+
+# "run" --> currently prefer "apply" b/c the target is a noun/end-object (Model / Dataset / Server)
+sub run .
+```
+
+### Apply (with `<dir>` arg)
 
 * Tar & upload
 * Remote build
 * Wait for Ready
 
 ```bash
-strat run .
+sub apply .
 ```
 
 ## View
@@ -79,39 +120,39 @@ strat run .
 * Open browser.
 
 ```bash
-strat view model/falcon-7b
-strat view dataset/squad
+sub view model/falcon-7b
+sub view dataset/squad
 ```
 
 Alternative names:
 
 ```bash
-strat logs
-strat show
-strat inspect
+sub logs
+sub show
+sub inspect
 ```
 
 ## Delete
 
 ```bash
-strat delete <resource>/<name>
-strat del
+sub delete <resource>/<name>
+sub del
 
 # By name
-strat delete models/facebook-opt-125m
-strat delete datasets/squad
+sub delete models/facebook-opt-125m
+sub delete datasets/squad
 ```
 
 ## Inference Client
 
 ```bash
-strat infer
-strat inf 
+sub infer
+sub inf 
 
 # OR:
-strat cl (client)
-strat ch (chat)     # LLM prompt/completion
-strat cl (classify) # Image recognition
+sub cl (client)
+sub ch (chat)     # LLM prompt/completion
+sub cl (classify) # Image recognition
 ```
 
 https://github.com/charmbracelet/bubbletea/tree/master/examples#chat

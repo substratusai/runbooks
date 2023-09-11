@@ -12,7 +12,7 @@ import (
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
-func listCommand() *cobra.Command {
+func getCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		kubeconfig string
@@ -55,14 +55,14 @@ func listCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		p = tea.NewProgram(lsModel{
+		p = tea.NewProgram(getModel{
 			ctx:       cmd.Context(),
 			scope:     scope,
 			namespace: namespace,
 
 			client: c,
 
-			objects: newListObjectMap(),
+			objects: newGetObjectMap(),
 		})
 		if _, err := p.Run(); err != nil {
 			return err
@@ -72,9 +72,9 @@ func listCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "get",
 		Aliases: []string{"ls"},
-		Short:   "List Substratus Datasets, Models, Notebooks, and Servers",
+		Short:   "Get Substratus Datasets, Models, Notebooks, and Servers",
 		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {

@@ -15,7 +15,7 @@ import (
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
-func runCommand() *cobra.Command {
+func applyCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		filename   string
@@ -86,7 +86,7 @@ func runCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		p = tea.NewProgram(runModel{
+		p = tea.NewProgram(applyModel{
 			ctx:       cmd.Context(),
 			path:      args[0],
 			namespace: namespace,
@@ -107,8 +107,8 @@ func runCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run a Substratus Dataset, Model, or Server",
+		Use:   "apply",
+		Short: "Apply a Substratus Dataset, Model, or Server",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {

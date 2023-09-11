@@ -18,7 +18,7 @@ import (
 	"github.com/substratusai/substratus/internal/cli/client"
 )
 
-type lsModel struct {
+type getModel struct {
 	// Cancellation
 	ctx context.Context
 
@@ -40,7 +40,7 @@ type listedObject struct {
 	spinner spinner.Model
 }
 
-func newListObjectMap() map[string]map[string]listedObject {
+func newGetObjectMap() map[string]map[string]listedObject {
 	return map[string]map[string]listedObject{
 		"notebooks": {},
 		"datasets":  {},
@@ -49,11 +49,11 @@ func newListObjectMap() map[string]map[string]listedObject {
 	}
 }
 
-func (m lsModel) Init() tea.Cmd {
+func (m getModel) Init() tea.Cmd {
 	return watchCmd(m.ctx, m.client, m.namespace, m.scope)
 }
 
-func (m lsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m getModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -107,7 +107,7 @@ func (m lsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m lsModel) View() (v string) {
+func (m getModel) View() (v string) {
 	defer func() {
 		v = appStyle(v)
 	}()

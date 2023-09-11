@@ -12,7 +12,7 @@ import (
 	"github.com/substratusai/substratus/internal/cli/client"
 )
 
-type runModel struct {
+type applyModel struct {
 	// Cancellation
 	ctx context.Context
 
@@ -45,22 +45,22 @@ type runModel struct {
 	finalError error
 }
 
-func (m runModel) kind() string {
+func (m applyModel) kind() string {
 	return m.object.GetObjectKind().GroupVersionKind().Kind
 }
 
-func (m runModel) cleanupAndQuitCmd() tea.Msg {
+func (m applyModel) cleanupAndQuitCmd() tea.Msg {
 	log.Println("Cleaning up")
 	os.Remove(m.tarball.TempDir)
 	return tea.Quit()
 }
 
-func (m runModel) Init() tea.Cmd {
+func (m applyModel) Init() tea.Cmd {
 	m.operations[tarring] = inProgress
 	return prepareTarballCmd(m.ctx, m.path)
 }
 
-func (m runModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m applyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -127,7 +127,7 @@ func (m runModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m runModel) View() (v string) {
+func (m applyModel) View() (v string) {
 	defer func() {
 		v = appStyle(v)
 	}()
