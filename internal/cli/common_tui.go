@@ -27,7 +27,7 @@ var NewClient = client.NewClient
 var p *tea.Program
 
 const (
-	maxWidth = 80
+	maxWidth = 60
 	padding  = 2
 )
 

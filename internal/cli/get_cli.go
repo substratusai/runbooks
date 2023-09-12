@@ -63,7 +63,7 @@ func getCommand() *cobra.Command {
 			client: c,
 
 			objects: newGetObjectMap(),
-		})
+		} /*, tea.WithAltScreen()*/)
 		if _, err := p.Run(); err != nil {
 			return err
 		}
@@ -72,10 +72,9 @@ func getCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "get",
-		Aliases: []string{"ls"},
-		Short:   "Get Substratus Datasets, Models, Notebooks, and Servers",
-		Args:    cobra.MaximumNArgs(1),
+		Use:   "get",
+		Short: "Get Substratus Datasets, Models, Notebooks, and Servers",
+		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)

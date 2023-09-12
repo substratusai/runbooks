@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -33,6 +35,8 @@ type getModel struct {
 	finalError error
 
 	objects map[string]map[string]listedObject
+
+	width int
 }
 
 type listedObject struct {
@@ -97,6 +101,9 @@ func (m getModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
 	case error:
 		m.finalError = msg
 		return m, nil
@@ -118,71 +125,129 @@ func (m getModel) View() (v string) {
 		return v
 	}
 
+	scopeResource, scopeName := splitScope(m.scope)
+
 	var total int
-	for _, resource := range []string{"notebooks", "datasets", "models", "servers"} {
-		if len(m.objects[resource]) == 0 {
+	for _, resource := range []struct {
+		plural    string
+		versioned bool
+	}{
+		{plural: "notebooks", versioned: false},
+		{plural: "datasets", versioned: true},
+		{plural: "models", versioned: true},
+		{plural: "servers", versioned: false},
+	} {
+		if len(m.objects[resource.plural]) == 0 {
 			continue
 		}
 
-		v += resource + "/" + "\n"
+		if scopeResource == "" {
+			v += resource.plural + "/" + "\n"
+		}
 
 		var names []string
-		for name := range m.objects[resource] {
+		for name := range m.objects[resource.plural] {
 			names = append(names, name)
+			total++
 		}
 		sort.Strings(names)
 
-		type objectVersions struct {
-			unversionedName string
-			versions        []listedObject
-		}
-
-		var groups []objectVersions
-
-		var lastUnversionedName string
-		for _, name := range names {
-			o := m.objects[resource][name]
-			lowerKind := strings.TrimSuffix(resource, "s")
-			unversionedName := o.GetLabels()[lowerKind]
-
-			if unversionedName != lastUnversionedName {
-				groups = append(groups, objectVersions{
-					unversionedName: unversionedName,
-					versions:        []listedObject{o},
-				})
-			} else {
-				groups[len(groups)-1].versions = append(groups[len(groups)-1].versions, o)
-			}
-
-			lastUnversionedName = unversionedName
-			total++
-		}
-
-		for _, g := range groups {
-			// TODO: Table view
-			v += "  " + g.unversionedName + "   "
-
-			var displayVersions []string
-			for _, o := range g.versions {
-				version := o.GetLabels()["version"]
+		if !resource.versioned {
+			for _, name := range names {
+				o := m.objects[resource.plural][name]
 
 				var indicator string
 				if o.GetStatusReady() {
 					indicator = checkMark.String()
-				} else if c := meta.FindStatusCondition(*o.GetConditions(), apiv1.ConditionComplete); c != nil && c.Reason == apiv1.ReasonJobFailed {
-					indicator = xMark.String()
 				} else {
 					indicator = o.spinner.View()
 				}
-				displayVersions = append(displayVersions, fmt.Sprintf("%v v%v", indicator, version))
+				v += "" + indicator + " " + name + "\n"
 			}
-			slices.Reverse(displayVersions)
-			v += strings.Join(displayVersions, "  ") + "\n"
-		}
+		} else {
+			type objectVersions struct {
+				unversionedName string
+				versions        []listedObject
+			}
 
+			var groups []objectVersions
+
+			var lastUnversionedName string
+			// var longestName int
+			const longestName = 30
+			for _, name := range names {
+				o := m.objects[resource.plural][name]
+				lowerKind := strings.TrimSuffix(resource.plural, "s")
+				unversionedName := o.GetLabels()[lowerKind]
+
+				if unversionedName != lastUnversionedName {
+					groups = append(groups, objectVersions{
+						unversionedName: unversionedName,
+						versions:        []listedObject{o},
+					})
+				} else {
+					groups[len(groups)-1].versions = append(groups[len(groups)-1].versions, o)
+				}
+
+				lastUnversionedName = unversionedName
+				//if n := len(name); n > longestName {
+				//	longestName = n + 6
+				//}
+			}
+
+			for gi, g := range groups {
+				type versionDisplay struct {
+					indicator string
+					version   string
+				}
+				var displayVersions []versionDisplay
+				for _, o := range g.versions {
+					version := o.GetLabels()["version"]
+
+					var indicator string
+					if o.GetStatusReady() {
+						indicator = checkMark.String()
+					} else if c := meta.FindStatusCondition(*o.GetConditions(), apiv1.ConditionComplete); c != nil && c.Reason == apiv1.ReasonJobFailed {
+						indicator = xMark.String()
+					} else {
+						indicator = o.spinner.View()
+					}
+					displayVersions = append(displayVersions, versionDisplay{
+						indicator: indicator,
+						version:   version,
+					})
+				}
+
+				// Latest first
+				slices.Reverse(displayVersions)
+
+				var otherVersions []string
+				for _, other := range displayVersions[1:] {
+					otherVersions = append(otherVersions, fmt.Sprintf("%v.v%v", other.indicator, other.version))
+				}
+
+				primary := displayVersions[0].indicator + " " +
+					g.unversionedName + ".v" +
+					displayVersions[0].version
+
+				verWidth := int(math.Min(float64(maxWidth), float64(m.width-longestName-18)))
+				v += lipgloss.JoinHorizontal(
+					lipgloss.Top,
+					lipgloss.NewStyle().Width(longestName).MarginLeft(0).MarginRight(2).Align(lipgloss.Left).Render(primary),
+					lipgloss.NewStyle().Width(verWidth).MarginRight(4).Align(lipgloss.Right).Render(strings.Join(otherVersions, "  ")),
+				)
+				if gi < len(groups) {
+					v += "\n"
+				}
+			}
+
+		}
 		v += "\n"
 	}
-	v += fmt.Sprintf("Total: %v", total) + "\n"
+
+	if scopeName == "" {
+		v += fmt.Sprintf("\nTotal: %v\n", total)
+	}
 
 	v += helpStyle("Press \"q\" to quit")
 
@@ -251,9 +316,13 @@ func scopeToObjects(scope string) ([]client.Object, error) {
 		}, nil
 	}
 
-	split := strings.Split(scope, "/")
+	res, name := splitScope(scope)
+	if res == "" && name == "" {
+		return nil, fmt.Errorf("Invalid scope: %v", scope)
+	}
+
 	var obj client.Object
-	switch split[0] {
+	switch res {
 	case "notebooks":
 		obj = &apiv1.Notebook{TypeMeta: metav1.TypeMeta{APIVersion: "substratus.ai/v1", Kind: "Notebook"}}
 	case "datasets":
@@ -266,11 +335,20 @@ func scopeToObjects(scope string) ([]client.Object, error) {
 		return nil, fmt.Errorf("Invalid scope: %v", scope)
 	}
 
-	if len(split) == 2 {
-		obj.SetName(split[1])
-	} else if len(split) > 2 {
-		return nil, fmt.Errorf("Invalid scope: %v", scope)
+	if name != "" {
+		obj.SetName(name)
 	}
 
 	return []client.Object{obj}, nil
+}
+
+func splitScope(scope string) (string, string) {
+	split := strings.Split(scope, "/")
+	if len(split) == 1 {
+		return split[0], ""
+	}
+	if len(split) == 2 {
+		return split[0], split[1]
+	}
+	return "", ""
 }
