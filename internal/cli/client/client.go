@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	meta "k8s.io/apimachinery/pkg/api/meta"
@@ -34,9 +35,10 @@ func init() {
 var _ Interface = &Client{}
 
 type Interface interface {
-	PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error
+	PortForwardNotebook(ctx context.Context, logger io.Writer, nb *apiv1.Notebook, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
 	SyncFilesFromNotebook(context.Context, *apiv1.Notebook, string,
+		io.Writer,
 		func(file string, complete bool, err error),
 	) error
 }

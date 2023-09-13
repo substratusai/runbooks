@@ -23,16 +23,7 @@ func applyCommand() *cobra.Command {
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
-		// Log to a file. Useful in debugging since you can't really log to stdout.
-		// Not required.
-		logfilePath := os.Getenv("LOG")
-		if logfilePath != "" {
-			logFile, err := tea.LogToFile(logfilePath, "simple")
-			if err != nil {
-				return err
-			}
-			defer logFile.Close()
-		}
+		defer logFile.Close()
 
 		if flags.filename == "" {
 			flags.filename = filepath.Join(args[0], defaultFilename)

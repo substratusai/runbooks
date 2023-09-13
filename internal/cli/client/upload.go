@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -154,7 +154,7 @@ loop:
 			if status.StoredMD5Checksum == tb.MD5Checksum {
 				// This is an edge-case where the controller found a matching upload
 				// that already existed in storage.
-				klog.V(1).Infof("upload already exists in storage with md5 checksum: %s, skipping upload", status.StoredMD5Checksum)
+				log.Printf("upload already exists in storage with md5 checksum: %s, skipping upload", status.StoredMD5Checksum)
 				return nil
 			}
 			if status.SignedURL != "" && status.RequestID == spec.RequestID {
@@ -220,7 +220,7 @@ func tarGz(ctx context.Context, src, dst string, progressF func(string)) error {
 	defer tarWriter.Close()
 
 	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		klog.V(4).Infof("Tarring: %v", path)
+		log.Printf("Tarring: %v", path)
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -323,7 +323,7 @@ func uploadTarball(tarball *Tarball, url string, progressF func(float64)) error 
 		return fmt.Errorf("stat: %w", err)
 	}
 
-	klog.V(2).Infof("uploading tarball to: %s", url)
+	log.Printf("uploading tarball to: %s", url)
 	req, err := http.NewRequest(http.MethodPut, url, &progressReader{
 		total: stat.Size(),
 		r:     file,
@@ -346,6 +346,6 @@ func uploadTarball(tarball *Tarball, url string, progressF func(float64)) error 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %d", resp.StatusCode)
 	}
-	klog.V(1).Info("successfully uploaded tarball")
+	log.Print("successfully uploaded tarball")
 	return nil
 }

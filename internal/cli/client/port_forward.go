@@ -6,13 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 func podForNotebook(nb *apiv1.Notebook) types.NamespacedName {
@@ -23,7 +23,7 @@ func podForNotebook(nb *apiv1.Notebook) types.NamespacedName {
 	}
 }
 
-func (c *Client) PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv1.Notebook, ready chan struct{}) error {
+func (c *Client) PortForwardNotebook(ctx context.Context, logger io.Writer, nb *apiv1.Notebook, ready chan struct{}) error {
 	// TODO: Pull Pod info from status of Notebook.
 	podRef := podForNotebook(nb)
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
@@ -41,8 +41,8 @@ func (c *Client) PortForwardNotebook(ctx context.Context, verbose bool, nb *apiv
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
 
 	var stdout, stderr io.Writer
-	if verbose {
-		stdout, stderr = os.Stdout, os.Stderr
+	if logger != nil {
+		stdout, stderr = logger, logger
 	} else {
 		stdout, stderr = io.Discard, io.Discard
 	}

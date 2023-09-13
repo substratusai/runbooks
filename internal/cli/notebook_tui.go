@@ -136,8 +136,12 @@ func (m notebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.quitting {
 			switch msg.String() {
 			case "esc":
-				m.quitting = false
+				if m.finalError == nil {
+					m.quitting = false
+				}
 				return m, nil
+			case "l":
+				return m, m.cleanupAndQuitCmd
 			case "s":
 				return m, notebookSuspendCmd(context.Background(), m.resource, m.notebook)
 			case "d":
@@ -300,7 +304,7 @@ func (m notebookModel) View() (v string) {
 
 	if m.finalError != nil {
 		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
-		v += helpStyle("Press \"q\" to quit")
+		v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
 		return v
 	}
 
@@ -311,7 +315,7 @@ func (m notebookModel) View() (v string) {
 
 	if m.quitting {
 		v += "Quitting...\n"
-		v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
+		v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		return v
 	}
 
@@ -412,7 +416,7 @@ type notebookFileSyncMsg struct {
 
 func notebookSyncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook, dir string) tea.Cmd {
 	return func() tea.Msg {
-		if err := c.SyncFilesFromNotebook(ctx, nb, dir, func(file string, complete bool, syncErr error) {
+		if err := c.SyncFilesFromNotebook(ctx, nb, dir, logFile, func(file string, complete bool, syncErr error) {
 			p.Send(notebookFileSyncMsg{
 				file:     file,
 				complete: complete,
@@ -457,7 +461,7 @@ func noteookPortForwardCmd(ctx context.Context, c client.Interface, nb *apiv1.No
 				p.Send(notebookPortForwardReadyMsg{})
 			}()
 
-			if err := c.PortForwardNotebook(portFwdCtx, false, nb, ready); err != nil {
+			if err := c.PortForwardNotebook(portFwdCtx, logFile, nb, ready); err != nil {
 				log.Printf("Port-forward returned an error: %v", err)
 			}
 

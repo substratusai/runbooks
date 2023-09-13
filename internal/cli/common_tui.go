@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,17 @@ import (
 	"github.com/substratusai/substratus/internal/cli/client"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
+
+func init() {
+	// Log to a file. Useful in debugging since you can't really log to stdout.
+	var err error
+	logFile, err = tea.LogToFile("/tmp/sub.log", "")
+	if err != nil {
+		panic(err)
+	}
+}
+
+var logFile *os.File
 
 // NewClient is a dirty hack to allow the client to be mocked out in tests.
 var NewClient = client.NewClient

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,13 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/klog/v2"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/cp"
 )
 
 func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, localDir string,
+	logger io.Writer,
 	progressF func(file string, complete bool, err error),
 ) error {
 	podRef := podForNotebook(nb)
@@ -71,34 +72,34 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 	go func() {
 		defer func() {
 			wg.Done()
-			klog.V(2).Info("File sync loop: Done.")
+			log.Print("File sync loop: Done.")
 		}()
 
-		klog.V(2).Info("Reading events...")
+		log.Print("Reading events...")
 
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			eventLine := scanner.Bytes()
 			var event NBWatchEvent
 			if err := json.Unmarshal(eventLine, &event); err != nil {
-				klog.Errorf("Failed to unmarshal nbevent: %w", err)
+				log.Printf("Non-json nbevent: %v", string(eventLine))
 				continue
 			}
 
-			relPath, err := filepath.Rel("/content/src", event.Path)
+			relPath, err := filepath.Rel("/content", event.Path)
 			if err != nil {
-				klog.Errorf("Failed to determine relative path: %w", err)
+				log.Printf("Failed to determine relative path: %w", err)
 				continue
 			}
 
-			localPath := filepath.Join(localDir, "src", relPath)
+			localPath := filepath.Join(localDir, relPath)
 
 			// Possible: CREATE, REMOVE, WRITE, RENAME, CHMOD
 			if event.Op == "WRITE" || event.Op == "CREATE" {
 				// NOTE: A long-running port-forward might be more performant here.
 				progressF(event.Path, false, nil)
 				if err := cp.FromPod(ctx, event.Path, localPath, podRef, containerName); err != nil {
-					klog.Errorf("Sync: failed to copy: %w", err)
+					log.Printf("Sync: failed to copy: %w", err)
 					progressF(event.Path, false, err)
 					continue
 				}
@@ -106,7 +107,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 			} else if event.Op == "REMOVE" || event.Op == "RENAME" {
 				progressF(event.Path, false, nil)
 				if err := os.Remove(localPath); err != nil {
-					klog.Errorf("Sync: failed to remove: %w", err)
+					log.Printf("Sync: failed to remove: %w", err)
 					progressF(event.Path, false, err)
 					continue
 				}
@@ -114,20 +115,21 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			klog.Error("Error reading from buffer:", err)
+			log.Print("Error reading from buffer:", err)
 			return
 		}
-		klog.V(2).Info("Done reading events.")
+		log.Print("Done reading events.")
 	}()
 
-	if err := c.exec(ctx, podRef, "/tmp/nbwatch", nil, w, os.Stderr); err != nil {
+	log.Print("Executing nbwatch...")
+	if err := c.exec(ctx, podRef, "/tmp/nbwatch", nil, w, logger); err != nil {
 		w.Close()
 		return fmt.Errorf("exec: nbwatch: %w", err)
 	}
 
-	klog.V(2).Info("Waiting for file sync loop to finish...")
+	log.Print("Waiting for file sync loop to finish...")
 	wg.Wait()
-	klog.V(2).Info("Done waiting for file sync loop to finish.")
+	log.Print("Done waiting for file sync loop to finish.")
 
 	return nil
 }
@@ -193,10 +195,10 @@ func getContainerTools(ctx context.Context, dir, targetOS string) error {
 		}
 		versionStr := strings.TrimSpace(string(version))
 		if versionStr == Version {
-			klog.V(1).Infof("Version (%q) matches for container-tools, skipping download.", Version)
+			log.Printf("Version (%q) matches for container-tools, skipping download.", Version)
 			return nil
 		} else {
-			klog.V(1).Infof("Version (%q) does not match version.txt: %q", Version, versionStr)
+			log.Printf("Version (%q) does not match version.txt: %q", Version, versionStr)
 		}
 	}
 
@@ -224,7 +226,7 @@ func getContainerTools(ctx context.Context, dir, targetOS string) error {
 
 func getContainerToolsRelease(ctx context.Context, dir, targetOS, targetArch string) error {
 	releaseURL := fmt.Sprintf("https://github.com/substratusai/substratus/releases/download/v%s/container-tools-%s-%s.tar.gz", Version, targetOS, targetArch)
-	klog.V(1).Infof("Downloading: %s", releaseURL)
+	log.Printf("Downloading: %s", releaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, nil)
 	if err != nil {
@@ -254,7 +256,7 @@ func getContainerToolsRelease(ctx context.Context, dir, targetOS, targetArch str
 		}
 
 		dest := filepath.Join(dir, hdr.Name)
-		klog.V(1).Infof("Writing %s", dest)
+		log.Printf("Writing %s", dest)
 		f, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode))
 		if err != nil {
 			return fmt.Errorf("creating file: %w", err)

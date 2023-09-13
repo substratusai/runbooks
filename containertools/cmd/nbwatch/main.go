@@ -8,14 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/klog/v2"
-
 	"github.com/fsnotify/fsnotify"
 )
 
 var Version = "development"
 
 func main() {
+	log.SetOutput(os.Stderr)
+	log.Println("Starting")
+
 	if len(os.Args) == 2 && os.Args[1] == "version" {
 		fmt.Printf("nbwatch %s\n", Version)
 		os.Exit(0)
@@ -33,7 +34,29 @@ func run() error {
 	}
 	defer w.Close()
 
-	w.Add("/content/src")
+	const contentDir = "/content"
+
+	// NOTE: Watch is non-recursive.
+	log.Printf("Watching: %v", contentDir)
+	w.Add(contentDir)
+
+	entries, err := os.ReadDir(contentDir)
+	if err != nil {
+		return fmt.Errorf("reading dir: %w", err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+
+		switch name := e.Name(); name {
+		case "data", "model", "artifacts":
+		default:
+			p := filepath.Join(contentDir, name)
+			log.Printf("Watching: %v", p)
+			w.Add(p)
+		}
+	}
 
 	watchLoop(w)
 
@@ -49,7 +72,7 @@ func watchLoop(w *fsnotify.Watcher) {
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
 				return
 			}
-			klog.Error(err)
+			log.Printf("error: %v", err)
 		// Read from Events.
 		case e, ok := <-w.Events:
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
@@ -59,9 +82,10 @@ func watchLoop(w *fsnotify.Watcher) {
 			i++
 			path := e.Name
 
+			base := filepath.Base(path)
 			// Covers ".git", ".gitignore", ".gitmodules", ".gitattributes", ".ipynb_checkpoints"
 			// and also temporary files that Jupyter writes on save like: ".~hello.py"
-			if strings.HasPrefix(filepath.Base(path), ".") {
+			if strings.HasPrefix(base, ".") {
 				continue
 			}
 
