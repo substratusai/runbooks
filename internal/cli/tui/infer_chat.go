@@ -1,4 +1,4 @@
-package cli
+package tui
 
 import (
 	"fmt"
@@ -8,15 +8,13 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
-	"github.com/substratusai/substratus/internal/cli/client"
 )
 
 type (
 	errMsg error
 )
 
-type chatModel struct {
+type ChatModel struct {
 	viewport    viewport.Model
 	messages    []string
 	textarea    textarea.Model
@@ -24,7 +22,7 @@ type chatModel struct {
 	err         error
 }
 
-func newChatModel(c client.Interface) chatModel {
+func (m ChatModel) Init() tea.Cmd {
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
 	ta.Focus()
@@ -46,20 +44,15 @@ Type a message and press Enter to send.`)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
-	return chatModel{
-		textarea:    ta,
-		messages:    []string{},
-		viewport:    vp,
-		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
-		err:         nil,
-	}
-}
+	m.textarea = ta
+	m.messages = []string{}
+	m.viewport = vp
+	m.senderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 
-func (m chatModel) Init() tea.Cmd {
 	return textarea.Blink
 }
 
-func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		tiCmd tea.Cmd
 		vpCmd tea.Cmd
@@ -90,7 +83,7 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func (m chatModel) View() string {
+func (m ChatModel) View() string {
 	return fmt.Sprintf(
 		"%s\n\n%s",
 		m.viewport.View(),

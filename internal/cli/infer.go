@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
@@ -19,7 +20,7 @@ func inferCommand() *cobra.Command {
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
-		defer logFile.Close()
+		defer tui.LogFile.Close()
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -41,14 +42,15 @@ func inferCommand() *cobra.Command {
 		_ = namespace
 
 		c := NewClient(clientset, restConfig)
+		_ = c
 
 		// Initialize our program
 		// TODO: Use a differnt tui-model for different types of Model objects:
 		// ex: Vector-search TUI, Image recongnition TUI
-		m := newChatModel(c)
+		m := tui.ChatModel{}
 
-		p = tea.NewProgram(m)
-		if _, err := p.Run(); err != nil {
+		tui.P = tea.NewProgram(m)
+		if _, err := tui.P.Run(); err != nil {
 			return err
 		}
 

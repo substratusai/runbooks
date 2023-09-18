@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +14,7 @@ import (
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
@@ -28,7 +28,7 @@ func notebookCommand() *cobra.Command {
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
-		defer logFile.Close()
+		defer tui.LogFile.Close()
 
 		if flags.filename == "" {
 			flags.filename = filepath.Join(args[0], defaultFilename)
@@ -106,26 +106,18 @@ func notebookCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		p = tea.NewProgram(notebookModel{
-			ctx:       cmd.Context(),
-			path:      args[0],
-			namespace: namespace,
+		tui.P = tea.NewProgram((&tui.NotebookModel{
+			Ctx:       cmd.Context(),
+			Path:      args[0],
+			Namespace: namespace,
 
-			notebook: nb,
-			object:   obj,
-			pods: map[string]map[string]podInfo{
-				"build": {},
-				"run":   {},
-			},
+			Notebook: nb,
 
-			client:   c,
-			resource: notebooks,
-			k8s:      clientset,
-
-			uploadProgress: progress.New(progress.WithDefaultGradient()),
-			operations:     map[operation]status{},
-		}, pOpts...)
-		if _, err := p.Run(); err != nil {
+			Client:   c,
+			Resource: notebooks,
+			K8s:      clientset,
+		}).New(), pOpts...)
+		if _, err := tui.P.Run(); err != nil {
 			return err
 		}
 

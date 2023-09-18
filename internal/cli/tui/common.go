@@ -1,4 +1,4 @@
-package cli
+package tui
 
 import (
 	"bufio"
@@ -25,18 +25,15 @@ import (
 func init() {
 	// Log to a file. Useful in debugging since you can't really log to stdout.
 	var err error
-	logFile, err = tea.LogToFile("/tmp/sub.log", "")
+	LogFile, err = tea.LogToFile("/tmp/sub.log", "")
 	if err != nil {
 		panic(err)
 	}
 }
 
-var logFile *os.File
+var LogFile *os.File
 
-// NewClient is a dirty hack to allow the client to be mocked out in tests.
-var NewClient = client.NewClient
-
-var p *tea.Program
+var P *tea.Program
 
 const (
 	maxWidth = 60
@@ -81,10 +78,13 @@ type (
 
 func prepareTarballCmd(ctx context.Context, dir string) tea.Cmd {
 	return func() tea.Msg {
+		P.Send(operationMsg{operation: tarring, status: inProgress})
+		defer P.Send(operationMsg{operation: tarring, status: completed})
+
 		log.Println("Preparing tarball")
 		tarball, err := client.PrepareImageTarball(ctx, dir, func(file string) {
 			log.Println("tarred", file)
-			p.Send(fileTarredMsg(file))
+			P.Send(fileTarredMsg(file))
 		})
 		if err != nil {
 			log.Println("Error", err)
@@ -106,7 +106,7 @@ func uploadTarballCmd(ctx context.Context, res *client.Resource, obj client.Obje
 		log.Println("Uploading tarball")
 		err := res.Upload(ctx, obj, tarball, func(percentage float64) {
 			log.Printf("Upload percentage: %v", percentage)
-			p.Send(uploadTarballProgressMsg(percentage))
+			P.Send(uploadTarballProgressMsg(percentage))
 		})
 		if err != nil {
 			log.Println("Upload failed", err)
@@ -149,6 +149,9 @@ type createdWithUploadMsg struct {
 
 func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Object, tarball *client.Tarball) tea.Cmd {
 	return func() tea.Msg {
+		P.Send(operationMsg{operation: creating, status: inProgress})
+		defer P.Send(operationMsg{operation: creating, status: completed})
+
 		if err := specifyUpload(obj, tarball); err != nil {
 			return fmt.Errorf("specifying upload: %w", err)
 		}
@@ -237,7 +240,7 @@ func watchPods(ctx context.Context, c client.Interface, obj client.Object) tea.C
 				case watch.Added, watch.Modified, watch.Deleted:
 					pod := event.Object.(*corev1.Pod)
 					log.Printf("Pod event: %s: %s", pod.Name, event.Type)
-					p.Send(podWatchMsg{Type: event.Type, Pod: pod})
+					P.Send(podWatchMsg{Type: event.Type, Pod: pod})
 				}
 			}
 		}()
@@ -269,7 +272,7 @@ func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, co
 		for scanner.Scan() {
 			logs := scanner.Text()
 			log.Printf("Pod logs for: %v: %q", pod.Name, logs)
-			p.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
+			P.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
 		}
 		if err := scanner.Err(); err != nil {
 			return err

@@ -1,37 +1,33 @@
-package cli
+package tui
 
 import (
 	"context"
 	"log"
 	"os"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/substratusai/substratus/internal/cli/client"
 )
 
-type deleteModel struct {
+type DeleteModel struct {
 	// Cancellation
-	ctx context.Context
+	Ctx context.Context
 
 	// Config
-	scope     string
-	namespace string
+	Scope     string
+	Namespace string
 
 	// Clients
-	client   client.Interface
-	resource *client.Resource
+	Client   client.Interface
+	Resource *client.Resource
 
 	// Original Object (could be a Dataset, Model, or Server)
-	object client.Object
+	Object client.Object
 
 	// Tarring
 	tarredFileCount int
 	tarball         *client.Tarball
-
-	// Uploading
-	uploadProgress progress.Model
 
 	// Keeping track of whats happening
 	operations map[operation]status
@@ -44,26 +40,27 @@ type deleteModel struct {
 	finalError error
 }
 
-func (m deleteModel) kind() string {
-	return m.object.GetObjectKind().GroupVersionKind().Kind
+func (m DeleteModel) kind() string {
+	return m.Object.GetObjectKind().GroupVersionKind().Kind
 }
 
-func (m deleteModel) cleanupAndQuitCmd() tea.Msg {
+func (m DeleteModel) cleanupAndQuitCmd() tea.Msg {
 	log.Println("Cleaning up")
 	os.Remove(m.tarball.TempDir)
 	return tea.Quit()
 }
 
-func (m deleteModel) Init() tea.Cmd {
+func (m DeleteModel) Init() tea.Cmd {
+	m.operations = map[operation]status{}
 	return nil
 }
 
-func (m deleteModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m DeleteModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return nil, nil
 }
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m deleteModel) View() string {
+func (m DeleteModel) View() string {
 	return ""
 }

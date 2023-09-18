@@ -1,4 +1,4 @@
-package cli
+package tui
 
 import (
 	"context"
@@ -20,16 +20,16 @@ import (
 	"github.com/substratusai/substratus/internal/cli/client"
 )
 
-type getModel struct {
+type GetModel struct {
 	// Cancellation
-	ctx context.Context
+	Ctx context.Context
 
 	// Config
-	scope     string
-	namespace string
+	Scope     string
+	Namespace string
 
 	// Clients
-	client client.Interface
+	Client client.Interface
 
 	// End times
 	finalError error
@@ -53,11 +53,12 @@ func newGetObjectMap() map[string]map[string]listedObject {
 	}
 }
 
-func (m getModel) Init() tea.Cmd {
-	return watchCmd(m.ctx, m.client, m.namespace, m.scope)
+func (m GetModel) Init() tea.Cmd {
+	m.objects = newGetObjectMap()
+	return watchCmd(m.Ctx, m.Client, m.Namespace, m.Scope)
 }
 
-func (m getModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -114,7 +115,7 @@ func (m getModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m getModel) View() (v string) {
+func (m GetModel) View() (v string) {
 	defer func() {
 		v = appStyle(v)
 	}()
@@ -125,7 +126,7 @@ func (m getModel) View() (v string) {
 		return v
 	}
 
-	scopeResource, scopeName := splitScope(m.scope)
+	scopeResource, scopeName := splitScope(m.Scope)
 
 	var total int
 	for _, resource := range []struct {
@@ -293,7 +294,7 @@ func watchCmd(ctx context.Context, c client.Interface, namespace, scope string) 
 			}
 			go func() {
 				for event := range w.ResultChan() {
-					p.Send(watchMsg{Event: event, resource: pluralName(kind)})
+					P.Send(watchMsg{Event: event, resource: pluralName(kind)})
 				}
 			}()
 		}

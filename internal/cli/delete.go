@@ -5,17 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
-func applyCommand() *cobra.Command {
+func deleteCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		filename   string
@@ -23,7 +23,7 @@ func applyCommand() *cobra.Command {
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
-		defer logFile.Close()
+		defer tui.LogFile.Close()
 
 		if flags.filename == "" {
 			flags.filename = filepath.Join(args[0], defaultFilename)
@@ -77,20 +77,17 @@ func applyCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		p = tea.NewProgram(applyModel{
-			ctx:       cmd.Context(),
-			path:      args[0],
-			namespace: namespace,
+		tui.P = tea.NewProgram(tui.DeleteModel{
+			Ctx:       cmd.Context(),
+			Scope:     args[0],
+			Namespace: namespace,
 
-			object: obj,
+			Object: obj,
 
-			client:   c,
-			resource: res,
-
-			uploadProgress: progress.New(progress.WithDefaultGradient()),
-			operations:     map[operation]status{},
+			Client:   c,
+			Resource: res,
 		})
-		if _, err := p.Run(); err != nil {
+		if _, err := tui.P.Run(); err != nil {
 			return err
 		}
 
@@ -98,9 +95,10 @@ func applyCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "apply",
-		Short: "Apply a Substratus Dataset, Model, or Server",
-		Args:  cobra.ExactArgs(1),
+		Use:     "delete",
+		Aliases: []string{"del"},
+		Short:   "Delete a Substratus Dataset, Model, Server, or Notebook",
+		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)

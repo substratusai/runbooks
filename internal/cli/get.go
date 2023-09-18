@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 
@@ -19,7 +20,7 @@ func getCommand() *cobra.Command {
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
-		defer logFile.Close()
+		defer tui.LogFile.Close()
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -46,16 +47,14 @@ func getCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		p = tea.NewProgram(getModel{
-			ctx:       cmd.Context(),
-			scope:     scope,
-			namespace: namespace,
+		tui.P = tea.NewProgram(tui.GetModel{
+			Ctx:       cmd.Context(),
+			Scope:     scope,
+			Namespace: namespace,
 
-			client: c,
-
-			objects: newGetObjectMap(),
+			Client: c,
 		} /*, tea.WithAltScreen()*/)
-		if _, err := p.Run(); err != nil {
+		if _, err := tui.P.Run(); err != nil {
 			return err
 		}
 
