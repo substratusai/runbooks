@@ -56,6 +56,8 @@ type NotebookModel struct {
 	portForwarding status
 	localURL       string
 
+	width int
+
 	// End times
 	quitting   bool
 	goodbye    string
@@ -77,6 +79,20 @@ func (m *NotebookModel) New() NotebookModel {
 		Namespace: m.Namespace,
 		Mode:      uploadModeApply,
 	}).New()
+	m.readiness = (&readinessModel{
+		Ctx:      m.Ctx,
+		Object:   m.Notebook,
+		Client:   m.Client,
+		Resource: m.Resource,
+	}).New()
+	m.pods = (&podsModel{
+		Ctx:      m.Ctx,
+		Client:   m.Client,
+		Resource: m.Resource,
+		K8s:      m.K8s,
+		Object:   m.Notebook,
+	}).New()
+
 	return *m
 }
 
@@ -108,6 +124,12 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	if m.pods.watchingPods != notStarted {
+		mdl, cmd := m.pods.Update(msg)
+		m.pods = mdl.(podsModel)
+		cmds = append(cmds, cmd)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -117,8 +139,13 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.finalError == nil {
 					m.quitting = false
 				}
-			case "l":
-				cmds = append(cmds, m.cleanupAndQuitCmd)
+
+			// "Leave be" results in issues where a build will eventually replace the Notebook
+			//  and the command will error out due to a failure on the previous notebook nbwatch
+			//  command... revisit later.
+			//
+			// case "l":
+			//	cmds = append(cmds, m.cleanupAndQuitCmd)
 			case "s":
 				cmds = append(cmds, notebookSuspendCmd(context.Background(), m.Resource, m.Notebook))
 			case "d":
@@ -148,20 +175,8 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tarballUploadedMsg:
 		m.Notebook = msg.Object.(*apiv1.Notebook)
-
-		m.readiness = (&readinessModel{
-			Ctx:      m.Ctx,
-			Object:   m.Notebook,
-			Client:   m.Client,
-			Resource: m.Resource,
-		}).New()
-		m.pods = (&podsModel{
-			Ctx:      m.Ctx,
-			Client:   m.Client,
-			Resource: m.Resource,
-			K8s:      m.K8s,
-			Object:   m.Notebook,
-		}).New()
+		m.readiness.Object = msg.Object
+		m.pods.Object = msg.Object
 
 		cmds = append(cmds,
 			m.readiness.Init(),
@@ -194,7 +209,11 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case localURLMsg:
 		m.localURL = string(msg)
 
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
 	case error:
+		log.Printf("Error message: %v", msg)
 		m.finalError = msg
 		m.quitting = true
 	}
@@ -210,8 +229,9 @@ func (m NotebookModel) View() (v string) {
 	}()
 
 	if m.finalError != nil {
-		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
-		v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
+		v += errorStyle.Width(m.width-10).Render("Error: "+m.finalError.Error()) + "\n"
+		v += helpStyle("Press \"s\" to suspend, \"d\" to delete")
+		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
 		return v
 	}
 
@@ -222,7 +242,8 @@ func (m NotebookModel) View() (v string) {
 
 	if m.quitting {
 		v += "Quitting...\n"
-		v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
+		v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
+		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		return v
 	}
 
@@ -232,6 +253,7 @@ func (m NotebookModel) View() (v string) {
 	}
 	if m.pods.watchingPods != notStarted {
 		v += m.pods.View()
+		v += "\n"
 	}
 
 	if m.syncingFiles == inProgress {
@@ -242,7 +264,7 @@ func (m NotebookModel) View() (v string) {
 		}
 		if m.lastSyncFailure != nil {
 			v += "\n"
-			v += errorStyle("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
+			v += errorStyle.Render("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
 		}
 	}
 

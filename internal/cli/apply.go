@@ -79,11 +79,12 @@ func applyCommand() *cobra.Command {
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.ApplyModel{
 			Ctx:       cmd.Context(),
-			Client:    c,
-			Resource:  res,
-			Object:    obj,
 			Path:      args[0],
 			Namespace: namespace,
+			Client:    c,
+			Resource:  res,
+			K8s:       clientset,
+			Object:    obj,
 		}).New())
 		if _, err := tui.P.Run(); err != nil {
 			return err

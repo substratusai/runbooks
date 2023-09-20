@@ -53,8 +53,12 @@ func newGetObjectMap() map[string]map[string]listedObject {
 	}
 }
 
-func (m GetModel) Init() tea.Cmd {
+func (m *GetModel) New() GetModel {
 	m.objects = newGetObjectMap()
+	return *m
+}
+
+func (m GetModel) Init() tea.Cmd {
 	return watchCmd(m.Ctx, m.Client, m.Namespace, m.Scope)
 }
 
@@ -121,7 +125,7 @@ func (m GetModel) View() (v string) {
 	}()
 
 	if m.finalError != nil {
-		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
+		v += errorStyle.Render("Error: "+m.finalError.Error()) + "\n"
 		v += helpStyle("Press \"q\" to quit")
 		return v
 	}

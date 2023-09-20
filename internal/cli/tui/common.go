@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -11,11 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
@@ -63,7 +59,7 @@ var (
 			MarginBottom(1).
 			Render
 
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).Render
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51"))
 
 	activeSpinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#E9C46A"))
 	checkMark          = lipgloss.NewStyle().Foreground(lipgloss.Color("#2a9d8f")).SetString("✓")
@@ -208,76 +204,6 @@ func waitReadyCmd(ctx context.Context, res *client.Resource, obj client.Object) 
 			return fmt.Errorf("waiting to be ready: %w", err)
 		}
 		return objectReadyMsg{Object: obj}
-	}
-}
-
-type podWatchMsg struct {
-	Type watch.EventType
-	Pod  *corev1.Pod
-}
-
-func watchPods(ctx context.Context, c client.Interface, obj client.Object) tea.Cmd {
-	return func() tea.Msg {
-		log.Println("Starting Pod watch")
-
-		pods, err := c.Resource(&corev1.Pod{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"}})
-		if err != nil {
-			return fmt.Errorf("pods client: %w", err)
-		}
-
-		w, err := pods.Watch(ctx, obj.GetNamespace(), nil, &metav1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				strings.ToLower(obj.GetObjectKind().GroupVersionKind().Kind): obj.GetName(),
-				//"role": role,
-			}).String(),
-		})
-		if err != nil {
-			return fmt.Errorf("watch: %w", err)
-		}
-		go func() {
-			for event := range w.ResultChan() {
-				switch event.Type {
-				case watch.Added, watch.Modified, watch.Deleted:
-					pod := event.Object.(*corev1.Pod)
-					log.Printf("Pod event: %s: %s", pod.Name, event.Type)
-					P.Send(podWatchMsg{Type: event.Type, Pod: pod})
-				}
-			}
-		}()
-
-		return nil
-	}
-}
-
-type podLogsMsg struct {
-	role string
-	name string
-	logs string
-}
-
-func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, container string) tea.Cmd {
-	return func() tea.Msg {
-		log.Printf("Starting to get logs for pod: %v", pod.Name)
-		req := k8s.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
-			Container:  container,
-			Follow:     true,
-			Timestamps: false,
-		})
-		logs, err := req.Stream(ctx)
-		if err != nil {
-			return err
-		}
-
-		scanner := bufio.NewScanner(logs)
-		for scanner.Scan() {
-			logs := scanner.Text()
-			log.Printf("Pod logs for: %v: %q", pod.Name, logs)
-			P.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
-		}
-		if err := scanner.Err(); err != nil {
-			return err
-		}
-		return nil
 	}
 }
 

@@ -41,7 +41,7 @@ type uploadModel struct {
 	uploadProgress progress.Model
 
 	// End times
-	finalError error
+	// finalError error
 }
 
 type uploadMode int
@@ -72,12 +72,6 @@ func (m uploadModel) Init() tea.Cmd {
 
 func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		log.Println("Received key msg:", msg.String())
-		if msg.String() == "q" {
-			return m, tea.Quit
-		}
-
 	case fileTarredMsg:
 		m.tarredFileCount++
 		return m, nil
@@ -126,10 +120,6 @@ func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.uploadProgress.Update(msg)
 		m.uploadProgress = progressModel.(progress.Model)
 		return m, cmd
-
-	case error:
-		m.finalError = msg
-		return m, nil
 	}
 
 	return m, nil
@@ -138,11 +128,6 @@ func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
 func (m uploadModel) View() (v string) {
-	if m.finalError != nil {
-		v += errorStyle("Error: "+m.finalError.Error()) + "\n"
-		return v
-	}
-
 	if m.tarring == inProgress {
 		v += "Tarring...\n"
 		v += fmt.Sprintf("File count: %v\n", m.tarredFileCount)

@@ -5,21 +5,31 @@ import (
 	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/substratusai/substratus/internal/cli/client"
 )
 
 type ApplyModel struct {
-	Ctx      context.Context
+	Ctx context.Context
+
+	// Clients
 	Client   client.Interface
 	Resource *client.Resource
-	Object   client.Object
+	K8s      *kubernetes.Clientset
+
+	Object client.Object
 
 	Path      string
 	Namespace string
 
 	upload    uploadModel
 	readiness readinessModel
+	pods      podsModel
+
+	width int
+
+	finalError error
 }
 
 func (m *ApplyModel) New() ApplyModel {
@@ -31,6 +41,19 @@ func (m *ApplyModel) New() ApplyModel {
 		Path:      m.Path,
 		Namespace: m.Namespace,
 		Mode:      uploadModeCreate,
+	}).New()
+	m.readiness = (&readinessModel{
+		Ctx:      m.Ctx,
+		Client:   m.Client,
+		Resource: m.Resource,
+		Object:   m.Object,
+	}).New()
+	m.pods = (&podsModel{
+		Ctx:      m.Ctx,
+		Client:   m.Client,
+		Resource: m.Resource,
+		K8s:      m.K8s,
+		Object:   m.Object,
 	}).New()
 	return *m
 }
@@ -48,9 +71,15 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	if m.readiness.waiting != notStarted {
+	{
 		mdl, cmd := m.readiness.Update(msg)
 		m.readiness = mdl.(readinessModel)
+		cmds = append(cmds, cmd)
+	}
+
+	{
+		mdl, cmd := m.pods.Update(msg)
+		m.pods = mdl.(podsModel)
 		cmds = append(cmds, cmd)
 	}
 
@@ -63,13 +92,19 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tarballUploadedMsg:
 		m.Object = msg.Object
-		m.readiness = (&readinessModel{
-			Ctx:      m.Ctx,
-			Object:   m.Object,
-			Client:   m.Client,
-			Resource: m.Resource,
-		}).New()
-		cmds = append(cmds, m.readiness.Init())
+		m.readiness.Object = m.Object
+		m.pods.Object = m.Object
+		cmds = append(cmds,
+			m.readiness.Init(),
+			m.pods.Init(),
+		)
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
+	case error:
+		log.Printf("Error message: %v", msg)
+		m.finalError = msg
 	}
 
 	return m, tea.Batch(cmds...)
@@ -82,9 +117,18 @@ func (m ApplyModel) View() (v string) {
 		v = appStyle(v)
 	}()
 
+	if m.finalError != nil {
+		v += errorStyle.Width(m.width-10).Render("Error: "+m.finalError.Error()) + "\n"
+		v += helpStyle("Press \"q\" to quit")
+		return v
+	}
+
 	v += m.upload.View()
 	if m.readiness.waiting != notStarted {
 		v += m.readiness.View()
+	}
+	if m.pods.watchingPods != notStarted {
+		v += m.pods.View()
 	}
 
 	v += helpStyle("Press \"q\" to quit")

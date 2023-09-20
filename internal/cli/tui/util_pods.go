@@ -1,13 +1,19 @@
 package tui
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"log"
 	"sort"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/muesli/reflow/wordwrap"
+	"github.com/charmbracelet/lipgloss"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
@@ -59,7 +65,7 @@ func (m *podsModel) New() podsModel {
 }
 
 func (m podsModel) Init() tea.Cmd {
-	m.watchingPods = inProgress
+	log.Println("podsModel.Init()")
 	return watchPods(m.Ctx, m.Client, m.Object.DeepCopyObject().(client.Object))
 }
 
@@ -70,16 +76,20 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		pi.lastEvent = msg.Type
 		pi.pod = msg.Pod.DeepCopy()
 
+		containerName := pi.pod.Annotations["kubectl.kubernetes.io/default-container"]
+
 		var cmd tea.Cmd
 		if !pi.logsStarted {
-			const containerName = "builder"
 			for _, status := range pi.pod.Status.ContainerStatuses {
 				if status.Name == containerName && status.Ready {
+					log.Printf("Getting logs for Pod container: %v", status.Name)
 					cmd = getLogs(m.Ctx, m.K8s, pi.pod, containerName)
 					pi.logsStarted = true
 					pi.logsViewport = viewport.New(m.width-10, 7)
 					pi.logsViewport.Style = logStyle
 					break
+				} else {
+					log.Printf("Skipping logs for container: %v (Ready = %v)", status.Name, status.Ready)
 				}
 			}
 		}
@@ -90,18 +100,21 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case podLogsMsg:
 		pi := m.pods[msg.role][msg.name]
 		pi.logs += msg.logs + "\n"
-		pi.logsViewport.SetContent(wordwrap.String(pi.logs, m.width-14))
+		pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.width - 20).Render(pi.logs) /*wordwrap.String(pi.logs, m.width-14)*/)
 		pi.logsViewport.GotoBottom()
 		m.pods[msg.role][msg.name] = pi
 		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		log.Printf("!!!Width: %v", m.width)
 		for role := range m.pods {
 			for name := range m.pods[role] {
 				pi := m.pods[role][name]
 				if pi.logsViewport.Width > 0 {
 					pi.logsViewport.Width = msg.Width - 10
+					pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.width - 20).Render(pi.logs))
+					pi.logsViewport.Style = logStyle
 					m.pods[role][name] = pi
 				}
 			}
@@ -144,8 +157,77 @@ func (m podsModel) View() (v string) {
 
 		// Further indent this section.
 		v += podStyle(vv)
-
 	}
 
 	return v
+}
+
+type podWatchMsg struct {
+	Type watch.EventType
+	Pod  *corev1.Pod
+}
+
+func watchPods(ctx context.Context, c client.Interface, obj client.Object) tea.Cmd {
+	return func() tea.Msg {
+		log.Println("Starting Pod watch")
+
+		pods, err := c.Resource(&corev1.Pod{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"}})
+		if err != nil {
+			return fmt.Errorf("pods client: %w", err)
+		}
+
+		w, err := pods.Watch(ctx, obj.GetNamespace(), nil, &metav1.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				strings.ToLower(obj.GetObjectKind().GroupVersionKind().Kind): obj.GetName(),
+				//"role": role,
+			}).String(),
+		})
+		if err != nil {
+			return fmt.Errorf("watch: %w", err)
+		}
+		go func() {
+			for event := range w.ResultChan() {
+				switch event.Type {
+				case watch.Added, watch.Modified, watch.Deleted:
+					pod := event.Object.(*corev1.Pod)
+					log.Printf("Pod event: %s: %s", pod.Name, event.Type)
+					P.Send(podWatchMsg{Type: event.Type, Pod: pod})
+				}
+			}
+		}()
+
+		return nil
+	}
+}
+
+type podLogsMsg struct {
+	role string
+	name string
+	logs string
+}
+
+func getLogs(ctx context.Context, k8s *kubernetes.Clientset, pod *corev1.Pod, container string) tea.Cmd {
+	return func() tea.Msg {
+		log.Printf("Starting to get logs for pod: %v", pod.Name)
+		req := k8s.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
+			Container:  container,
+			Follow:     true,
+			Timestamps: false,
+		})
+		logs, err := req.Stream(ctx)
+		if err != nil {
+			return err
+		}
+
+		scanner := bufio.NewScanner(logs)
+		for scanner.Scan() {
+			logs := scanner.Text()
+			log.Printf("Pod logs for: %v: %q", pod.Name, logs)
+			P.Send(podLogsMsg{role: pod.Labels["role"], name: pod.Name, logs: logs})
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		return nil
+	}
 }

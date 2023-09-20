@@ -47,13 +47,13 @@ func getCommand() *cobra.Command {
 		}
 
 		// Initialize our program
-		tui.P = tea.NewProgram(tui.GetModel{
+		tui.P = tea.NewProgram((&tui.GetModel{
 			Ctx:       cmd.Context(),
 			Scope:     scope,
 			Namespace: namespace,
 
 			Client: c,
-		} /*, tea.WithAltScreen()*/)
+		}).New() /*, tea.WithAltScreen()*/)
 		if _, err := tui.P.Run(); err != nil {
 			return err
 		}
