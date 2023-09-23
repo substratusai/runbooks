@@ -31,6 +31,14 @@ var LogFile *os.File
 
 var P *tea.Program
 
+type status int
+
+const (
+	notStarted = status(0)
+	inProgress = status(1)
+	completed  = status(2)
+)
+
 const (
 	maxWidth = 60
 	padding  = 2
@@ -39,10 +47,9 @@ const (
 var (
 	appStyle = lipgloss.NewStyle().
 			PaddingTop(1).
-			PaddingRight(1).
+			PaddingRight(2).
 			PaddingBottom(1).
-			PaddingLeft(2).
-			Render
+			PaddingLeft(2)
 
 	podStyle = lipgloss.NewStyle().PaddingLeft(2).Render
 
@@ -74,9 +81,6 @@ type (
 
 func prepareTarballCmd(ctx context.Context, dir string) tea.Cmd {
 	return func() tea.Msg {
-		P.Send(operationMsg{operation: tarring, status: inProgress})
-		defer P.Send(operationMsg{operation: tarring, status: completed})
-
 		log.Println("Preparing tarball")
 		tarball, err := client.PrepareImageTarball(ctx, dir, func(file string) {
 			log.Println("tarred", file)
@@ -145,9 +149,6 @@ type createdWithUploadMsg struct {
 
 func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Object, tarball *client.Tarball) tea.Cmd {
 	return func() tea.Msg {
-		P.Send(operationMsg{operation: creating, status: inProgress})
-		defer P.Send(operationMsg{operation: creating, status: completed})
-
 		if err := specifyUpload(obj, tarball); err != nil {
 			return fmt.Errorf("specifying upload: %w", err)
 		}

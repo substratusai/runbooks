@@ -2,8 +2,6 @@ package tui
 
 import (
 	"context"
-	"log"
-	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -25,17 +23,6 @@ type DeleteModel struct {
 	// Original Object (could be a Dataset, Model, or Server)
 	Object client.Object
 
-	// Tarring
-	tarredFileCount int
-	tarball         *client.Tarball
-
-	// Keeping track of whats happening
-	operations map[operation]status
-
-	// File syncing
-	currentSyncingFile string
-	lastSyncFailure    error
-
 	// End times
 	finalError error
 }
@@ -44,14 +31,7 @@ func (m DeleteModel) kind() string {
 	return m.Object.GetObjectKind().GroupVersionKind().Kind
 }
 
-func (m DeleteModel) cleanupAndQuitCmd() tea.Msg {
-	log.Println("Cleaning up")
-	os.Remove(m.tarball.TempDir)
-	return tea.Quit()
-}
-
 func (m DeleteModel) Init() tea.Cmd {
-	m.operations = map[operation]status{}
 	return nil
 }
 

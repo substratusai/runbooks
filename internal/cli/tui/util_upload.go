@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/substratusai/substratus/internal/cli/client"
 )
@@ -40,8 +41,7 @@ type uploadModel struct {
 	uploading      status
 	uploadProgress progress.Model
 
-	// End times
-	// finalError error
+	Style lipgloss.Style
 }
 
 type uploadMode int
@@ -60,18 +60,38 @@ func (m uploadModel) cleanup() {
 	os.Remove(m.tarball.TempDir)
 }
 
+// New initializes all internal fields.
 func (m *uploadModel) New() uploadModel {
-	m.tarring = inProgress
+	m.Style = lipgloss.NewStyle()
 	m.uploadProgress = progress.New(progress.WithDefaultGradient())
 	return *m
 }
 
-func (m uploadModel) Init() tea.Cmd {
-	return prepareTarballCmd(m.Ctx, m.Path)
+func (m uploadModel) Active() bool {
+	return true
+	//if m.Mode == uploadModeApply {
+	//	return m.applying != completed
+	//} else if m.Mode == uploadModeCreate {
+	//	return m.creating != completed
+	//} else {
+	//	panic("Unrecognized mode")
+	//}
 }
+
+func (m uploadModel) Init() tea.Cmd {
+	return tea.Sequence(
+		func() tea.Msg { return uploadInitMsg{} },
+		prepareTarballCmd(m.Ctx, m.Path),
+	)
+}
+
+type uploadInitMsg struct{}
 
 func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case uploadInitMsg:
+		m.tarring = inProgress
+
 	case fileTarredMsg:
 		m.tarredFileCount++
 		return m, nil
@@ -108,13 +128,6 @@ func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.uploading = completed
 		m.Object = msg.Object
 
-	case tea.WindowSizeMsg:
-		m.uploadProgress.Width = msg.Width - padding*2 - 4
-		if m.uploadProgress.Width > maxWidth {
-			m.uploadProgress.Width = maxWidth
-		}
-		return m, nil
-
 	// FrameMsg is sent when the progress bar wants to animate itself
 	case progress.FrameMsg:
 		progressModel, cmd := m.uploadProgress.Update(msg)
@@ -128,9 +141,20 @@ func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
 func (m uploadModel) View() (v string) {
+	defer func() {
+		if v != "" {
+			v = m.Style.Render(v)
+		}
+	}()
+	m.uploadProgress.Width = m.Style.GetWidth()
+
 	if m.tarring == inProgress {
 		v += "Tarring...\n"
 		v += fmt.Sprintf("File count: %v\n", m.tarredFileCount)
+	}
+
+	if m.applying == inProgress {
+		v += "Applying...\n"
 	}
 
 	if m.creating == inProgress {

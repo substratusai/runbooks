@@ -36,7 +36,7 @@ type GetModel struct {
 
 	objects map[string]map[string]listedObject
 
-	width int
+	Style lipgloss.Style
 }
 
 type listedObject struct {
@@ -55,6 +55,7 @@ func newGetObjectMap() map[string]map[string]listedObject {
 
 func (m *GetModel) New() GetModel {
 	m.objects = newGetObjectMap()
+	m.Style = appStyle
 	return *m
 }
 
@@ -107,7 +108,7 @@ func (m GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.Style.Width(msg.Width)
 
 	case error:
 		m.finalError = msg
@@ -121,7 +122,7 @@ func (m GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // rendered to the terminal.
 func (m GetModel) View() (v string) {
 	defer func() {
-		v = appStyle(v)
+		v = m.Style.Render(v)
 	}()
 
 	if m.finalError != nil {
@@ -235,7 +236,7 @@ func (m GetModel) View() (v string) {
 					g.unversionedName + ".v" +
 					displayVersions[0].version
 
-				verWidth := int(math.Min(float64(maxWidth), float64(m.width-longestName-18)))
+				verWidth := int(math.Min(float64(maxWidth), float64(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-longestName-18)))
 				v += lipgloss.JoinHorizontal(
 					lipgloss.Top,
 					lipgloss.NewStyle().Width(longestName).MarginLeft(0).MarginRight(2).Align(lipgloss.Left).Render(primary),

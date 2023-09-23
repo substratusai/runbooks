@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/browser"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,8 +45,7 @@ type NotebookModel struct {
 
 	upload    uploadModel
 	readiness readinessModel
-
-	pods podsModel
+	pods      podsModel
 
 	// File syncing
 	syncingFiles       status
@@ -56,7 +56,7 @@ type NotebookModel struct {
 	portForwarding status
 	localURL       string
 
-	width int
+	Style lipgloss.Style
 
 	// End times
 	quitting   bool
@@ -93,6 +93,8 @@ func (m *NotebookModel) New() NotebookModel {
 		Object:   m.Notebook,
 	}).New()
 
+	m.Style = appStyle
+
 	return *m
 }
 
@@ -101,30 +103,26 @@ func (m NotebookModel) Init() tea.Cmd {
 }
 
 type (
-	operationMsg struct {
-		operation
-		status
-	}
-
 	localURLMsg string
 )
 
 func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	log.Printf("MSG: %T", msg)
 	{
 		mdl, cmd := m.upload.Update(msg)
 		m.upload = mdl.(uploadModel)
 		cmds = append(cmds, cmd)
 	}
 
-	if m.readiness.waiting != notStarted {
+	{
 		mdl, cmd := m.readiness.Update(msg)
 		m.readiness = mdl.(readinessModel)
 		cmds = append(cmds, cmd)
 	}
 
-	if m.pods.watchingPods != notStarted {
+	{
 		mdl, cmd := m.pods.Update(msg)
 		m.pods = mdl.(podsModel)
 		cmds = append(cmds, cmd)
@@ -210,7 +208,11 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.localURL = string(msg)
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.Style.Width(msg.Width)
+		innerWidth := m.Style.GetWidth() - m.Style.GetHorizontalPadding()
+		m.upload.Style = lipgloss.NewStyle().Width(innerWidth)
+		m.readiness.Style = lipgloss.NewStyle().Width(innerWidth)
+		m.pods.SetStyle(logStyle.Width(innerWidth))
 
 	case error:
 		log.Printf("Error message: %v", msg)
@@ -225,11 +227,11 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // rendered to the terminal.
 func (m NotebookModel) View() (v string) {
 	defer func() {
-		v = appStyle(v)
+		v = m.Style.Render(v)
 	}()
 
 	if m.finalError != nil {
-		v += errorStyle.Width(m.width-10).Render("Error: "+m.finalError.Error()) + "\n"
+		v += errorStyle.Width(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-10).Render("Error: "+m.finalError.Error()) + "\n"
 		v += helpStyle("Press \"s\" to suspend, \"d\" to delete")
 		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
 		return v
@@ -248,22 +250,17 @@ func (m NotebookModel) View() (v string) {
 	}
 
 	v += m.upload.View()
-	if m.readiness.waiting != notStarted {
-		v += m.readiness.View()
-	}
-	if m.pods.watchingPods != notStarted {
-		v += m.pods.View()
-		v += "\n"
-	}
+	v += m.readiness.View()
+	v += m.pods.View()
 
 	if m.syncingFiles == inProgress {
+		v += "\n"
 		if m.currentSyncingFile != "" {
 			v += fmt.Sprintf("Syncing from notebook: %v\n", m.currentSyncingFile)
 		} else {
 			v += "Watching for files to sync...\n"
 		}
 		if m.lastSyncFailure != nil {
-			v += "\n"
 			v += errorStyle.Render("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
 		}
 	}
@@ -301,7 +298,7 @@ func notebookSyncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Not
 				return err
 			}
 		}
-		return operationMsg{operation: syncingFiles, status: completed}
+		return nil
 	}
 }
 
@@ -309,9 +306,6 @@ type notebookPortForwardReadyMsg struct{}
 
 func noteookPortForwardCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook) tea.Cmd {
 	return func() tea.Msg {
-		P.Send(operationMsg{operation: portForwarding, status: inProgress})
-		defer P.Send(operationMsg{operation: portForwarding, status: completed})
-
 		const maxRetries = 3
 		for i := 0; i < maxRetries; i++ {
 			portFwdCtx, cancelPortFwd := context.WithCancel(ctx)
@@ -353,7 +347,7 @@ func noteookPortForwardCmd(ctx context.Context, c client.Interface, nb *apiv1.No
 		}
 		log.Println("Done trying to port-forward")
 
-		return operationMsg{operation: portForwarding, status: completed}
+		return nil
 	}
 }
 

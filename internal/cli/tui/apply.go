@@ -5,6 +5,7 @@ import (
 	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/substratusai/substratus/internal/cli/client"
@@ -27,9 +28,9 @@ type ApplyModel struct {
 	readiness readinessModel
 	pods      podsModel
 
-	width int
-
 	finalError error
+
+	Style lipgloss.Style
 }
 
 func (m *ApplyModel) New() ApplyModel {
@@ -55,6 +56,7 @@ func (m *ApplyModel) New() ApplyModel {
 		K8s:      m.K8s,
 		Object:   m.Object,
 	}).New()
+	m.Style = appStyle
 	return *m
 }
 
@@ -65,6 +67,7 @@ func (m ApplyModel) Init() tea.Cmd {
 func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	log.Printf("MSG: %T", msg)
 	{
 		mdl, cmd := m.upload.Update(msg)
 		m.upload = mdl.(uploadModel)
@@ -100,7 +103,12 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.Style.Width(msg.Width)
+		innerWidth := m.Style.GetWidth() - m.Style.GetHorizontalPadding()
+		// NOTE: Use background coloring for style debugging.
+		m.upload.Style = lipgloss.NewStyle().Width(innerWidth)    //.Background(lipgloss.Color("12"))
+		m.readiness.Style = lipgloss.NewStyle().Width(innerWidth) //.Background(lipgloss.Color("202"))
+		m.pods.SetStyle(logStyle.Copy().Width(innerWidth))        //.Background(lipgloss.Color("86")))
 
 	case error:
 		log.Printf("Error message: %v", msg)
@@ -114,22 +122,18 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // rendered to the terminal.
 func (m ApplyModel) View() (v string) {
 	defer func() {
-		v = appStyle(v)
+		v = m.Style.Render(v)
 	}()
 
 	if m.finalError != nil {
-		v += errorStyle.Width(m.width-10).Render("Error: "+m.finalError.Error()) + "\n"
+		v += errorStyle.Width(m.Style.GetWidth()-m.Style.GetHorizontalPadding()).Render("Error: "+m.finalError.Error()) + "\n"
 		v += helpStyle("Press \"q\" to quit")
 		return v
 	}
 
 	v += m.upload.View()
-	if m.readiness.waiting != notStarted {
-		v += m.readiness.View()
-	}
-	if m.pods.watchingPods != notStarted {
-		v += m.pods.View()
-	}
+	v += m.readiness.View()
+	v += m.pods.View()
 
 	v += helpStyle("Press \"q\" to quit")
 

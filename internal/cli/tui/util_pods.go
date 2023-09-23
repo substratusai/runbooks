@@ -37,11 +37,10 @@ type podsModel struct {
 	// map[role][podName]
 	pods map[string]map[string]podInfo
 
-	// Size
-	width int
-
 	// End times
 	finalError error
+
+	Style lipgloss.Style
 }
 
 type podInfo struct {
@@ -53,24 +52,33 @@ type podInfo struct {
 	logsViewport viewport.Model
 }
 
+// New initializes all internal fields.
 func (m *podsModel) New() podsModel {
-	m.watchingPods = inProgress
-
 	m.pods = map[string]map[string]podInfo{
 		"build": {},
 		"run":   {},
 	}
-
 	return *m
 }
 
-func (m podsModel) Init() tea.Cmd {
-	log.Println("podsModel.Init()")
-	return watchPods(m.Ctx, m.Client, m.Object.DeepCopyObject().(client.Object))
+func (m podsModel) Active() bool {
+	return m.watchingPods == inProgress
 }
+
+func (m podsModel) Init() tea.Cmd {
+	return tea.Sequence(
+		func() tea.Msg { return podsInitMsg{} },
+		watchPods(m.Ctx, m.Client, m.Object.DeepCopyObject().(client.Object)),
+	)
+}
+
+type podsInitMsg struct{}
 
 func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case podsInitMsg:
+		m.watchingPods = inProgress
+
 	case podWatchMsg:
 		pi := m.pods[msg.Pod.Labels["role"]][msg.Pod.Name]
 		pi.lastEvent = msg.Type
@@ -85,8 +93,8 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					log.Printf("Getting logs for Pod container: %v", status.Name)
 					cmd = getLogs(m.Ctx, m.K8s, pi.pod, containerName)
 					pi.logsStarted = true
-					pi.logsViewport = viewport.New(m.width-10, 7)
-					pi.logsViewport.Style = logStyle
+					pi.logsViewport = viewport.New(m.Style.GetWidth()-10, 7)
+					pi.logsViewport.Style = m.Style
 					break
 				} else {
 					log.Printf("Skipping logs for container: %v (Ready = %v)", status.Name, status.Ready)
@@ -100,25 +108,9 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case podLogsMsg:
 		pi := m.pods[msg.role][msg.name]
 		pi.logs += msg.logs + "\n"
-		pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.width - 20).Render(pi.logs) /*wordwrap.String(pi.logs, m.width-14)*/)
+		pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.Style.GetWidth() - m.Style.GetHorizontalPadding()).Render(pi.logs) /*wordwrap.String(pi.logs, m.width-14)*/)
 		pi.logsViewport.GotoBottom()
 		m.pods[msg.role][msg.name] = pi
-		return m, nil
-
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		log.Printf("!!!Width: %v", m.width)
-		for role := range m.pods {
-			for name := range m.pods[role] {
-				pi := m.pods[role][name]
-				if pi.logsViewport.Width > 0 {
-					pi.logsViewport.Width = msg.Width - 10
-					pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.width - 20).Render(pi.logs))
-					pi.logsViewport.Style = logStyle
-					m.pods[role][name] = pi
-				}
-			}
-		}
 		return m, nil
 
 	case error:
@@ -135,7 +127,6 @@ func (m podsModel) View() (v string) {
 	if m.watchingPods == inProgress {
 		roles := []string{"build", "run"}
 
-		var vv string
 		for _, role := range roles {
 			var pods []podInfo
 			for _, p := range m.pods[role] {
@@ -148,18 +139,30 @@ func (m podsModel) View() (v string) {
 				if p.lastEvent == watch.Deleted {
 					continue
 				}
-				vv += "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
+				v += "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
 				if p.pod.Status.Phase != corev1.PodSucceeded {
-					vv += "\n" + p.logsViewport.View() + "\n"
+					v += "\n" + p.logsViewport.View() + "\n"
 				}
 			}
 		}
-
-		// Further indent this section.
-		v += podStyle(vv)
 	}
 
 	return v
+}
+
+func (m *podsModel) SetStyle(s lipgloss.Style) {
+	m.Style = s
+	for role := range m.pods {
+		for name := range m.pods[role] {
+			pi := m.pods[role][name]
+			if pi.logsViewport.Width > 0 {
+				pi.logsViewport.Width = s.GetWidth()
+				pi.logsViewport.SetContent(lipgloss.NewStyle().Width(s.GetWidth() - s.GetHorizontalMargins()).Render(pi.logs))
+				pi.logsViewport.Style = s
+				m.pods[role][name] = pi
+			}
+		}
+	}
 }
 
 type podWatchMsg struct {
