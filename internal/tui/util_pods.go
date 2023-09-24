@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/client"
 )
 
 type podsModel struct {

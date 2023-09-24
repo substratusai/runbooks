@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/client"
 )
 
 type portForwardReadyMsg struct{}

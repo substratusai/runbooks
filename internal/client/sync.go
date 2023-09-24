@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cli/cp"
+	"github.com/substratusai/substratus/internal/client/cp"
 )
 
 func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, localDir string,

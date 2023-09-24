@@ -13,9 +13,9 @@ import (
 	"k8s.io/utils/ptr"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cli/client"
-	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
+	"github.com/substratusai/substratus/internal/client"
+	"github.com/substratusai/substratus/internal/tui"
 )
 
 func notebookCommand() *cobra.Command {

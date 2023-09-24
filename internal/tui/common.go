@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/client"
 	"github.com/substratusai/substratus/internal/cli/utils"
 )
 

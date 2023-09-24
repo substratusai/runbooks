@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -11,10 +12,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/cli/client"
+	"github.com/substratusai/substratus/internal/client"
 )
 
-type ServeModel struct {
+// A NotebookModel can be more or less any type of data. It holds all the data for a
+// program, so often it's a struct. For this simple example, however, all
+// we'll need is a simple integer.
+type NotebookModel struct {
 	// Cancellation
 	Ctx context.Context
 
@@ -31,12 +35,17 @@ type ServeModel struct {
 	// Original Object (could be a Dataset, Model, or Server)
 	// Object client.Object
 
-	// Current Server
-	Server *apiv1.Server
+	// Current Notebook
+	Notebook *apiv1.Notebook
 
 	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
+
+	// File syncing
+	syncingFiles       status
+	currentSyncingFile string
+	lastSyncFailure    error
 
 	// Ready to open browser
 	portForwarding status
@@ -50,19 +59,24 @@ type ServeModel struct {
 	finalError error
 }
 
-func (m *ServeModel) New() ServeModel {
+func (m NotebookModel) cleanupAndQuitCmd() tea.Msg {
+	m.upload.cleanup()
+	return tea.Quit()
+}
+
+func (m *NotebookModel) New() NotebookModel {
 	m.upload = (&uploadModel{
 		Ctx:       m.Ctx,
 		Client:    m.Client,
 		Resource:  m.Resource,
-		Object:    m.Server,
+		Object:    m.Notebook,
 		Path:      m.Path,
 		Namespace: m.Namespace,
 		Mode:      uploadModeApply,
 	}).New()
 	m.readiness = (&readinessModel{
 		Ctx:      m.Ctx,
-		Object:   m.Server,
+		Object:   m.Notebook,
 		Client:   m.Client,
 		Resource: m.Resource,
 	}).New()
@@ -71,7 +85,7 @@ func (m *ServeModel) New() ServeModel {
 		Client:   m.Client,
 		Resource: m.Resource,
 		K8s:      m.K8s,
-		Object:   m.Server,
+		Object:   m.Notebook,
 	}).New()
 
 	m.Style = appStyle
@@ -79,11 +93,11 @@ func (m *ServeModel) New() ServeModel {
 	return *m
 }
 
-func (m ServeModel) Init() tea.Cmd {
+func (m NotebookModel) Init() tea.Cmd {
 	return m.upload.Init()
 }
 
-func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
@@ -115,14 +129,16 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.quitting = false
 				}
 
-			case "l":
-				cmds = append(cmds, tea.Quit)
+			// "Leave be" results in issues where a build will eventually replace the Notebook
+			//  and the command will error out due to a failure on the previous notebook nbwatch
+			//  command... revisit later.
+			//
+			// case "l":
+			//	cmds = append(cmds, m.cleanupAndQuitCmd)
 			case "s":
-				// TODO: Suspend Server
-				// cmds = append(cmds, notebookSuspendCmd(context.Background(), m.Resource, m.Server))
+				cmds = append(cmds, suspendCmd(context.Background(), m.Resource, m.Notebook))
 			case "d":
-				// TODO: Delete Server
-				// cmds = append(cmds, notebookDeleteCmd(context.Background(), m.Resource, m.Server))
+				cmds = append(cmds, deleteCmd(context.Background(), m.Resource, m.Notebook))
 			}
 		} else {
 			if msg.String() == "q" {
@@ -134,20 +150,20 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.error != nil {
 			m.finalError = msg.error
 		} else {
-			m.goodbye = "Server suspended."
+			m.goodbye = "Notebook suspended."
 		}
-		cmds = append(cmds, tea.Quit)
+		cmds = append(cmds, m.cleanupAndQuitCmd)
 
 	case deletedMsg:
 		if msg.error != nil {
 			m.finalError = msg.error
 		} else {
-			m.goodbye = "Server deleted."
+			m.goodbye = "Notebook deleted."
 		}
-		cmds = append(cmds, tea.Quit)
+		cmds = append(cmds, m.cleanupAndQuitCmd)
 
 	case tarballUploadedMsg:
-		m.Server = msg.Object.(*apiv1.Server)
+		m.Notebook = msg.Object.(*apiv1.Notebook)
 		m.readiness.Object = msg.Object
 		m.pods.Object = msg.Object
 
@@ -157,12 +173,27 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case objectReadyMsg:
-		m.Server = msg.Object.(*apiv1.Server)
-		cmds = append(cmds) // TODO: Port-forward to Pod.
-		// portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Server)),
+		m.Notebook = msg.Object.(*apiv1.Notebook)
+		m.syncingFiles = inProgress
+		cmds = append(cmds,
+			notebookSyncFilesCmd(m.Ctx, m.Client, m.Notebook.DeepCopy(), m.Path),
+			portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Notebook)),
+		)
+
+	case notebookFileSyncMsg:
+		if msg.complete {
+			m.currentSyncingFile = ""
+		} else {
+			m.currentSyncingFile = msg.file
+		}
+		if msg.error != nil {
+			m.lastSyncFailure = msg.error
+		} else {
+			m.lastSyncFailure = nil
+		}
 
 	case portForwardReadyMsg:
-		cmds = append(cmds, serverOpenInBrowser(m.Server.DeepCopy()))
+		cmds = append(cmds, notebookOpenInBrowser(m.Notebook.DeepCopy()))
 
 	case localURLMsg:
 		m.localURL = string(msg)
@@ -185,7 +216,7 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m ServeModel) View() (v string) {
+func (m NotebookModel) View() (v string) {
 	defer func() {
 		v = m.Style.Render(v)
 	}()
@@ -194,24 +225,36 @@ func (m ServeModel) View() (v string) {
 		v += errorStyle.Width(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-10).Render("Error: "+m.finalError.Error()) + "\n"
 		v += helpStyle("Press \"s\" to suspend, \"d\" to delete")
 		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
-		return
+		return v
 	}
 
 	if m.goodbye != "" {
 		v += m.goodbye + "\n"
-		return
+		return v
 	}
 
 	if m.quitting {
 		v += "Quitting...\n"
 		v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
-		return
+		return v
 	}
 
 	v += m.upload.View()
 	v += m.readiness.View()
 	v += m.pods.View()
+
+	if m.syncingFiles == inProgress {
+		v += "\n"
+		if m.currentSyncingFile != "" {
+			v += fmt.Sprintf("Syncing from notebook: %v\n", m.currentSyncingFile)
+		} else {
+			v += "Watching for files to sync...\n"
+		}
+		if m.lastSyncFailure != nil {
+			v += errorStyle.Render("Sync failed: "+m.lastSyncFailure.Error()) + "\n\n"
+		}
+	}
 
 	if m.portForwarding == inProgress {
 		v += "Port-forwarding...\n"
@@ -219,7 +262,7 @@ func (m ServeModel) View() (v string) {
 
 	if m.localURL != "" && m.portForwarding == inProgress {
 		v += "\n"
-		v += fmt.Sprintf("Server URL: %v\n", m.localURL)
+		v += fmt.Sprintf("Notebook URL: %v\n", m.localURL)
 	}
 
 	v += helpStyle("Press \"q\" to quit")
@@ -227,9 +270,33 @@ func (m ServeModel) View() (v string) {
 	return v
 }
 
-func serverOpenInBrowser(s *apiv1.Server) tea.Cmd {
+type notebookFileSyncMsg struct {
+	file     string
+	complete bool
+	error    error
+}
+
+func notebookSyncFilesCmd(ctx context.Context, c client.Interface, nb *apiv1.Notebook, dir string) tea.Cmd {
 	return func() tea.Msg {
-		url := "http://localhost:8080"
+		if err := c.SyncFilesFromNotebook(ctx, nb, dir, LogFile, func(file string, complete bool, syncErr error) {
+			P.Send(notebookFileSyncMsg{
+				file:     file,
+				complete: complete,
+				error:    syncErr,
+			})
+		}); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func notebookOpenInBrowser(nb *apiv1.Notebook) tea.Cmd {
+	return func() tea.Msg {
+		// TODO(nstogner): Grab token from Notebook status.
+		url := "http://localhost:8888?token=default"
 		log.Printf("Opening browser to %s\n", url)
 		browser.OpenURL(url)
 		return localURLMsg(url)

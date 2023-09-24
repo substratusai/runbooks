@@ -10,9 +10,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/substratusai/substratus/internal/cli/client"
-	"github.com/substratusai/substratus/internal/cli/tui"
 	"github.com/substratusai/substratus/internal/cli/utils"
+	"github.com/substratusai/substratus/internal/client"
+	"github.com/substratusai/substratus/internal/tui"
 )
 
 func applyCommand() *cobra.Command {
