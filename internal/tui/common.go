@@ -240,18 +240,22 @@ func suspendCmd(ctx context.Context, res *client.Resource, obj client.Object) te
 }
 
 type deletedMsg struct {
+	name  string
 	error error
 }
 
 func deleteCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
 	return func() tea.Msg {
+		name := obj.GetName()
+
 		log.Println("Deleting")
 		_, err := res.Delete(obj.GetNamespace(), obj.GetName())
 		if err != nil {
 			log.Printf("Error deleting: %v", err)
-			return deletedMsg{error: err}
+			return deletedMsg{name: name, error: err}
 		}
-		return deletedMsg{}
+
+		return deletedMsg{name: name}
 	}
 }
 
@@ -259,7 +263,7 @@ type readManifestMsg struct {
 	obj client.Object
 }
 
-func readManifest(ctx context.Context, path string, ns Namespace) tea.Cmd {
+func readManifest(ctx context.Context, path string) tea.Cmd {
 	return func() tea.Msg {
 		log.Println("Reading manifest")
 
@@ -273,7 +277,6 @@ func readManifest(ctx context.Context, path string, ns Namespace) tea.Cmd {
 		if err != nil {
 			return fmt.Errorf("decoding: %w", err)
 		}
-		ns.Set(obj)
 
 		return readManifestMsg{
 			obj: obj,

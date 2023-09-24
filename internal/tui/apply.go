@@ -62,7 +62,7 @@ func (m *ApplyModel) New() ApplyModel {
 }
 
 func (m ApplyModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename), m.Namespace)
+	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
 }
 
 func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -90,6 +90,7 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readManifestMsg:
 		// TODO: Expect to fail:
+		m.Namespace.Set(msg.obj)
 		m.object = msg.obj
 
 		res, err := m.Client.Resource(msg.obj)

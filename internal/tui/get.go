@@ -322,6 +322,15 @@ func scopeToObjects(scope string) ([]client.Object, error) {
 		}, nil
 	}
 
+	singleObj, err := scopeToObject(scope)
+	if err != nil {
+		return nil, err
+	}
+
+	return []client.Object{singleObj}, nil
+}
+
+func scopeToObject(scope string) (client.Object, error) {
 	res, name := splitScope(scope)
 	if res == "" && name == "" {
 		return nil, fmt.Errorf("Invalid scope: %v", scope)
@@ -345,7 +354,7 @@ func scopeToObjects(scope string) ([]client.Object, error) {
 		obj.SetName(name)
 	}
 
-	return []client.Object{obj}, nil
+	return obj, nil
 }
 
 func splitScope(scope string) (string, string) {

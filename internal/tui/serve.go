@@ -63,7 +63,7 @@ func (m *ServeModel) New() ServeModel {
 }
 
 func (m ServeModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, m.Path, m.Namespace)
+	return readManifest(m.Ctx, m.Path)
 }
 
 func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -85,6 +85,7 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case readManifestMsg:
+		m.Namespace.Set(msg.obj)
 		// TODO: Expect to fail:
 		m.server = msg.obj.(*apiv1.Server)
 

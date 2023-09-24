@@ -85,7 +85,7 @@ func (m *NotebookModel) New() NotebookModel {
 }
 
 func (m NotebookModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename), m.Namespace)
+	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
 }
 
 func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -112,6 +112,7 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case readManifestMsg:
+		m.Namespace.Set(msg.obj)
 		nb, err := client.NotebookForObject(msg.obj)
 		if err != nil {
 			m.finalError = fmt.Errorf("determining notebook: %w", err)
