@@ -11,21 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
-
-	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
-func podForNotebook(nb *apiv1.Notebook) types.NamespacedName {
-	// TODO: Pull Pod info from status of Notebook.
-	return types.NamespacedName{
-		Namespace: nb.GetNamespace(),
-		Name:      nb.GetName() + "-notebook",
-	}
-}
-
-func (c *Client) PortForwardNotebook(ctx context.Context, logger io.Writer, nb *apiv1.Notebook, ready chan struct{}) error {
-	// TODO: Pull Pod info from status of Notebook.
-	podRef := podForNotebook(nb)
+func (c *Client) PortForward(ctx context.Context, logger io.Writer, podRef types.NamespacedName, ready chan struct{}) error {
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward",
 		podRef.Namespace, podRef.Name)
 	hostIP := strings.TrimLeft(c.Config.Host, "https://")

@@ -52,9 +52,11 @@ func run() error {
 		switch name := e.Name(); name {
 		case "data", "model", "artifacts":
 		default:
-			p := filepath.Join(contentDir, name)
-			log.Printf("Watching: %v", p)
-			w.Add(p)
+			if !strings.HasPrefix(name, ".") {
+				p := filepath.Join(contentDir, name)
+				log.Printf("Watching: %v", p)
+				w.Add(p)
+			}
 		}
 	}
 

@@ -29,7 +29,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 	logger io.Writer,
 	progressF func(file string, complete bool, err error),
 ) error {
-	podRef := podForNotebook(nb)
+	podRef := PodForNotebook(nb)
 	const containerName = "notebook"
 
 	cacheDir, err := os.UserCacheDir()

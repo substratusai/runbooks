@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -25,10 +24,6 @@ func deleteCommand() *cobra.Command {
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
 
-		if flags.filename == "" {
-			flags.filename = filepath.Join(args[0], defaultFilename)
-		}
-
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
 			return fmt.Errorf("rest config: %w", err)
@@ -46,47 +41,54 @@ func deleteCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
-		var obj client.Object
-		manifest, err := os.ReadFile(flags.filename)
-		if err != nil {
-			return fmt.Errorf("reading file: %w", err)
-		}
-		obj, err = client.Decode(manifest)
-		if err != nil {
-			return fmt.Errorf("decoding: %w", err)
-		}
-		if obj.GetNamespace() == "" {
-			// When there is no .metadata.namespace set in the manifest...
-			obj.SetNamespace(namespace)
-		} else {
-			// TODO: Closer match kubectl behavior here by differentiaing between
-			// the short -n and long --namespace flags.
-			// See example kubectl error:
-			// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
-			if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
-				// When there is .metadata.namespace set in the manifest and
-				// a conflicting -n or --namespace flag...
-				return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
+		c := NewClient(clientset, restConfig)
+
+		objs := map[string]client.Object{}
+		var res *client.Resource
+
+		if flags.filename != "" {
+			var obj client.Object
+			manifest, err := os.ReadFile(flags.filename)
+			if err != nil {
+				return fmt.Errorf("reading file: %w", err)
+			}
+			obj, err = client.Decode(manifest)
+			if err != nil {
+				return fmt.Errorf("decoding: %w", err)
+			}
+			if obj.GetNamespace() == "" {
+				// When there is no .metadata.namespace set in the manifest...
+				obj.SetNamespace(namespace)
+			} else {
+				// TODO: Closer match kubectl behavior here by differentiaing between
+				// the short -n and long --namespace flags.
+				// See example kubectl error:
+				// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
+				if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
+					// When there is .metadata.namespace set in the manifest and
+					// a conflicting -n or --namespace flag...
+					return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
+				}
+			}
+
+			objs[obj.GetName()] = obj
+			res, err = c.Resource(obj)
+			if err != nil {
+				return fmt.Errorf("resource client: %w", err)
 			}
 		}
 
-		c := NewClient(clientset, restConfig)
-		res, err := c.Resource(obj)
-		if err != nil {
-			return fmt.Errorf("resource client: %w", err)
-		}
-
 		// Initialize our program
-		tui.P = tea.NewProgram(tui.DeleteModel{
+		tui.P = tea.NewProgram((&tui.DeleteModel{
 			Ctx:       cmd.Context(),
 			Scope:     args[0],
 			Namespace: namespace,
 
-			Object: obj,
+			Objects: objs,
 
 			Client:   c,
 			Resource: res,
-		})
+		}).New())
 		if _, err := tui.P.Run(); err != nil {
 			return err
 		}

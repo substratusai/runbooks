@@ -157,3 +157,160 @@ sub cl (classify) # Image recognition
 
 https://github.com/charmbracelet/bubbletea/tree/master/examples#chat
 
+
+## Substratus.yaml
+
+### Option 1: Workspace file
+
+A "workspace" file could represent multiple different objects.
+
+```yaml
+apiVersion: substratus.ai/v1
+metadata:
+  name: snakes-opt-125m
+model:
+  dataset:
+    name: snakes
+  model:
+    name: facebook-opt-125m
+dataset:
+server:
+  # Generated if not specified
+  # Only valid if model is specified.
+notebook:
+  # Generated if not specified
+```
+
+### Option 2: Multi-doc
+
+**Pros:**
+
+* No new objects
+
+**Cons:**
+
+* Duplication of fields like `.metadata`
+
+```yaml
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: snakes-opt-125m
+spec:
+  dataset:
+    name: snakes
+  model:
+    name: facebook-opt-125m
+---
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: snakes-opt-125m
+spec:
+  # ...
+---
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: snakes-opt-125m
+spec:
+  # ...
+```
+
+### Option 3: Directory
+
+**Pros:**
+
+* No new objects
+* Options for more than 1 objects
+
+**Cons:**
+
+* Duplication of fields like `.metadata`
+* Messy
+
+```
+.substratus/
+  dataset.yaml
+  model.yaml
+  notebook.yaml
+  server.yaml
+
+my-code.ipynb
+```
+
+```yaml
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: snakes-opt-125m
+spec:
+  dataset:
+    name: snakes
+  model:
+    name: facebook-opt-125m
+---
+apiVersion: substratus.ai/v1
+kind: Server
+metadata:
+  name: snakes-opt-125m
+spec:
+  # ...
+---
+apiVersion: substratus.ai/v1
+kind: Notebook
+metadata:
+  name: snakes-opt-125m
+spec:
+  # ...
+```
+
+### Option 4: Kustomize-like
+
+**Pros:**
+
+* No new objects
+* Options for more than 1 objects
+* Ability to express remote base-model/dataset dependencies
+
+**Cons:**
+
+* Could get messy
+
+```
+substratus.yaml
+
+dataset.yaml
+model.yaml
+notebook.yaml
+server.yaml
+
+my-code.ipynb
+```
+
+```yaml
+Model: model.yaml
+dependencies:
+- file: ./model.yaml
+- https: //raw.githubusercontent.com/substratusai/substratus/main/install/kind/manifests.yaml
+- gcs: /some-bucket/some/file.yaml
+```
+
+### Option 5: Multi-doc with remotes
+
+```yaml
+apiVersion: substratus.ai/v1
+kind: Model
+metadata:
+  name: snakes-opt-125m
+spec:
+  dataset:
+    name: snakes
+  model:
+    name: facebook-opt-125m
+---
+- ../base-model.yaml
+- https://raw.githubusercontent.com/substratusai/substratus/main/examples/facebook-opt-125m.yaml
+- https://raw.githubusercontent.com/substratusai/substratus/main/examples/squad-dataset.yaml
+```
+

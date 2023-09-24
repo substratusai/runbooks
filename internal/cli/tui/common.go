@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/client"
@@ -77,6 +78,7 @@ var (
 type (
 	tarballCompleteMsg *client.Tarball
 	fileTarredMsg      string
+	localURLMsg        string
 )
 
 func prepareTarballCmd(ctx context.Context, dir string) tea.Cmd {
@@ -236,4 +238,36 @@ func nextDatasetVersion(list *apiv1.DatasetList) (int, error) {
 	}
 
 	return highestVersion + 1, nil
+}
+
+type suspendedMsg struct {
+	error error
+}
+
+func suspendCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
+	return func() tea.Msg {
+		log.Println("Suspending")
+		_, err := res.Patch(obj.GetNamespace(), obj.GetName(), types.MergePatchType, []byte(`{"spec": {"suspend": true} }`), &metav1.PatchOptions{})
+		if err != nil {
+			log.Printf("Error suspending: %v", err)
+			return suspendedMsg{error: err}
+		}
+		return suspendedMsg{}
+	}
+}
+
+type deletedMsg struct {
+	error error
+}
+
+func deleteCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
+	return func() tea.Msg {
+		log.Println("Deleting")
+		_, err := res.Delete(obj.GetNamespace(), obj.GetName())
+		if err != nil {
+			log.Printf("Error deleting: %v", err)
+			return deletedMsg{error: err}
+		}
+		return deletedMsg{}
+	}
 }

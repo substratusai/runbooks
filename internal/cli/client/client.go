@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -35,7 +36,7 @@ func init() {
 var _ Interface = &Client{}
 
 type Interface interface {
-	PortForwardNotebook(ctx context.Context, logger io.Writer, nb *apiv1.Notebook, ready chan struct{}) error
+	PortForward(ctx context.Context, logger io.Writer, podRef types.NamespacedName, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
 	SyncFilesFromNotebook(context.Context, *apiv1.Notebook, string,
 		io.Writer,

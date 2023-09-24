@@ -4,9 +4,18 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 )
+
+func PodForNotebook(nb *apiv1.Notebook) types.NamespacedName {
+	// TODO: Pull Pod info from status of Notebook.
+	return types.NamespacedName{
+		Namespace: nb.GetNamespace(),
+		Name:      nb.GetName() + "-notebook",
+	}
+}
 
 func NotebookForObject(obj Object) (*apiv1.Notebook, error) {
 	var nb *apiv1.Notebook
