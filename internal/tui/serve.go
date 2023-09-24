@@ -31,7 +31,6 @@ type ServeModel struct {
 	server   *apiv1.Server
 	resource *client.Resource
 
-	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
 
@@ -48,12 +47,6 @@ type ServeModel struct {
 }
 
 func (m *ServeModel) New() ServeModel {
-	m.upload = (&uploadModel{
-		Ctx:    m.Ctx,
-		Client: m.Client,
-		Path:   m.Path,
-		Mode:   uploadModeApply,
-	}).New()
 	m.readiness = (&readinessModel{
 		Ctx:    m.Ctx,
 		Client: m.Client,
@@ -70,18 +63,13 @@ func (m *ServeModel) New() ServeModel {
 }
 
 func (m ServeModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
+	return readManifest(m.Ctx, m.Path, m.Namespace)
 }
 
 func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
-	{
-		mdl, cmd := m.upload.Update(msg)
-		m.upload = mdl.(uploadModel)
-		cmds = append(cmds, cmd)
-	}
 
 	{
 		mdl, cmd := m.readiness.Update(msg)
@@ -99,8 +87,23 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case readManifestMsg:
 		// TODO: Expect to fail:
 		m.server = msg.obj.(*apiv1.Server)
-		m.resource = msg.res
-		cmds = append(cmds, m.upload.Init())
+
+		res, err := m.Client.Resource(m.server)
+		if err != nil {
+			m.finalError = fmt.Errorf("resource client: %w", err)
+		}
+		m.resource = res
+
+		m.readiness.Object = m.server
+		m.readiness.Resource = m.resource
+
+		m.pods.Object = m.server
+		m.pods.Resource = m.resource
+
+		cmds = append(cmds,
+			m.readiness.Init(),
+			m.pods.Init(),
+		)
 
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
@@ -114,11 +117,9 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "l":
 				cmds = append(cmds, tea.Quit)
 			case "s":
-				// TODO: Suspend Server
-				// cmds = append(cmds, notebookSuspendCmd(context.Background(), m.Resource, m.Server))
+				cmds = append(cmds, suspendCmd(context.Background(), m.resource, m.server))
 			case "d":
-				// TODO: Delete Server
-				// cmds = append(cmds, notebookDeleteCmd(context.Background(), m.Resource, m.Server))
+				cmds = append(cmds, deleteCmd(context.Background(), m.resource, m.server))
 			}
 		} else {
 			if msg.String() == "q" {
@@ -142,20 +143,6 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, tea.Quit)
 
-	case tarballUploadedMsg:
-		m.server = msg.Object.(*apiv1.Server)
-
-		m.readiness.Object = m.server
-		m.readiness.Resource = m.resource
-
-		m.pods.Object = m.server
-		m.pods.Resource = m.resource
-
-		cmds = append(cmds,
-			m.readiness.Init(),
-			m.pods.Init(),
-		)
-
 	case objectReadyMsg:
 		m.server = msg.Object.(*apiv1.Server)
 		cmds = append(cmds) // TODO: Port-forward to Pod.
@@ -170,7 +157,6 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Style.Width(msg.Width)
 		innerWidth := m.Style.GetWidth() - m.Style.GetHorizontalPadding()
-		m.upload.Style = lipgloss.NewStyle().Width(innerWidth)
 		m.readiness.Style = lipgloss.NewStyle().Width(innerWidth)
 		m.pods.SetStyle(logStyle.Width(innerWidth))
 
@@ -209,7 +195,6 @@ func (m ServeModel) View() (v string) {
 		return
 	}
 
-	v += m.upload.View()
 	v += m.readiness.View()
 	v += m.pods.View()
 

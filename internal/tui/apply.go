@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,6 +23,7 @@ type ApplyModel struct {
 
 	// Config
 	Path      string
+	Filename  string
 	Namespace Namespace
 
 	// Focal object
@@ -59,7 +62,7 @@ func (m *ApplyModel) New() ApplyModel {
 }
 
 func (m ApplyModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
+	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename), m.Namespace)
 }
 
 func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -88,7 +91,12 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case readManifestMsg:
 		// TODO: Expect to fail:
 		m.object = msg.obj
-		m.resource = msg.res
+
+		res, err := m.Client.Resource(msg.obj)
+		if err != nil {
+			m.finalError = fmt.Errorf("resource client: %w", err)
+		}
+		m.resource = res
 
 		m.upload.Object = m.object
 		m.upload.Resource = m.resource

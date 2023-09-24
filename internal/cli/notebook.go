@@ -27,8 +27,9 @@ func notebookCommand() *cobra.Command {
 		defer tui.LogFile.Close()
 
 		if flags.filename == "" {
-			defaultFilename := filepath.Join(args[0], "notebook.yaml")
-			if _, err := os.Stat(defaultFilename); err == nil {
+			defaultFilename := "notebook.yaml"
+
+			if _, err := os.Stat(filepath.Join(args[0], "notebook.yaml")); err == nil {
 				flags.filename = defaultFilename
 			} else {
 				return fmt.Errorf("Flag -f (--filename) required when default notebook.yaml file does not exist")
@@ -108,8 +109,9 @@ func notebookCommand() *cobra.Command {
 
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.NotebookModel{
-			Ctx:  cmd.Context(),
-			Path: args[0],
+			Ctx:      cmd.Context(),
+			Path:     args[0],
+			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
 				Specified:  flags.namespace,

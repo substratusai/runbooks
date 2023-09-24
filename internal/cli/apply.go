@@ -39,8 +39,9 @@ func applyCommand() *cobra.Command {
 
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.ApplyModel{
-			Ctx:  cmd.Context(),
-			Path: args[0],
+			Ctx:      cmd.Context(),
+			Path:     args[0],
+			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
 				Specified:  flags.namespace,

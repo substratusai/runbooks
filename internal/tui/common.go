@@ -257,10 +257,9 @@ func deleteCmd(ctx context.Context, res *client.Resource, obj client.Object) tea
 
 type readManifestMsg struct {
 	obj client.Object
-	res *client.Resource
 }
 
-func readManifest(ctx context.Context, c client.Interface, path string, ns Namespace) tea.Cmd {
+func readManifest(ctx context.Context, path string, ns Namespace) tea.Cmd {
 	return func() tea.Msg {
 		log.Println("Reading manifest")
 
@@ -276,14 +275,8 @@ func readManifest(ctx context.Context, c client.Interface, path string, ns Names
 		}
 		ns.Set(obj)
 
-		res, err := c.Resource(obj)
-		if err != nil {
-			return fmt.Errorf("resource client: %w", err)
-		}
-
 		return readManifestMsg{
 			obj: obj,
-			res: res,
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,6 +23,7 @@ type NotebookModel struct {
 
 	// Config
 	Path          string
+	Filename      string
 	Namespace     Namespace
 	NoOpenBrowser bool
 
@@ -83,7 +85,7 @@ func (m *NotebookModel) New() NotebookModel {
 }
 
 func (m NotebookModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
+	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename), m.Namespace)
 }
 
 func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -117,7 +119,12 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		nb.Spec.Suspend = ptr.To(false)
 		m.notebook = nb
 
-		m.resource = msg.res
+		res, err := m.Client.Resource(m.notebook)
+		if err != nil {
+			m.finalError = fmt.Errorf("resource client: %w", err)
+		}
+		m.resource = res
+
 		m.upload.Object = m.notebook
 		m.upload.Resource = m.resource
 		cmds = append(cmds, m.upload.Init())

@@ -67,8 +67,8 @@ func (m readinessModel) View() (v string) {
 		}
 	}()
 
-	kind := m.Object.GetObjectKind().GroupVersionKind().Kind
 	if m.waiting == inProgress {
+		kind := m.Object.GetObjectKind().GroupVersionKind().Kind
 		v += fmt.Sprintf("Waiting for %v to be ready...\n", kind)
 	}
 
