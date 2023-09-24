@@ -20,19 +20,16 @@ type ServeModel struct {
 
 	// Config
 	Path          string
-	Namespace     string
+	Namespace     Namespace
 	NoOpenBrowser bool
 
 	// Clients
-	Client   client.Interface
-	Resource *client.Resource
-	K8s      *kubernetes.Clientset
-
-	// Original Object (could be a Dataset, Model, or Server)
-	// Object client.Object
+	Client client.Interface
+	K8s    *kubernetes.Clientset
 
 	// Current Server
-	Server *apiv1.Server
+	server   *apiv1.Server
+	resource *client.Resource
 
 	upload    uploadModel
 	readiness readinessModel
@@ -52,26 +49,19 @@ type ServeModel struct {
 
 func (m *ServeModel) New() ServeModel {
 	m.upload = (&uploadModel{
-		Ctx:       m.Ctx,
-		Client:    m.Client,
-		Resource:  m.Resource,
-		Object:    m.Server,
-		Path:      m.Path,
-		Namespace: m.Namespace,
-		Mode:      uploadModeApply,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		Path:   m.Path,
+		Mode:   uploadModeApply,
 	}).New()
 	m.readiness = (&readinessModel{
-		Ctx:      m.Ctx,
-		Object:   m.Server,
-		Client:   m.Client,
-		Resource: m.Resource,
+		Ctx:    m.Ctx,
+		Client: m.Client,
 	}).New()
 	m.pods = (&podsModel{
-		Ctx:      m.Ctx,
-		Client:   m.Client,
-		Resource: m.Resource,
-		K8s:      m.K8s,
-		Object:   m.Server,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		K8s:    m.K8s,
 	}).New()
 
 	m.Style = appStyle
@@ -80,7 +70,7 @@ func (m *ServeModel) New() ServeModel {
 }
 
 func (m ServeModel) Init() tea.Cmd {
-	return m.upload.Init()
+	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
 }
 
 func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -106,6 +96,12 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case readManifestMsg:
+		// TODO: Expect to fail:
+		m.server = msg.obj.(*apiv1.Server)
+		m.resource = msg.res
+		cmds = append(cmds, m.upload.Init())
+
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
 		if m.quitting {
@@ -147,9 +143,13 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, tea.Quit)
 
 	case tarballUploadedMsg:
-		m.Server = msg.Object.(*apiv1.Server)
-		m.readiness.Object = msg.Object
-		m.pods.Object = msg.Object
+		m.server = msg.Object.(*apiv1.Server)
+
+		m.readiness.Object = m.server
+		m.readiness.Resource = m.resource
+
+		m.pods.Object = m.server
+		m.pods.Resource = m.resource
 
 		cmds = append(cmds,
 			m.readiness.Init(),
@@ -157,12 +157,12 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case objectReadyMsg:
-		m.Server = msg.Object.(*apiv1.Server)
+		m.server = msg.Object.(*apiv1.Server)
 		cmds = append(cmds) // TODO: Port-forward to Pod.
 		// portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Server)),
 
 	case portForwardReadyMsg:
-		cmds = append(cmds, serverOpenInBrowser(m.Server.DeepCopy()))
+		cmds = append(cmds, serverOpenInBrowser(m.server.DeepCopy()))
 
 	case localURLMsg:
 		m.localURL = string(msg)

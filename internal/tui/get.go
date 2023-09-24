@@ -236,7 +236,7 @@ func (m GetModel) View() (v string) {
 					g.unversionedName + ".v" +
 					displayVersions[0].version
 
-				verWidth := int(math.Min(float64(maxWidth), float64(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-longestName-18)))
+				verWidth := int(math.Min(float64(60), float64(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-longestName-18)))
 				v += lipgloss.JoinHorizontal(
 					lipgloss.Top,
 					lipgloss.NewStyle().Width(longestName).MarginLeft(0).MarginRight(2).Align(lipgloss.Left).Render(primary),

@@ -13,5 +13,3 @@ func init() {
 
 // NewClient is a dirty hack to allow the client to be mocked out in tests.
 var NewClient = client.NewClient
-
-const defaultFilename = "substratus.yaml"

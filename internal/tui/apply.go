@@ -12,22 +12,27 @@ import (
 )
 
 type ApplyModel struct {
+	// Cancellation
 	Ctx context.Context
 
 	// Clients
-	Client   client.Interface
-	Resource *client.Resource
-	K8s      *kubernetes.Clientset
+	K8s    *kubernetes.Clientset
+	Client client.Interface
 
-	Object client.Object
-
+	// Config
 	Path      string
-	Namespace string
+	Namespace Namespace
 
+	// Focal object
+	object   client.Object
+	resource *client.Resource
+
+	// Processes
 	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
 
+	// End times
 	finalError error
 
 	Style lipgloss.Style
@@ -35,33 +40,26 @@ type ApplyModel struct {
 
 func (m *ApplyModel) New() ApplyModel {
 	m.upload = (&uploadModel{
-		Ctx:       m.Ctx,
-		Client:    m.Client,
-		Resource:  m.Resource,
-		Object:    m.Object,
-		Path:      m.Path,
-		Namespace: m.Namespace,
-		Mode:      uploadModeCreate,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		Path:   m.Path,
+		Mode:   uploadModeCreate,
 	}).New()
 	m.readiness = (&readinessModel{
-		Ctx:      m.Ctx,
-		Client:   m.Client,
-		Resource: m.Resource,
-		Object:   m.Object,
+		Ctx:    m.Ctx,
+		Client: m.Client,
 	}).New()
 	m.pods = (&podsModel{
-		Ctx:      m.Ctx,
-		Client:   m.Client,
-		Resource: m.Resource,
-		K8s:      m.K8s,
-		Object:   m.Object,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		K8s:    m.K8s,
 	}).New()
 	m.Style = appStyle
 	return *m
 }
 
 func (m ApplyModel) Init() tea.Cmd {
-	return m.upload.Init()
+	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
 }
 
 func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -87,6 +85,15 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case readManifestMsg:
+		// TODO: Expect to fail:
+		m.object = msg.obj
+		m.resource = msg.res
+
+		m.upload.Object = m.object
+		m.upload.Resource = m.resource
+		cmds = append(cmds, m.upload.Init())
+
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
 		if msg.String() == "q" {
@@ -94,9 +101,12 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tarballUploadedMsg:
-		m.Object = msg.Object
-		m.readiness.Object = m.Object
-		m.pods.Object = m.Object
+		m.object = msg.Object
+
+		m.readiness.Object = m.object
+		m.readiness.Resource = m.resource
+		m.pods.Object = m.object
+		m.pods.Resource = m.resource
 		cmds = append(cmds,
 			m.readiness.Init(),
 			m.pods.Init(),

@@ -10,34 +10,30 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/browser"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/client"
 )
 
-// A NotebookModel can be more or less any type of data. It holds all the data for a
-// program, so often it's a struct. For this simple example, however, all
-// we'll need is a simple integer.
 type NotebookModel struct {
 	// Cancellation
 	Ctx context.Context
 
 	// Config
 	Path          string
-	Namespace     string
+	Namespace     Namespace
 	NoOpenBrowser bool
 
 	// Clients
-	Client   client.Interface
-	Resource *client.Resource
-	K8s      *kubernetes.Clientset
+	Client client.Interface
+	K8s    *kubernetes.Clientset
 
-	// Original Object (could be a Dataset, Model, or Server)
-	// Object client.Object
+	// Current notebook
+	notebook *apiv1.Notebook
+	resource *client.Resource
 
-	// Current Notebook
-	Notebook *apiv1.Notebook
-
+	// Proceses
 	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
@@ -51,12 +47,12 @@ type NotebookModel struct {
 	portForwarding status
 	localURL       string
 
-	Style lipgloss.Style
-
 	// End times
 	quitting   bool
 	goodbye    string
 	finalError error
+
+	Style lipgloss.Style
 }
 
 func (m NotebookModel) cleanupAndQuitCmd() tea.Msg {
@@ -66,26 +62,19 @@ func (m NotebookModel) cleanupAndQuitCmd() tea.Msg {
 
 func (m *NotebookModel) New() NotebookModel {
 	m.upload = (&uploadModel{
-		Ctx:       m.Ctx,
-		Client:    m.Client,
-		Resource:  m.Resource,
-		Object:    m.Notebook,
-		Path:      m.Path,
-		Namespace: m.Namespace,
-		Mode:      uploadModeApply,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		Path:   m.Path,
+		Mode:   uploadModeApply,
 	}).New()
 	m.readiness = (&readinessModel{
-		Ctx:      m.Ctx,
-		Object:   m.Notebook,
-		Client:   m.Client,
-		Resource: m.Resource,
+		Ctx:    m.Ctx,
+		Client: m.Client,
 	}).New()
 	m.pods = (&podsModel{
-		Ctx:      m.Ctx,
-		Client:   m.Client,
-		Resource: m.Resource,
-		K8s:      m.K8s,
-		Object:   m.Notebook,
+		Ctx:    m.Ctx,
+		Client: m.Client,
+		K8s:    m.K8s,
 	}).New()
 
 	m.Style = appStyle
@@ -94,7 +83,7 @@ func (m *NotebookModel) New() NotebookModel {
 }
 
 func (m NotebookModel) Init() tea.Cmd {
-	return m.upload.Init()
+	return readManifest(m.Ctx, m.Client, m.Path, m.Namespace)
 }
 
 func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -120,6 +109,19 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case readManifestMsg:
+		nb, err := client.NotebookForObject(msg.obj)
+		if err != nil {
+			m.finalError = fmt.Errorf("determining notebook: %w", err)
+		}
+		nb.Spec.Suspend = ptr.To(false)
+		m.notebook = nb
+
+		m.resource = msg.res
+		m.upload.Object = m.notebook
+		m.upload.Resource = m.resource
+		cmds = append(cmds, m.upload.Init())
+
 	case tea.KeyMsg:
 		log.Println("Received key msg:", msg.String())
 		if m.quitting {
@@ -136,9 +138,9 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// case "l":
 			//	cmds = append(cmds, m.cleanupAndQuitCmd)
 			case "s":
-				cmds = append(cmds, suspendCmd(context.Background(), m.Resource, m.Notebook))
+				cmds = append(cmds, suspendCmd(context.Background(), m.resource, m.notebook))
 			case "d":
-				cmds = append(cmds, deleteCmd(context.Background(), m.Resource, m.Notebook))
+				cmds = append(cmds, deleteCmd(context.Background(), m.resource, m.notebook))
 			}
 		} else {
 			if msg.String() == "q" {
@@ -163,21 +165,23 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.cleanupAndQuitCmd)
 
 	case tarballUploadedMsg:
-		m.Notebook = msg.Object.(*apiv1.Notebook)
-		m.readiness.Object = msg.Object
-		m.pods.Object = msg.Object
+		m.notebook = msg.Object.(*apiv1.Notebook)
 
+		m.readiness.Object = m.notebook
+		m.readiness.Resource = m.resource
+		m.pods.Object = m.notebook
+		m.pods.Resource = m.resource
 		cmds = append(cmds,
 			m.readiness.Init(),
 			m.pods.Init(),
 		)
 
 	case objectReadyMsg:
-		m.Notebook = msg.Object.(*apiv1.Notebook)
+		m.notebook = msg.Object.(*apiv1.Notebook)
 		m.syncingFiles = inProgress
 		cmds = append(cmds,
-			notebookSyncFilesCmd(m.Ctx, m.Client, m.Notebook.DeepCopy(), m.Path),
-			portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Notebook)),
+			notebookSyncFilesCmd(m.Ctx, m.Client, m.notebook.DeepCopy(), m.Path),
+			portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.notebook)),
 		)
 
 	case notebookFileSyncMsg:
@@ -193,7 +197,7 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case portForwardReadyMsg:
-		cmds = append(cmds, notebookOpenInBrowser(m.Notebook.DeepCopy()))
+		cmds = append(cmds, notebookOpenInBrowser(m.notebook.DeepCopy()))
 
 	case localURLMsg:
 		m.localURL = string(msg)

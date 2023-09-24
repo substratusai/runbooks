@@ -9,14 +9,18 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
-	"github.com/substratusai/substratus/internal/client"
 	"github.com/substratusai/substratus/internal/cli/utils"
+	"github.com/substratusai/substratus/internal/client"
+)
+
+var (
+	P       *tea.Program
+	LogFile *os.File
 )
 
 func init() {
@@ -28,9 +32,22 @@ func init() {
 	}
 }
 
-var LogFile *os.File
+type Namespace struct {
+	Specified  string
+	Contextual string
+}
 
-var P *tea.Program
+func (n Namespace) Set(obj client.Object) {
+	if n.Specified != "" {
+		obj.SetNamespace(n.Specified)
+	} else if obj.GetNamespace() == "" {
+		ns := "default"
+		if n.Contextual != "" {
+			ns = n.Contextual
+		}
+		obj.SetNamespace(ns)
+	}
+}
 
 type status int
 
@@ -40,45 +57,11 @@ const (
 	completed  = status(2)
 )
 
-const (
-	maxWidth = 60
-	padding  = 2
-)
-
-var (
-	appStyle = lipgloss.NewStyle().
-			PaddingTop(1).
-			PaddingRight(2).
-			PaddingBottom(1).
-			PaddingLeft(2)
-
-	podStyle = lipgloss.NewStyle().PaddingLeft(2).Render
-
-	// https://coolors.co/palette/264653-2a9d8f-e9c46a-f4a261-e76f51
-	//
-	logStyle = lipgloss.NewStyle().PaddingLeft(1).Border(lipgloss.NormalBorder(), false, false, false, true) /*lipgloss.Border{
-		TopLeft:    "| ",
-		BottomLeft: "| ",
-		Left:       "| ",
-	})*/
-
-	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).
-			MarginTop(1).
-			MarginBottom(1).
-			Render
-
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51"))
-
-	activeSpinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#E9C46A"))
-	checkMark          = lipgloss.NewStyle().Foreground(lipgloss.Color("#2a9d8f")).SetString("✓")
-	// TODO: Better X mark?
-	xMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#e76f51")).SetString("x")
-)
+type localURLMsg string
 
 type (
 	tarballCompleteMsg *client.Tarball
 	fileTarredMsg      string
-	localURLMsg        string
 )
 
 func prepareTarballCmd(ctx context.Context, dir string) tea.Cmd {
@@ -269,5 +252,38 @@ func deleteCmd(ctx context.Context, res *client.Resource, obj client.Object) tea
 			return deletedMsg{error: err}
 		}
 		return deletedMsg{}
+	}
+}
+
+type readManifestMsg struct {
+	obj client.Object
+	res *client.Resource
+}
+
+func readManifest(ctx context.Context, c client.Interface, path string, ns Namespace) tea.Cmd {
+	return func() tea.Msg {
+		log.Println("Reading manifest")
+
+		manifest, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading file: %w", err)
+		}
+
+		var obj client.Object
+		obj, err = client.Decode(manifest)
+		if err != nil {
+			return fmt.Errorf("decoding: %w", err)
+		}
+		ns.Set(obj)
+
+		res, err := c.Resource(obj)
+		if err != nil {
+			return fmt.Errorf("resource client: %w", err)
+		}
+
+		return readManifestMsg{
+			obj: obj,
+			res: res,
+		}
 	}
 }

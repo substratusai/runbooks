@@ -7,14 +7,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cli/utils"
-	"github.com/substratusai/substratus/internal/client"
 	"github.com/substratusai/substratus/internal/tui"
 )
 
@@ -31,7 +27,12 @@ func notebookCommand() *cobra.Command {
 		defer tui.LogFile.Close()
 
 		if flags.filename == "" {
-			flags.filename = filepath.Join(args[0], defaultFilename)
+			defaultFilename := filepath.Join(args[0], "notebook.yaml")
+			if _, err := os.Stat(defaultFilename); err == nil {
+				flags.filename = defaultFilename
+			} else {
+				return fmt.Errorf("Flag -f (--filename) required when default notebook.yaml file does not exist")
+			}
 		}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
@@ -39,12 +40,12 @@ func notebookCommand() *cobra.Command {
 			return fmt.Errorf("rest config: %w", err)
 		}
 
-		namespace := "default"
-		if flags.namespace != "" {
-			namespace = flags.namespace
-		} else if kubeconfigNamespace != "" {
-			namespace = kubeconfigNamespace
-		}
+		//namespace := "default"
+		//if flags.namespace != "" {
+		//	namespace = flags.namespace
+		//} else if kubeconfigNamespace != "" {
+		//	namespace = kubeconfigNamespace
+		//}
 
 		clientset, err := kubernetes.NewForConfig(restConfig)
 		if err != nil {
@@ -52,53 +53,53 @@ func notebookCommand() *cobra.Command {
 		}
 
 		c := NewClient(clientset, restConfig)
-		notebooks, err := c.Resource(&apiv1.Notebook{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "substratus.ai/v1",
-				Kind:       "Notebook",
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("resource client: %w", err)
-		}
+		//notebooks, err := c.Resource(&apiv1.Notebook{
+		//	TypeMeta: metav1.TypeMeta{
+		//		APIVersion: "substratus.ai/v1",
+		//		Kind:       "Notebook",
+		//	},
+		//})
+		//if err != nil {
+		//	return fmt.Errorf("resource client: %w", err)
+		//}
 
-		var obj client.Object
-		if flags.resume != "" {
-			fetched, err := notebooks.Get(namespace, flags.resume)
-			if err != nil {
-				return fmt.Errorf("getting notebook: %w", err)
-			}
-			obj = fetched.(client.Object)
-		} else {
-			manifest, err := os.ReadFile(flags.filename)
-			if err != nil {
-				return fmt.Errorf("reading file: %w", err)
-			}
-			obj, err = client.Decode(manifest)
-			if err != nil {
-				return fmt.Errorf("decoding: %w", err)
-			}
-			if obj.GetNamespace() == "" {
-				// When there is no .metadata.namespace set in the manifest...
-				obj.SetNamespace(namespace)
-			} else {
-				// TODO: Closer match kubectl behavior here by differentiaing between
-				// the short -n and long --namespace flags.
-				// See example kubectl error:
-				// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
-				if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
-					// When there is .metadata.namespace set in the manifest and
-					// a conflicting -n or --namespace flag...
-					return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
-				}
-			}
-		}
+		//var obj client.Object
+		//if flags.resume != "" {
+		//	fetched, err := notebooks.Get(namespace, flags.resume)
+		//	if err != nil {
+		//		return fmt.Errorf("getting notebook: %w", err)
+		//	}
+		//	obj = fetched.(client.Object)
+		//} else {
+		//	manifest, err := os.ReadFile(flags.filename)
+		//	if err != nil {
+		//		return fmt.Errorf("reading file: %w", err)
+		//	}
+		//	obj, err = client.Decode(manifest)
+		//	if err != nil {
+		//		return fmt.Errorf("decoding: %w", err)
+		//	}
+		//	if obj.GetNamespace() == "" {
+		//		// When there is no .metadata.namespace set in the manifest...
+		//		obj.SetNamespace(namespace)
+		//	} else {
+		//		// TODO: Closer match kubectl behavior here by differentiaing between
+		//		// the short -n and long --namespace flags.
+		//		// See example kubectl error:
+		//		// error: the namespace from the provided object "a" does not match the namespace "b". You must pass '--namespace=a' to perform this operation.
+		//		if flags.namespace != "" && flags.namespace != obj.GetNamespace() {
+		//			// When there is .metadata.namespace set in the manifest and
+		//			// a conflicting -n or --namespace flag...
+		//			return fmt.Errorf("the namespace from the provided object %q does not match the namespace %q from flag", obj.GetNamespace(), flags.namespace)
+		//		}
+		//	}
+		//}
 
-		nb, err := client.NotebookForObject(obj)
-		if err != nil {
-			return fmt.Errorf("notebook for object: %w", err)
-		}
-		nb.Spec.Suspend = ptr.To(false)
+		//nb, err := client.NotebookForObject(obj)
+		//if err != nil {
+		//	return fmt.Errorf("notebook for object: %w", err)
+		//}
+		//nb.Spec.Suspend = ptr.To(false)
 
 		var pOpts []tea.ProgramOption
 		if flags.fullscreen {
@@ -107,15 +108,14 @@ func notebookCommand() *cobra.Command {
 
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.NotebookModel{
-			Ctx:       cmd.Context(),
-			Path:      args[0],
-			Namespace: namespace,
-
-			Notebook: nb,
-
-			Client:   c,
-			Resource: notebooks,
-			K8s:      clientset,
+			Ctx:  cmd.Context(),
+			Path: args[0],
+			Namespace: tui.Namespace{
+				Contextual: kubeconfigNamespace,
+				Specified:  flags.namespace,
+			},
+			Client: c,
+			K8s:    clientset,
 		}).New(), pOpts...)
 		if _, err := tui.P.Run(); err != nil {
 			return err

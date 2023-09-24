@@ -18,8 +18,7 @@ type uploadModel struct {
 	Ctx context.Context
 
 	// Config
-	Path      string
-	Namespace string
+	Path string
 
 	// Clients
 	Client   client.Interface
