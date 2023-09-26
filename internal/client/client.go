@@ -36,7 +36,7 @@ func init() {
 var _ Interface = &Client{}
 
 type Interface interface {
-	PortForward(ctx context.Context, logger io.Writer, podRef types.NamespacedName, ready chan struct{}) error
+	PortForward(ctx context.Context, logger io.Writer, podRef types.NamespacedName, ports ForwardedPorts, ready chan struct{}) error
 	Resource(obj Object) (*Resource, error)
 	SyncFilesFromNotebook(context.Context, *apiv1.Notebook, string,
 		io.Writer,
@@ -106,13 +106,15 @@ func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interf
 	return rest.RESTClientFor(restConfig)
 }
 
-func (r *Resource) WaitReady(ctx context.Context, obj Object) error {
+func (r *Resource) WaitReady(ctx context.Context, obj Object, progressF func(Object)) error {
 	if err := wait.PollImmediateInfiniteWithContext(ctx, time.Second,
 		func(ctx context.Context) (bool, error) {
 			fetched, err := r.Get(obj.GetNamespace(), obj.GetName())
 			if err != nil {
 				return false, err
 			}
+			fetched.GetObjectKind().SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+			progressF(fetched.(Object))
 			readyable, ok := fetched.(interface{ GetStatusReady() bool })
 			if !ok {
 				return false, fmt.Errorf("object is not readyable: %T", fetched)

@@ -335,7 +335,7 @@ func (r *ServerReconciler) serverService(server *apiv1.Server, model *apiv1.Mode
 }
 
 func withServerSelector(server *apiv1.Server, labels map[string]string) map[string]string {
-	labels["component"] = "server"
+	labels["role"] = "run"
 	labels["server"] = server.Name
 	return labels
 }

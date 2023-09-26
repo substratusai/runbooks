@@ -189,7 +189,7 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncingFiles = inProgress
 		cmds = append(cmds,
 			notebookSyncFilesCmd(m.Ctx, m.Client, m.notebook.DeepCopy(), m.Path),
-			portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.notebook)),
+			portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.notebook), client.ForwardedPorts{Local: 8888, Pod: 8888}),
 		)
 
 	case notebookFileSyncMsg:

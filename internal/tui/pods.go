@@ -54,10 +54,7 @@ type podInfo struct {
 
 // New initializes all internal fields.
 func (m *podsModel) New() podsModel {
-	m.pods = map[string]map[string]podInfo{
-		"build": {},
-		"run":   {},
-	}
+	m.pods = map[string]map[string]podInfo{}
 	return *m
 }
 
@@ -77,10 +74,16 @@ type podsInitMsg struct{}
 func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case podsInitMsg:
+		log.Println("Initializing pods")
 		m.watchingPods = inProgress
 
 	case podWatchMsg:
-		pi := m.pods[msg.Pod.Labels["role"]][msg.Pod.Name]
+		role := msg.Pod.Labels["role"]
+
+		if _, ok := m.pods[role][msg.Pod.Name]; !ok {
+			m.pods[role] = map[string]podInfo{}
+		}
+		pi := m.pods[role][msg.Pod.Name]
 		pi.lastEvent = msg.Type
 		pi.pod = msg.Pod.DeepCopy()
 
@@ -107,7 +110,12 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case podLogsMsg:
 		pi := m.pods[msg.role][msg.name]
-		pi.logs += msg.logs + "\n"
+		// Fix the rendering of line-rewrites by always appending lines.
+		logs := msg.logs
+		logs = strings.ReplaceAll(logs, "\r", "\n")
+		logs = strings.TrimRight(logs, "\n")
+		logs = logs + "\n"
+		pi.logs += logs
 		pi.logsViewport.SetContent(lipgloss.NewStyle().Width(m.Style.GetWidth() - m.Style.GetHorizontalPadding()).Render(pi.logs) /*wordwrap.String(pi.logs, m.width-14)*/)
 		pi.logsViewport.GotoBottom()
 		m.pods[msg.role][msg.name] = pi
@@ -125,6 +133,8 @@ func (m podsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // rendered to the terminal.
 func (m podsModel) View() (v string) {
 	if m.watchingPods == inProgress {
+		v += "Pods:\n"
+
 		roles := []string{"build", "run"}
 
 		for _, role := range roles {
@@ -139,7 +149,7 @@ func (m podsModel) View() (v string) {
 				if p.lastEvent == watch.Deleted {
 					continue
 				}
-				v += "> " + p.pod.Labels["role"] + ": " + string(p.pod.Status.Phase) + "\n"
+				v += "> " + strings.Title(p.pod.Labels["role"]) + " (" + string(p.pod.Status.Phase) + ")\n"
 				if p.pod.Status.Phase != corev1.PodSucceeded {
 					v += "\n" + p.logsViewport.View() + "\n"
 				}

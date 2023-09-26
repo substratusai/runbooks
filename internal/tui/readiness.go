@@ -3,9 +3,11 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/substratusai/substratus/internal/client"
 )
@@ -48,7 +50,11 @@ type readinessInitMsg struct{}
 func (m readinessModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readinessInitMsg:
+		log.Println("Initializing readiness")
 		m.waiting = inProgress
+
+	case objectUpdateMsg:
+		m.Object = msg.Object
 
 	case objectReadyMsg:
 		m.waiting = completed
@@ -69,7 +75,25 @@ func (m readinessModel) View() (v string) {
 
 	if m.waiting == inProgress {
 		kind := m.Object.GetObjectKind().GroupVersionKind().Kind
-		v += fmt.Sprintf("Waiting for %v to be ready...\n", kind)
+		v += fmt.Sprintf("%v:\n", kind)
+
+		if w, ok := m.Object.(interface {
+			GetConditions() *[]metav1.Condition
+		}); ok {
+			for _, c := range *w.GetConditions() {
+				var prefix, suffix string
+				if c.Status == metav1.ConditionTrue {
+					prefix = checkMark.String() + " "
+				} else {
+					prefix = xMark.String() + " "
+					suffix = " (" + c.Reason + ")"
+				}
+				v += lipgloss.NewStyle().Width(m.Style.GetWidth() - m.Style.GetHorizontalPadding()).
+					Render(prefix + c.Type + suffix)
+				v += "\n"
+			}
+		}
+
 	}
 
 	return v

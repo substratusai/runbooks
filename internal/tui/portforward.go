@@ -15,7 +15,7 @@ import (
 
 type portForwardReadyMsg struct{}
 
-func portForwardCmd(ctx context.Context, c client.Interface, podRef types.NamespacedName) tea.Cmd {
+func portForwardCmd(ctx context.Context, c client.Interface, podRef types.NamespacedName, ports client.ForwardedPorts) tea.Cmd {
 	return func() tea.Msg {
 		const maxRetries = 3
 		for i := 0; i < maxRetries; i++ {
@@ -40,7 +40,7 @@ func portForwardCmd(ctx context.Context, c client.Interface, podRef types.Namesp
 				P.Send(portForwardReadyMsg{})
 			}()
 
-			if err := c.PortForward(portFwdCtx, LogFile, podRef, ready); err != nil {
+			if err := c.PortForward(portFwdCtx, LogFile, podRef, ports, ready); err != nil {
 				log.Printf("Port-forward returned an error: %v", err)
 			}
 

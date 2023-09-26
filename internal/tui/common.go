@@ -128,6 +128,19 @@ func applyWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Ob
 	}
 }
 
+type appliedMsg struct {
+	client.Object
+}
+
+func applyCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
+	return func() tea.Msg {
+		if err := res.Apply(obj, true); err != nil {
+			return fmt.Errorf("applying: %w", err)
+		}
+		return appliedMsg{Object: obj}
+	}
+}
+
 type createdWithUploadMsg struct {
 	client.Object
 }
@@ -184,9 +197,15 @@ type objectReadyMsg struct {
 	client.Object
 }
 
+type objectUpdateMsg struct {
+	client.Object
+}
+
 func waitReadyCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
 	return func() tea.Msg {
-		if err := res.WaitReady(ctx, obj); err != nil {
+		if err := res.WaitReady(ctx, obj, func(updatedObj client.Object) {
+			P.Send(objectUpdateMsg{Object: updatedObj})
+		}); err != nil {
 			return fmt.Errorf("waiting to be ready: %w", err)
 		}
 		return objectReadyMsg{Object: obj}

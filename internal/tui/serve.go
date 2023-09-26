@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/browser"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -21,6 +24,7 @@ type ServeModel struct {
 	// Config
 	Path          string
 	Namespace     Namespace
+	Filename      string
 	NoOpenBrowser bool
 
 	// Clients
@@ -30,9 +34,12 @@ type ServeModel struct {
 	// Current Server
 	server   *apiv1.Server
 	resource *client.Resource
+	readyPod *corev1.Pod
 
 	readiness readinessModel
 	pods      podsModel
+
+	status string
 
 	// Ready to open browser
 	portForwarding status
@@ -57,13 +64,15 @@ func (m *ServeModel) New() ServeModel {
 		K8s:    m.K8s,
 	}).New()
 
+	m.status = "Reading manifest..."
+
 	m.Style = appStyle
 
 	return *m
 }
 
 func (m ServeModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, m.Path)
+	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
 }
 
 func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -95,12 +104,19 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.resource = res
 
+		m.status = "Applying..."
+		cmds = append(cmds, applyCmd(m.Ctx, m.resource, m.server.DeepCopy()))
+
+	case appliedMsg:
+		m.server = msg.Object.(*apiv1.Server)
+
 		m.readiness.Object = m.server
 		m.readiness.Resource = m.resource
 
 		m.pods.Object = m.server
 		m.pods.Resource = m.resource
 
+		m.status = ""
 		cmds = append(cmds,
 			m.readiness.Init(),
 			m.pods.Init(),
@@ -117,8 +133,8 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "l":
 				cmds = append(cmds, tea.Quit)
-			case "s":
-				cmds = append(cmds, suspendCmd(context.Background(), m.resource, m.server))
+			// case "s":
+			//	cmds = append(cmds, suspendCmd(context.Background(), m.resource, m.server))
 			case "d":
 				cmds = append(cmds, deleteCmd(context.Background(), m.resource, m.server))
 			}
@@ -128,13 +144,13 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case suspendedMsg:
-		if msg.error != nil {
-			m.finalError = msg.error
-		} else {
-			m.goodbye = "Server suspended."
-		}
-		cmds = append(cmds, tea.Quit)
+	// case suspendedMsg:
+	//	if msg.error != nil {
+	//		m.finalError = msg.error
+	//	} else {
+	//		m.goodbye = "Server suspended."
+	//	}
+	//	cmds = append(cmds, tea.Quit)
 
 	case deletedMsg:
 		if msg.error != nil {
@@ -146,8 +162,35 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case objectReadyMsg:
 		m.server = msg.Object.(*apiv1.Server)
-		cmds = append(cmds) // TODO: Port-forward to Pod.
-		// portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Server)),
+	// TODO: What to do?
+	// cmds = append(cmds) // TODO: Port-forward to Pod.
+	// portForwardCmd(m.Ctx, m.Client, client.PodForNotebook(m.Server)),
+	//
+	case podWatchMsg:
+		if m.readyPod != nil {
+			break
+		}
+		if msg.Pod.Labels == nil || msg.Pod.Labels["role"] != "run" {
+			break
+		}
+
+		var ready bool
+		for _, c := range msg.Pod.Status.Conditions {
+			if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+				ready = true
+				break
+			}
+		}
+
+		if ready {
+			m.readyPod = msg.Pod.DeepCopy()
+			cmds = append(cmds,
+				portForwardCmd(m.Ctx, m.Client,
+					types.NamespacedName{Namespace: m.readyPod.Namespace, Name: m.readyPod.Name},
+					client.ForwardedPorts{Local: 8000, Pod: 8080},
+				),
+			)
+		}
 
 	case portForwardReadyMsg:
 		cmds = append(cmds, serverOpenInBrowser(m.server.DeepCopy()))
@@ -179,8 +222,8 @@ func (m ServeModel) View() (v string) {
 
 	if m.finalError != nil {
 		v += errorStyle.Width(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-10).Render("Error: "+m.finalError.Error()) + "\n"
-		v += helpStyle("Press \"s\" to suspend, \"d\" to delete")
-		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete")
+		// v += helpStyle("Press \"s\" to suspend, \"d\" to delete")
+		v += helpStyle("Press \"l\" to leave be, \"d\" to delete")
 		return
 	}
 
@@ -191,9 +234,14 @@ func (m ServeModel) View() (v string) {
 
 	if m.quitting {
 		v += "Quitting...\n"
-		v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
+		v += helpStyle("Press \"l\" to leave be, \"d\" to delete, \"ESC\" to cancel")
+		// v += helpStyle("Press \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		// v += helpStyle("Press \"l\" to leave be, \"s\" to suspend, \"d\" to delete, \"ESC\" to cancel")
 		return
+	}
+
+	if m.status != "" {
+		v += m.status + "\n\n"
 	}
 
 	v += m.readiness.View()
@@ -215,7 +263,7 @@ func (m ServeModel) View() (v string) {
 
 func serverOpenInBrowser(s *apiv1.Server) tea.Cmd {
 	return func() tea.Msg {
-		url := "http://localhost:8080"
+		url := "http://localhost:8000"
 		log.Printf("Opening browser to %s\n", url)
 		browser.OpenURL(url)
 		return localURLMsg(url)
