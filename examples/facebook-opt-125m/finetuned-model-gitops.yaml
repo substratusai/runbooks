@@ -7,9 +7,9 @@ spec:
     git:
       url: https://github.com/substratusai/images
       path: model-trainer-huggingface
-  baseModel:
+  model:
     name: facebook-opt-125m
-  trainingDataset:
+  dataset:
     name: squad
   params:
     epochs: 1

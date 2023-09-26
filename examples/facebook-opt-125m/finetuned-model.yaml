@@ -4,9 +4,9 @@ metadata:
   name: fb-opt-125m-squad
 spec:
   image: substratusai/model-trainer-huggingface
-  baseModel:
+  model:
     name: facebook-opt-125m
-  trainingDataset:
+  dataset:
     name: squad
   params:
     epochs: 1
