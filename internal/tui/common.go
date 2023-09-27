@@ -282,7 +282,7 @@ type readManifestMsg struct {
 	obj client.Object
 }
 
-func readManifest(ctx context.Context, path string) tea.Cmd {
+func readManifest(path string) tea.Cmd {
 	return func() tea.Msg {
 		log.Println("Reading manifest")
 

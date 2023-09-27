@@ -23,9 +23,9 @@ func serveCommand() *cobra.Command {
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
 
-		if flags.filename == "" {
-			return fmt.Errorf("Flag -f (--filename) required")
-		}
+		//if flags.filename == "" {
+		//	return fmt.Errorf("Flag -f (--filename) required")
+		//}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -40,7 +40,6 @@ func serveCommand() *cobra.Command {
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.ServeModel{
 			Ctx:      cmd.Context(),
-			Path:     args[0],
 			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
@@ -57,9 +56,9 @@ func serveCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "serve",
-		Short: "Serve a model",
-		Args:  cobra.ExactArgs(1),
+		Use:     "serve",
+		Aliases: []string{"srv"},
+		Short:   "Serve a model, open a browser",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -72,8 +71,8 @@ func serveCommand() *cobra.Command {
 	if defaultKubeconfig == "" {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
-	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
 
+	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
 	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "Namespace of Notebook")
 	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Manifest file")
 

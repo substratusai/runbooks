@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -26,15 +25,14 @@ func notebookCommand() *cobra.Command {
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
 
-		if flags.filename == "" {
-			defaultFilename := "notebook.yaml"
-
-			if _, err := os.Stat(filepath.Join(args[0], "notebook.yaml")); err == nil {
-				flags.filename = defaultFilename
-			} else {
-				return fmt.Errorf("Flag -f (--filename) required when default notebook.yaml file does not exist")
-			}
-		}
+		//if flags.filename == "" {
+		//	defaultFilename := "notebook.yaml"
+		//	if _, err := os.Stat(filepath.Join(args[0], "notebook.yaml")); err == nil {
+		//		flags.filename = defaultFilename
+		//	} else {
+		//		return fmt.Errorf("Flag -f (--filename) required when default notebook.yaml file does not exist")
+		//	}
+		//}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -107,10 +105,15 @@ func notebookCommand() *cobra.Command {
 			pOpts = append(pOpts, tea.WithAltScreen())
 		}
 
+		path := "."
+		if len(args) > 0 {
+			path = args[0]
+		}
+
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.NotebookModel{
 			Ctx:      cmd.Context(),
-			Path:     args[0],
+			Path:     path,
 			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
@@ -127,10 +130,10 @@ func notebookCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "notebook",
+		Use:     "notebook [dir]",
 		Aliases: []string{"nb"},
 		Short:   "Start a Jupyter Notebook development environment",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)

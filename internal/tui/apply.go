@@ -62,7 +62,7 @@ func (m *ApplyModel) New() ApplyModel {
 }
 
 func (m ApplyModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
+	return readManifest(filepath.Join(m.Path, m.Filename))
 }
 
 func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

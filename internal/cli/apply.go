@@ -37,7 +37,6 @@ func applyCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
-		// Initialize our program
 		tui.P = tea.NewProgram((&tui.ApplyModel{
 			Ctx:      cmd.Context(),
 			Path:     args[0],
@@ -57,9 +56,25 @@ func applyCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "apply",
-		Short: "Apply an object",
-		Args:  cobra.ExactArgs(1),
+		Use:     "apply [dir]",
+		Aliases: []string{"apl"},
+		Short:   "Apply a manifest, optionally build a container image from a directory.",
+		Example: `  # Upload modelling code and create a Model.
+  sub apply -f model.yaml .
+
+  # Upoad dataset importing code and create a Dataset.
+  sub apply -f dataset.yaml .
+
+  # NOT YET IMPLEMENTED: Upload code from a local directory,
+  # scan *.yaml files looking for Substratus manifests to use.
+  #sub apply .
+
+  # NOT YET IMPLEMENTED: Apply a local manifest file.
+  #sub apply -f manifest.yaml
+
+  # NOT YET IMPLEMENTED: Apply a remote manifest file.
+  #sub apply -f https://some-place/manifest.yaml`,
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -72,10 +87,9 @@ func applyCommand() *cobra.Command {
 	if defaultKubeconfig == "" {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
-	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "")
-
-	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "Namespace of Notebook")
-	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "Manifest file")
+	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "path to Kubernetes Kubeconfig file")
+	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "namespace of Notebook")
+	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "manifest file")
 
 	return cmd
 }

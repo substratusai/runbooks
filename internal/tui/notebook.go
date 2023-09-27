@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -36,6 +35,7 @@ type NotebookModel struct {
 	resource *client.Resource
 
 	// Proceses
+	manifests manifestsModel
 	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
@@ -63,6 +63,11 @@ func (m NotebookModel) cleanupAndQuitCmd() tea.Msg {
 }
 
 func (m *NotebookModel) New() NotebookModel {
+	m.manifests = (&manifestsModel{
+		Path:     m.Path,
+		Filename: m.Filename,
+		Kinds:    []string{"Notebook", "Model", "Dataset"},
+	}).New()
 	m.upload = (&uploadModel{
 		Ctx:    m.Ctx,
 		Client: m.Client,
@@ -85,13 +90,21 @@ func (m *NotebookModel) New() NotebookModel {
 }
 
 func (m NotebookModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
+	// return readManifest(filepath.Join(m.Path, m.Filename))
+	return m.manifests.Init()
 }
 
 func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
+
+	{
+		mdl, cmd := m.manifests.Update(msg)
+		m.manifests = mdl.(manifestsModel)
+		cmds = append(cmds, cmd)
+	}
+
 	{
 		mdl, cmd := m.upload.Update(msg)
 		m.upload = mdl.(uploadModel)
@@ -111,7 +124,7 @@ func (m NotebookModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case readManifestMsg:
+	case manifestSelectedMsg:
 		m.Namespace.Set(msg.obj)
 		nb, err := client.NotebookForObject(msg.obj)
 		if err != nil {
@@ -252,6 +265,7 @@ func (m NotebookModel) View() (v string) {
 		return v
 	}
 
+	v += m.manifests.View()
 	v += m.upload.View()
 	v += m.readiness.View()
 	v += m.pods.View()

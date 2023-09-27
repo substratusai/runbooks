@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,7 +21,6 @@ type ServeModel struct {
 	Ctx context.Context
 
 	// Config
-	Path          string
 	Namespace     Namespace
 	Filename      string
 	NoOpenBrowser bool
@@ -36,10 +34,11 @@ type ServeModel struct {
 	resource *client.Resource
 	readyPod *corev1.Pod
 
+	applying status
+
+	manifests manifestsModel
 	readiness readinessModel
 	pods      podsModel
-
-	status string
 
 	// Ready to open browser
 	portForwarding status
@@ -54,6 +53,9 @@ type ServeModel struct {
 }
 
 func (m *ServeModel) New() ServeModel {
+	m.manifests = (&manifestsModel{
+		Kinds: []string{"Server"},
+	}).New()
 	m.readiness = (&readinessModel{
 		Ctx:    m.Ctx,
 		Client: m.Client,
@@ -64,21 +66,25 @@ func (m *ServeModel) New() ServeModel {
 		K8s:    m.K8s,
 	}).New()
 
-	m.status = "Reading manifest..."
-
 	m.Style = appStyle
 
 	return *m
 }
 
 func (m ServeModel) Init() tea.Cmd {
-	return readManifest(m.Ctx, filepath.Join(m.Path, m.Filename))
+	return m.manifests.Init()
 }
 
 func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
+
+	{
+		mdl, cmd := m.manifests.Update(msg)
+		m.manifests = mdl.(manifestsModel)
+		cmds = append(cmds, cmd)
+	}
 
 	{
 		mdl, cmd := m.readiness.Update(msg)
@@ -92,22 +98,25 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	switch msg := msg.(type) {
-	case readManifestMsg:
-		m.Namespace.Set(msg.obj)
-		// TODO: Expect to fail:
-		m.server = msg.obj.(*apiv1.Server)
-
+	apply := func() {
 		res, err := m.Client.Resource(m.server)
 		if err != nil {
 			m.finalError = fmt.Errorf("resource client: %w", err)
 		}
 		m.resource = res
 
-		m.status = "Applying..."
+		m.applying = inProgress
 		cmds = append(cmds, applyCmd(m.Ctx, m.resource, m.server.DeepCopy()))
+	}
+
+	switch msg := msg.(type) {
+	case manifestSelectedMsg:
+		m.Namespace.Set(msg.obj)
+		m.server = msg.obj.(*apiv1.Server)
+		apply()
 
 	case appliedMsg:
+		m.applying = completed
 		m.server = msg.Object.(*apiv1.Server)
 
 		m.readiness.Object = m.server
@@ -116,7 +125,6 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pods.Object = m.server
 		m.pods.Resource = m.resource
 
-		m.status = ""
 		cmds = append(cmds,
 			m.readiness.Init(),
 			m.pods.Init(),
@@ -240,10 +248,11 @@ func (m ServeModel) View() (v string) {
 		return
 	}
 
-	if m.status != "" {
-		v += m.status + "\n\n"
+	if m.applying == inProgress {
+		v += "Applying...\n\n"
 	}
 
+	v += m.manifests.View()
 	v += m.readiness.View()
 	v += m.pods.View()
 

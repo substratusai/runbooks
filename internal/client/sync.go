@@ -88,7 +88,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 
 			relPath, err := filepath.Rel("/content", event.Path)
 			if err != nil {
-				log.Printf("Failed to determine relative path: %w", err)
+				log.Printf("Failed to determine relative path: %v", err)
 				continue
 			}
 
@@ -99,7 +99,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 				// NOTE: A long-running port-forward might be more performant here.
 				progressF(event.Path, false, nil)
 				if err := cp.FromPod(ctx, event.Path, localPath, podRef, containerName); err != nil {
-					log.Printf("Sync: failed to copy: %w", err)
+					log.Printf("Sync: failed to copy: %v", err)
 					progressF(event.Path, false, err)
 					continue
 				}
@@ -107,7 +107,7 @@ func (c *Client) SyncFilesFromNotebook(ctx context.Context, nb *apiv1.Notebook, 
 			} else if event.Op == "REMOVE" || event.Op == "RENAME" {
 				progressF(event.Path, false, nil)
 				if err := os.Remove(localPath); err != nil {
-					log.Printf("Sync: failed to remove: %w", err)
+					log.Printf("Sync: failed to remove: %v", err)
 					progressF(event.Path, false, err)
 					continue
 				}
