@@ -13,7 +13,7 @@ import (
 	"github.com/substratusai/substratus/internal/tui"
 )
 
-func applyCommand() *cobra.Command {
+func pushCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		filename   string
@@ -22,10 +22,6 @@ func applyCommand() *cobra.Command {
 
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
-
-		if flags.filename == "" {
-			return fmt.Errorf("Flag -f (--filename) required")
-		}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -37,9 +33,14 @@ func applyCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
-		tui.P = tea.NewProgram((&tui.ApplyModel{
+		path := "."
+		if len(args) > 0 {
+			path = args[0]
+		}
+
+		tui.P = tea.NewProgram((&tui.PushModel{
 			Ctx:      cmd.Context(),
-			Path:     args[0],
+			Path:     path,
 			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
@@ -56,24 +57,17 @@ func applyCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "apply [dir]",
-		Aliases: []string{"apl"},
-		Short:   "Apply a manifest, optionally build a container image from a directory.",
-		Example: `  # Upload modelling code and create a Model.
-  sub apply -f model.yaml .
+		Use:   "push [dir]",
+		Short: "Push and run a local directory. Supported kinds: Dataset, Model.",
+		Example: `  # Upload code from the current directory,
+  # scan *.yaml files looking for Substratus manifests to use.
+  sub push
+
+  # Upload modelling code and create a Model.
+  sub push -f model.yaml .
 
   # Upoad dataset importing code and create a Dataset.
-  sub apply -f dataset.yaml .
-
-  # NOT YET IMPLEMENTED: Upload code from a local directory,
-  # scan *.yaml files looking for Substratus manifests to use.
-  #sub apply .
-
-  # NOT YET IMPLEMENTED: Apply a local manifest file.
-  #sub apply -f manifest.yaml
-
-  # NOT YET IMPLEMENTED: Apply a remote manifest file.
-  #sub apply -f https://some-place/manifest.yaml`,
+  sub push -f dataset.yaml .`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {

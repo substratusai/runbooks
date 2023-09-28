@@ -102,6 +102,7 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		res, err := m.Client.Resource(m.server)
 		if err != nil {
 			m.finalError = fmt.Errorf("resource client: %w", err)
+			return
 		}
 		m.resource = res
 

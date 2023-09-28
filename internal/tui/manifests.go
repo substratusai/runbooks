@@ -116,8 +116,10 @@ func findSubstratusManifests(path, filename string) tea.Cmd {
 			manifests: map[string][]client.Object{},
 		}
 
+		var fp string
 		if filename != "" {
-			manifest, err := os.ReadFile(filename)
+			fp = filepath.Join(path, filename)
+			manifest, err := os.ReadFile(fp)
 			if err != nil {
 				return fmt.Errorf("reading file: %w", err)
 			}
@@ -132,7 +134,9 @@ func findSubstratusManifests(path, filename string) tea.Cmd {
 					return err
 				}
 			}
-			matches, err := filepath.Glob("*.yaml")
+
+			fp = filepath.Join(path, "*.yaml")
+			matches, err := filepath.Glob(fp)
 			if err != nil {
 				return err
 			}
@@ -146,6 +150,9 @@ func findSubstratusManifests(path, filename string) tea.Cmd {
 					return fmt.Errorf("reading manifests in file: %v: %w", p, err)
 				}
 			}
+		}
+		if len(msg.manifests) == 0 {
+			return fmt.Errorf("No manifests found: %v", fp)
 		}
 		return msg
 	}
@@ -162,6 +169,10 @@ func manifestToObjects(manifest []byte, m map[string][]client.Object) error {
 		if err != nil {
 			return fmt.Errorf("decoding: %w", err)
 		}
+		if obj == nil {
+			return nil
+		}
+
 		switch t := obj.(type) {
 		case *apiv1.Model, *apiv1.Dataset, *apiv1.Server, *apiv1.Notebook:
 			kind := t.GetObjectKind().GroupVersionKind().Kind

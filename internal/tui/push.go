@@ -2,9 +2,9 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,7 +13,7 @@ import (
 	"github.com/substratusai/substratus/internal/client"
 )
 
-type ApplyModel struct {
+type PushModel struct {
 	// Cancellation
 	Ctx context.Context
 
@@ -31,6 +31,7 @@ type ApplyModel struct {
 	resource *client.Resource
 
 	// Processes
+	manifests manifestsModel
 	upload    uploadModel
 	readiness readinessModel
 	pods      podsModel
@@ -41,7 +42,12 @@ type ApplyModel struct {
 	Style lipgloss.Style
 }
 
-func (m *ApplyModel) New() ApplyModel {
+func (m *PushModel) New() PushModel {
+	m.manifests = (&manifestsModel{
+		Path:     m.Path,
+		Filename: m.Filename,
+		Kinds:    []string{"Model", "Dataset"},
+	}).New()
 	m.upload = (&uploadModel{
 		Ctx:    m.Ctx,
 		Client: m.Client,
@@ -61,14 +67,20 @@ func (m *ApplyModel) New() ApplyModel {
 	return *m
 }
 
-func (m ApplyModel) Init() tea.Cmd {
-	return readManifest(filepath.Join(m.Path, m.Filename))
+func (m PushModel) Init() tea.Cmd {
+	return m.manifests.Init()
 }
 
-func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m PushModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
+	{
+		mdl, cmd := m.manifests.Update(msg)
+		m.manifests = mdl.(manifestsModel)
+		cmds = append(cmds, cmd)
+	}
+
 	{
 		mdl, cmd := m.upload.Update(msg)
 		m.upload = mdl.(uploadModel)
@@ -88,14 +100,17 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case readManifestMsg:
-		// TODO: Expect to fail:
-		m.Namespace.Set(msg.obj)
+	case manifestSelectedMsg:
 		m.object = msg.obj
+		m.Namespace.Set(m.object)
 
-		res, err := m.Client.Resource(msg.obj)
+		res, err := m.Client.Resource(m.object)
 		if err != nil {
+			b, _ := json.Marshal(m.object)
+			log.Println("............", string(b))
+
 			m.finalError = fmt.Errorf("resource client: %w", err)
+			break
 		}
 		m.resource = res
 
@@ -139,7 +154,7 @@ func (m ApplyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m ApplyModel) View() (v string) {
+func (m PushModel) View() (v string) {
 	defer func() {
 		v = m.Style.Render(v)
 	}()
@@ -150,6 +165,7 @@ func (m ApplyModel) View() (v string) {
 		return v
 	}
 
+	v += m.manifests.View()
 	v += m.upload.View()
 	v += m.readiness.View()
 	v += m.pods.View()

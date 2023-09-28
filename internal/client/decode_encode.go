@@ -9,11 +9,12 @@ func Decode(data []byte) (Object, error) {
 	decoder := scheme.Codecs.UniversalDeserializer()
 
 	runtimeObject, gvk, err := decoder.Decode(data, nil, nil)
+	if gvk == nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	_ = gvk
 
 	return runtimeObject.(Object), nil
 }
