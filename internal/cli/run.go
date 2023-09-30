@@ -13,7 +13,7 @@ import (
 	"github.com/substratusai/substratus/internal/tui"
 )
 
-func pushCommand() *cobra.Command {
+func runCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		filename   string
@@ -38,7 +38,7 @@ func pushCommand() *cobra.Command {
 			path = args[0]
 		}
 
-		tui.P = tea.NewProgram((&tui.PushModel{
+		tui.P = tea.NewProgram((&tui.RunModel{
 			Ctx:      cmd.Context(),
 			Path:     path,
 			Filename: flags.filename,
@@ -57,17 +57,17 @@ func pushCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "push [dir]",
-		Short: "Push and run a local directory. Supported kinds: Dataset, Model.",
+		Use:   "run [dir]",
+		Short: "Run a local directory. Supported kinds: Dataset, Model.",
 		Example: `  # Upload code from the current directory,
   # scan *.yaml files looking for Substratus manifests to use.
-  sub push
+  sub run
 
   # Upload modelling code and create a Model.
-  sub push -f model.yaml .
+  sub run -f model.yaml .
 
   # Upoad dataset importing code and create a Dataset.
-  sub push -f dataset.yaml .`,
+  sub run -f dataset.yaml .`,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {

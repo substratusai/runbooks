@@ -25,11 +25,10 @@ Note: This requirement is satisfied by default when using Substratus base images
 ## Directory Structure
 
 ```
-/content/         # Working directory.
-  data/           # Location where a previously stored Datasets is mounted.
-  model/          # Location where a previously stored Model is mounted.
-  output/         # Location to store output of a run.
-  src/            # Source code (*.py, *.ipynb) for loading, training, etc.
+/content/    # Working directory.
+  data/      # Location where a previously stored Datasets is mounted.
+  model/     # Location where a previously stored Model is mounted.
+  artifacts/ # Location to store output of a run.
 ```
 
 ## Parameters

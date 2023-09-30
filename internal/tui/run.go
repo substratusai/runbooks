@@ -13,7 +13,7 @@ import (
 	"github.com/substratusai/substratus/internal/client"
 )
 
-type PushModel struct {
+type RunModel struct {
 	// Cancellation
 	Ctx context.Context
 
@@ -42,7 +42,7 @@ type PushModel struct {
 	Style lipgloss.Style
 }
 
-func (m *PushModel) New() PushModel {
+func (m *RunModel) New() RunModel {
 	m.manifests = (&manifestsModel{
 		Path:     m.Path,
 		Filename: m.Filename,
@@ -67,11 +67,11 @@ func (m *PushModel) New() PushModel {
 	return *m
 }
 
-func (m PushModel) Init() tea.Cmd {
+func (m RunModel) Init() tea.Cmd {
 	return m.manifests.Init()
 }
 
-func (m PushModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	log.Printf("MSG: %T", msg)
@@ -154,7 +154,7 @@ func (m PushModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View returns a string based on data in the model. That string which will be
 // rendered to the terminal.
-func (m PushModel) View() (v string) {
+func (m RunModel) View() (v string) {
 	defer func() {
 		v = m.Style.Render(v)
 	}()

@@ -180,14 +180,6 @@ func manifestToObjects(manifest []byte, m map[string][]client.Object) error {
 				m[kind] = make([]client.Object, 0)
 			}
 			m[kind] = append(m[kind], obj)
-			// case *apiv1.Model:
-			//	msg.models = append(msg.models, t)
-			// case *apiv1.Server:
-			//	msg.servers = append(msg.servers, t)
-			// case *apiv1.Dataset:
-			//	msg.datasets = append(msg.datasets, t)
-			// case *apiv1.Notebook:
-			//	msg.notebooks = append(msg.notebooks, t)
 		}
 	}
 
