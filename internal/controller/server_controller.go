@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	apiv1 "github.com/substratusai/substratus/api/v1"
 	"github.com/substratusai/substratus/internal/cloud"
 	"github.com/substratusai/substratus/internal/resources"
@@ -101,7 +101,6 @@ func (r *ServerReconciler) findServersForModel(ctx context.Context, obj client.O
 
 	reqs := []reconcile.Request{}
 	for _, svr := range servers.Items {
-
 		reqs = append(reqs, reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      svr.Name,
@@ -185,7 +184,7 @@ func (r *ServerReconciler) serverDeployment(server *apiv1.Server, model *apiv1.M
 	if err := r.Cloud.MountBucket(&deploy.Spec.Template.ObjectMeta, &deploy.Spec.Template.Spec, model, cloud.MountBucketConfig{
 		Name: "model",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "model", ContentSubdir: "saved-model"},
+			{BucketSubdir: "artifacts", ContentSubdir: "model"},
 		},
 		Container: containerName,
 		ReadOnly:  true,
@@ -214,7 +213,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 			// Update this Model's status.
 			server.Status.Ready = false
 			meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonModelNotFound,
 				ObservedGeneration: server.Generation,
@@ -234,7 +233,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 
 		server.Status.Ready = false
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonModelNotReady,
 			ObservedGeneration: server.Generation,
@@ -281,7 +280,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	if deploy.Status.ReadyReplicas == 0 {
 		server.Status.Ready = false
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonDeploymentNotReady,
 			ObservedGeneration: server.Generation,
@@ -289,7 +288,7 @@ func (r *ServerReconciler) reconcileServer(ctx context.Context, server *apiv1.Se
 	} else {
 		server.Status.Ready = true
 		meta.SetStatusCondition(&server.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionTrue,
 			Reason:             apiv1.ReasonDeploymentReady,
 			ObservedGeneration: server.Generation,
@@ -336,7 +335,7 @@ func (r *ServerReconciler) serverService(server *apiv1.Server, model *apiv1.Mode
 }
 
 func withServerSelector(server *apiv1.Server, labels map[string]string) map[string]string {
-	labels["component"] = "server"
+	labels["role"] = "run"
 	labels["server"] = server.Name
 	return labels
 }

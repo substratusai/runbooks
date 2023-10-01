@@ -6,23 +6,9 @@ before:
 release:
   prerelease: "true"
 builds:
-  - id: kubectl-applybuild
-    binary: kubectl-applybuild
-    main: ./kubectl/cmd/applybuild/
-    ldflags: "-X 'main.Version={{.Version}}'"
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-      - arm
-  - id: kubectl-notebook
-    binary: kubectl-notebook
-    main: ./kubectl/cmd/notebook/
+  - id: sub
+    binary: sub
+    main: ./cmd/sub/
     ldflags: "-X 'main.Version={{.Version}}'"
     env:
       - CGO_ENABLED=0
@@ -61,13 +47,12 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-  - id: kubectl-plugins
+  - id: sub
     builds:
-      - kubectl-applybuild
-      - kubectl-notebook
+      - sub
     format: tar.gz
     name_template: >-
-      kubectl-plugins-
+      sub-
       {{- .Os }}-
       {{- .Arch }}
     # use zip for windows archives

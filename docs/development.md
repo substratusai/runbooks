@@ -38,18 +38,34 @@ go build ./kubectl/cmd/applybuild &&
 The `kubectl notebook` command depends on container-tools for live-syncing. The plugin will try
 to download these tools from GitHub releases if they dont already exist with the right versions.
 
-You can build the container-tools for development purposes using the following. NOTE: This is the default cache directory on a mac, this will be different on other machine types.
+You can build the container-tools for development purposes using the following.
 
+Mac steps:
 ```sh
 export NODE_ARCH=amd64
 
 rm -rf /Users/$USER/Library/Caches/substratus
 mkdir -p /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH
 GOOS=linux GOARCH=$NODE_ARCH go build ./containertools/cmd/nbwatch
+
 mv nbwatch /Users/$USER/Library/Caches/substratus/container-tools/$NODE_ARCH/
 
 echo "development" > /Users/$USER/Library/Caches/substratus/container-tools/version.txt
 ```
+
+Linux steps:
+```sh
+export NODE_ARCH=amd64
+
+rm -rf ~/.cache/substratus
+mkdir -p ~/.cache/substratus/container-tools/$NODE_ARCH
+GOOS=linux GOARCH=$NODE_ARCH go build ./containertools/cmd/nbwatch
+
+mv nbwatch ~/.cache/substratus/container-tools/amd64/
+
+echo "development" > ~/.cache/substratus/container-tools/version.txt
+```
+
 
 ### Install from release
 

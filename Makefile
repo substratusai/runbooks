@@ -189,7 +189,7 @@ dev-down-aws: build-installer
 .PHONY: dev-run-gcp
 # Controller manager configuration #
 dev-run-gcp: export CLOUD=gcp
-dev-run-gcp: PROJECT_ID ?= $(shell gcloud config get project)
+dev-run-gcp: export PROJECT_ID=$(shell gcloud config get project)
 dev-run-gcp: export CLUSTER_NAME=substratus
 dev-run-gcp: export CLUSTER_LOCATION=us-central1
 dev-run-gcp: export PRINCIPAL=substratus@${PROJECT_ID}.iam.gserviceaccount.com

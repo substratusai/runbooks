@@ -3,9 +3,8 @@ package v1
 const (
 	ConditionUploaded = "Uploaded"
 	ConditionBuilt    = "Built"
-	ConditionLoaded   = "Loaded"
-	ConditionModelled = "Modelled"
-	ConditionDeployed = "Deployed"
+	ConditionComplete = "Complete"
+	ConditionServing  = "Serving"
 )
 
 const (
@@ -20,6 +19,7 @@ const (
 
 	ReasonJobNotComplete     = "JobNotComplete"
 	ReasonJobComplete        = "JobComplete"
+	ReasonJobFailed          = "JobFailed"
 	ReasonDeploymentReady    = "DeploymentReady"
 	ReasonDeploymentNotReady = "DeploymentNotReady"
 	ReasonPodReady           = "PodReady"

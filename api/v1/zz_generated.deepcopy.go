@@ -321,13 +321,13 @@ func (in *ModelSpec) DeepCopyInto(out *ModelSpec) {
 		*out = new(Resources)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.BaseModel != nil {
-		in, out := &in.BaseModel, &out.BaseModel
+	if in.Model != nil {
+		in, out := &in.Model, &out.Model
 		*out = new(ObjectRef)
 		**out = **in
 	}
-	if in.TrainingDataset != nil {
-		in, out := &in.TrainingDataset, &out.TrainingDataset
+	if in.Dataset != nil {
+		in, out := &in.Dataset, &out.Dataset
 		*out = new(ObjectRef)
 		**out = **in
 	}
@@ -507,6 +507,7 @@ func (in *NotebookStatus) DeepCopyInto(out *NotebookStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	out.Artifacts = in.Artifacts
 	in.BuildUpload.DeepCopyInto(&out.BuildUpload)
 }
 

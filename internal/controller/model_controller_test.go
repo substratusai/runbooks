@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 func TestModelLoaderFromGit(t *testing.T) {
@@ -58,7 +59,7 @@ func testModelLoad(t *testing.T, model *apiv1.Model) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionComplete))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
 	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")
@@ -109,10 +110,10 @@ func TestModelTrainerFromGit(t *testing.T) {
 					URL: "https://test.com/test/test",
 				},
 			},
-			BaseModel: &apiv1.ObjectRef{
+			Model: &apiv1.ObjectRef{
 				Name: baseModel.Name,
 			},
-			TrainingDataset: &apiv1.ObjectRef{
+			Dataset: &apiv1.ObjectRef{
 				Name: dataset.Name,
 			},
 		},
@@ -151,7 +152,7 @@ func testModelTrain(t *testing.T, model *apiv1.Model) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: model.GetNamespace(), Name: model.GetName()}, model)
 		assert.NoError(t, err, "getting model")
-		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionModelled))
+		assert.True(t, meta.IsStatusConditionTrue(model.Status.Conditions, apiv1.ConditionComplete))
 		assert.True(t, model.Status.Ready)
 	}, timeout, interval, "waiting for the model to be ready")
 	require.Contains(t, model.Status.Artifacts.URL, "gs://test-artifact-bucket")

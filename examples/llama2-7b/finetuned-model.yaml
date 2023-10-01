@@ -4,9 +4,9 @@ metadata:
   name: llama-2-7b-k8s
 spec:
   image: substratusai/model-trainer-huggingface
-  baseModel:
+  model:
     name: llama-2-7b
-  trainingDataset:
+  dataset:
     name: k8s-instructions
   params:
     # See HuggingFace transformers.TrainingArguments for all parameters

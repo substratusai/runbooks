@@ -44,6 +44,7 @@ func (n *Notebook) GetParams() map[string]intstr.IntOrString {
 func (n *Notebook) GetBuild() *Build {
 	return n.Spec.Build
 }
+
 func (n *Notebook) SetBuild(b *Build) {
 	n.Spec.Build = b
 }
@@ -79,6 +80,10 @@ func (n *Notebook) GetStatusUpload() UploadStatus {
 	return n.Status.BuildUpload
 }
 
+func (n *Notebook) GetStatusArtifacts() ArtifactsStatus {
+	return n.Status.Artifacts
+}
+
 func (n *Notebook) IsSuspended() bool {
 	return n.Spec.Suspend != nil && *n.Spec.Suspend
 }
@@ -91,6 +96,9 @@ type NotebookStatus struct {
 
 	// Conditions is the list of conditions that describe the current state of the Notebook.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Artifacts status.
+	Artifacts ArtifactsStatus `json:"artifacts,omitempty"`
 
 	// BuildUpload contains the status of the build context upload.
 	BuildUpload UploadStatus `json:"buildUpload,omitempty"`

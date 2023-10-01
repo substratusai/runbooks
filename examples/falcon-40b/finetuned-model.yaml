@@ -4,9 +4,9 @@ metadata:
   name: falcon-40b-k8s
 spec:
   image: substratusai/model-trainer-huggingface
-  baseModel:
+  model:
     name: falcon-40b
-  trainingDataset:
+  dataset:
     name: k8s-instructions
   params:
     epochs: 1

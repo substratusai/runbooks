@@ -90,14 +90,14 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	}
 
 	var baseModel *apiv1.Model
-	if model.Spec.BaseModel != nil {
+	if model.Spec.Model != nil {
 		baseModel = &apiv1.Model{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.BaseModel.Name}, baseModel); err != nil {
+		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Model.Name}, baseModel); err != nil {
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
 				model.Status.Ready = false
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionModelled,
+					Type:               apiv1.ConditionComplete,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonBaseModelNotFound,
 					ObservedGeneration: model.Generation,
@@ -116,7 +116,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 			// Update this Model's status.
 			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionModelled,
+				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonBaseModelNotReady,
 				ObservedGeneration: model.Generation,
@@ -131,14 +131,14 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 	}
 
 	var dataset *apiv1.Dataset
-	if model.Spec.TrainingDataset != nil {
+	if model.Spec.Dataset != nil {
 		dataset = &apiv1.Dataset{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.TrainingDataset.Name}, dataset); err != nil {
+		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: model.Namespace, Name: model.Spec.Dataset.Name}, dataset); err != nil {
 			if apierrors.IsNotFound(err) {
 				// Update this Model's status.
 				model.Status.Ready = false
 				meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionModelled,
+					Type:               apiv1.ConditionComplete,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: model.Generation,
@@ -157,7 +157,7 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 			// Update this Model's status.
 			model.Status.Ready = false
 			meta.SetStatusCondition(&model.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionModelled,
+				Type:               apiv1.ConditionComplete,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonDatasetNotReady,
 				ObservedGeneration: model.Generation,
@@ -178,25 +178,34 @@ func (r *ModelReconciler) reconcileModel(ctx context.Context, model *apiv1.Model
 		return result{}, nil
 	}
 
-	model.Status.Ready = false
-	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionModelled,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
-		ObservedGeneration: model.Generation,
-		Message:            "Waiting for modeller Job to complete",
-	})
-	if err := r.Status().Update(ctx, model); err != nil {
-		return result{}, fmt.Errorf("updating status: %w", err)
-	}
-
-	if result, err := reconcileJob(ctx, r.Client, modellerJob, apiv1.ConditionModelled); !result.success {
-		return result, err
+	jobResult, err := reconcileJob(ctx, r.Client, modellerJob)
+	if !jobResult.success {
+		model.Status.Ready = false
+		if !jobResult.failure {
+			meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobNotComplete,
+				ObservedGeneration: model.Generation,
+				Message:            "Waiting for modeller Job to complete",
+			})
+		} else {
+			meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobFailed,
+				ObservedGeneration: model.Generation,
+			})
+		}
+		if err := r.Status().Update(ctx, model); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
+		}
+		return jobResult, err
 	}
 
 	model.Status.Ready = true
 	meta.SetStatusCondition(model.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionModelled,
+		Type:               apiv1.ConditionComplete,
 		Status:             metav1.ConditionTrue,
 		Reason:             apiv1.ReasonJobComplete,
 		ObservedGeneration: model.Generation,
@@ -230,7 +239,7 @@ func (r *ModelReconciler) findModelsForBaseModel(ctx context.Context, obj client
 
 	var models apiv1.ModelList
 	if err := r.List(ctx, &models,
-		client.MatchingFields{modelBaseModelIndex: model.Name},
+		client.MatchingFields{modelModelIndex: model.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
 		log.Log.Error(err, "unable to list models for base model")
@@ -254,7 +263,7 @@ func (r *ModelReconciler) findModelsForDataset(ctx context.Context, obj client.O
 
 	var models apiv1.ModelList
 	if err := r.List(ctx, &models,
-		client.MatchingFields{modelTrainingDatasetIndex: dataset.Name},
+		client.MatchingFields{modelDatasetIndex: dataset.Name},
 		client.InNamespace(obj.GetNamespace()),
 	); err != nil {
 		log.Log.Error(err, "unable to list models for dataset")
@@ -282,6 +291,17 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}
 
+	// Don't retry expensive Jobs by default.
+	var backoffLimit int32
+	if model.Spec.Resources != nil &&
+		model.Spec.Resources.CPU <= 3 &&
+		model.Spec.Resources.GPU != nil &&
+		model.Spec.Resources.GPU.Count == 0 {
+		// If the Job is not super expensive (No GPUs, low CPUs), then assume
+		// it is an import Job and up the retry count.
+		backoffLimit = 2 // 2 = 3 retries
+	}
+
 	const containerName = "model"
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -290,11 +310,16 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 			Namespace: model.Namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.To(int32(1)),
+			// TODO: Allow for configurable retries for Jobs that import models...
+			BackoffLimit: ptr.To(backoffLimit),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/default-container": containerName,
+					},
+					Labels: map[string]string{
+						"model": model.Name,
+						"role":  "run",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -321,10 +346,9 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 	}
 
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, model, cloud.MountBucketConfig{
-		Name: "model",
+		Name: "artifacts",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "model", ContentSubdir: "model"},
-			{BucketSubdir: "logs", ContentSubdir: "logs"},
+			{BucketSubdir: "artifacts", ContentSubdir: "artifacts"},
 		},
 		Container: containerName,
 		ReadOnly:  false,
@@ -336,7 +360,7 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "data", ContentSubdir: "data"},
+				{BucketSubdir: "artifacts", ContentSubdir: "data"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
@@ -347,9 +371,9 @@ func (r *ModelReconciler) modellerJob(ctx context.Context, model, baseModel *api
 
 	if baseModel != nil {
 		if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, baseModel, cloud.MountBucketConfig{
-			Name: "basemodel",
+			Name: "model",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "model", ContentSubdir: "saved-model"},
+				{BucketSubdir: "artifacts", ContentSubdir: "model"},
 			},
 			Container: containerName,
 			ReadOnly:  true,

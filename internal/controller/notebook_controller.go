@@ -134,7 +134,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if notebook.IsSuspended() {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonSuspended,
 			ObservedGeneration: notebook.Generation,
@@ -167,7 +167,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	}
 
 	var model *apiv1.Model
-	if notebook.Spec.Model != nil {
+	if notebook.Spec.Model != nil && notebook.Spec.Model.Name != "" {
 		model = &apiv1.Model{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Model.Name, Namespace: notebook.Namespace}, model); err != nil {
 			if apierrors.IsNotFound(err) {
@@ -175,7 +175,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 				// Update this Model's status.
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDeployed,
+					Type:               apiv1.ConditionServing,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonModelNotFound,
 					ObservedGeneration: notebook.Generation,
@@ -195,7 +195,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonModelNotReady,
 				ObservedGeneration: notebook.Generation,
@@ -210,14 +210,14 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	}
 
 	var dataset *apiv1.Dataset
-	if notebook.Spec.Dataset != nil {
+	if notebook.Spec.Dataset != nil && notebook.Spec.Dataset.Name != "" {
 		dataset = &apiv1.Dataset{}
 		if err := r.Get(ctx, client.ObjectKey{Name: notebook.Spec.Dataset.Name, Namespace: notebook.Namespace}, dataset); err != nil {
 			if apierrors.IsNotFound(err) {
 				log.Error(err, "Dataset not found")
 				notebook.Status.Ready = false
 				meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-					Type:               apiv1.ConditionDeployed,
+					Type:               apiv1.ConditionServing,
 					Status:             metav1.ConditionFalse,
 					Reason:             apiv1.ReasonDatasetNotFound,
 					ObservedGeneration: notebook.Generation,
@@ -236,7 +236,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 			log.Info("Dataset not ready", "dataset", dataset.Name)
 			notebook.Status.Ready = false
 			meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-				Type:               apiv1.ConditionDeployed,
+				Type:               apiv1.ConditionServing,
 				Status:             metav1.ConditionFalse,
 				Reason:             apiv1.ReasonDatasetNotReady,
 				ObservedGeneration: notebook.Generation,
@@ -288,7 +288,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	if isPodReady(pod) {
 		notebook.Status.Ready = true
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionTrue,
 			Reason:             apiv1.ReasonPodReady,
 			ObservedGeneration: notebook.Generation,
@@ -296,7 +296,7 @@ func (r *NotebookReconciler) reconcileNotebook(ctx context.Context, notebook *ap
 	} else {
 		notebook.Status.Ready = false
 		meta.SetStatusCondition(&notebook.Status.Conditions, metav1.Condition{
-			Type:               apiv1.ConditionDeployed,
+			Type:               apiv1.ConditionServing,
 			Status:             metav1.ConditionFalse,
 			Reason:             apiv1.ReasonPodNotReady,
 			ObservedGeneration: notebook.Generation,
@@ -317,10 +317,22 @@ func nbPodName(nb *apiv1.Notebook) string {
 func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.Model, dataset *apiv1.Dataset) (*corev1.Pod, error) {
 	const containerName = "notebook"
 
-	envVars, err := resolveEnv(notebook.Spec.Env)
+	cmd := notebook.Spec.Command
+	if cmd == nil {
+		cmd = []string{
+			"jupyter", "lab",
+			"--allow-root",
+			"--ip=0.0.0.0",
+			"--NotebookApp.token=$(NOTEBOOK_TOKEN)",
+			"--notebook-dir=/content",
+		}
+	}
+
+	env, err := resolveEnv(notebook.Spec.Env)
 	if err != nil {
 		return nil, fmt.Errorf("resolving env: %w", err)
 	}
+	env = append(env, corev1.EnvVar{Name: "NOTEBOOK_TOKEN", Value: "default"})
 
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -332,6 +344,10 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 			Namespace: notebook.Namespace,
 			Annotations: map[string]string{
 				"kubectl.kubernetes.io/default-container": containerName,
+			},
+			Labels: map[string]string{
+				"notebook": notebook.Name,
+				"role":     "run",
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -345,15 +361,16 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 				{
 					Name:    containerName,
 					Image:   notebook.GetImage(),
-					Command: notebook.Spec.Command,
-					//WorkingDir: "/home/jovyan",
+					Command: cmd,
+
+					// WorkingDir: "/home/jovyan",
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "notebook",
 							ContainerPort: 8888,
 						},
 					},
-					Env: envVars,
+					Env: env,
 					// TODO: GPUs
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{
@@ -392,8 +409,7 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, dataset, cloud.MountBucketConfig{
 			Name: "dataset",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "data", ContentSubdir: "data"},
-				{BucketSubdir: "logs", ContentSubdir: "data-logs"},
+				{BucketSubdir: "artifacts", ContentSubdir: "data"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
@@ -404,16 +420,25 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 
 	if model != nil {
 		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, model, cloud.MountBucketConfig{
-			Name: "basemodel",
+			Name: "model",
 			Mounts: []cloud.BucketMount{
-				{BucketSubdir: "model", ContentSubdir: "saved-model"},
-				{BucketSubdir: "logs", ContentSubdir: "saved-model-logs"},
+				{BucketSubdir: "artifacts", ContentSubdir: "model"},
 			},
 			Container: containerName,
 			ReadOnly:  true,
 		}); err != nil {
 			return nil, fmt.Errorf("mounting model: %w", err)
 		}
+	}
+
+	// Mounts specific to this Notebook.
+	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, notebook, cloud.MountBucketConfig{
+		Name:      "artifacts",
+		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "artifacts"}},
+		Container: containerName,
+		ReadOnly:  false,
+	}); err != nil {
+		return nil, fmt.Errorf("mounting notebook: %w", err)
 	}
 
 	if err := ctrl.SetControllerReference(notebook, pod, r.Scheme); err != nil {

@@ -113,11 +113,9 @@ The following scheme can be used for storing artifacts for Models, Datasets, and
 ```sh
 # Models
 gs://{bucket}/{hash}/model     # Model artifacts (*.pt, etc)
-gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Datasets
 gs://{bucket}/{hash}/data      # Data artifacts (*.jsonl, etc)
-gs://{bucket}/{hash}/logs      # Logs and converted notebooks
 
 # Notebooks
 gs://{bucket}/{hash}/build/{md5-checksum}.tar # Uploaded build context
@@ -127,7 +125,6 @@ The example Model's backing storage would end up being:
 
 ```sh
 gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/model/
-gs://abc123-substratus-artifacts/f94a0d128bcbd9c1b824e9e5572baf86/logs/
 ```
 
 The Model would report this URL in its status:
@@ -166,15 +163,12 @@ runJob()
 
 All mount points will are made under a standardized `/content` directory which should correspond to the `WORKDIR` of a Dockerfile. This works well for Jupyter notebooks which can be run with `/content` set as the serving directory: all relevant mounts will be populated on the file explorer sidebar.
 
-The `logs/` directories below are used to store the notebook cell output, python logs, tensorboard stats, etc. These directories are mounted as read-only in Notebooks to explore the output of other background jobs.
-
 ##### Dataset (importing)
 
 ```
 /content/params.json  # Populated from .spec.params (also available as env vars).
 
-/content/data/        # Mounted RW: initially empty dir to write new files
-/content/logs/        # Mounted RW: initially empty dir to write new files
+/content/artifacts/        # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (importing)
@@ -182,8 +176,7 @@ The `logs/` directories below are used to store the notebook cell output, python
 ```
 /content/params.json  # Populated from .spec.params (also available as env vars).
 
-/content/model/       # Mounted RW: initially empty dir to write new files
-/content/logs/        # Mounted RW: initially empty dir to write new files
+/content/artifacts/       # Mounted RW: initially empty dir to write new files
 ```
 
 ##### Model (training)
@@ -191,12 +184,11 @@ The `logs/` directories below are used to store the notebook cell output, python
 ```
 /content/params.json        # Populated from .spec.params (also available as env vars).
 
-/content/data/              # Mounted RO: from .spec.trainingDataset
+/content/data/              # Mounted RO: from .spec.dataset
 
-/content/saved-model/       # Mounted RO: from .spec.baseModel
+/content/model/             # Mounted RO: from .spec.model
 
-/content/model/             # Mounted RW: initially empty dir for writing new files
-/content/logs/              # Mounted RW: initially empty dir for writing logs
+/content/artifacts/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Notebook
@@ -207,10 +199,10 @@ NOTE: The `saved-model/` directory is the same as the container for the Model ob
 /content/params.json        # Populated from .spec.params (also available as env vars).
 
 /content/data/              # Mounted RO: from .spec.dataset
-/content/data-logs/         # Mounted RO: from .spec.dataset
 
-/content/saved-model/       # Mounted RO: from .spec.model
-/content/saved-model-logs/  # Mounted RO: from .spec.model
+/content/model/             # Mounted RO: from .spec.model
+
+/content/artifacts/            # Mounted RW: initially empty dir for writing new files
 ```
 
 ##### Server:
@@ -218,7 +210,7 @@ NOTE: The `saved-model/` directory is the same as the container for the Model ob
 ```
 /content/params.json        # Populated from .spec.params (also available as env vars).
 
-/content/saved-model/       # Mounted RO: from .spec.model
+/content/model/             # Mounted RO: from .spec.model
 ```
 
 ### Naming

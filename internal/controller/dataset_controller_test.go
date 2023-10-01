@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "github.com/substratusai/substratus/api/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apiv1 "github.com/substratusai/substratus/api/v1"
 )
 
 func TestDataset(t *testing.T) {
@@ -68,9 +69,8 @@ func testDatasetLoad(t *testing.T, dataset *apiv1.Dataset) {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dataset), dataset)
 		assert.NoError(t, err, "getting the dataset")
-		assert.True(t, meta.IsStatusConditionTrue(dataset.Status.Conditions, apiv1.ConditionLoaded))
+		assert.True(t, meta.IsStatusConditionTrue(dataset.Status.Conditions, apiv1.ConditionComplete))
 		assert.True(t, dataset.Status.Ready)
 	}, timeout, interval, "waiting for the dataset to be ready")
 	require.Contains(t, dataset.Status.Artifacts.URL, "gs://test-artifact-bucket")
-
 }

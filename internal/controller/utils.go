@@ -17,9 +17,10 @@ import (
 type result struct {
 	ctrl.Result
 	success bool
+	failure bool
 }
 
-func reconcileJob(ctx context.Context, c client.Client, job *batchv1.Job, condition string) (result, error) {
+func reconcileJob(ctx context.Context, c client.Client, job *batchv1.Job) (result, error) {
 	if err := c.Create(ctx, job); client.IgnoreAlreadyExists(err) != nil {
 		return result{}, fmt.Errorf("creating Job: %w", err)
 	}
@@ -27,12 +28,24 @@ func reconcileJob(ctx context.Context, c client.Client, job *batchv1.Job, condit
 	if err := c.Get(ctx, client.ObjectKeyFromObject(job), job); err != nil {
 		return result{}, fmt.Errorf("geting Job: %w", err)
 	}
-	if job.Status.Succeeded < 1 {
-		// Allow Job watch to requeue.
-		return result{}, nil
-	}
 
-	return result{success: true}, nil
+	complete, failed := jobResult(job)
+
+	return result{success: complete, failure: failed}, nil
+}
+
+func jobResult(job *batchv1.Job) (complete bool, failed bool) {
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobComplete && c.Status == corev1.ConditionTrue {
+			complete = true
+			return
+		}
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
+			failed = true
+			return
+		}
+	}
+	return
 }
 
 func isPodReady(pod *corev1.Pod) bool {

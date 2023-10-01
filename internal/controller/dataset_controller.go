@@ -103,25 +103,38 @@ func (r *DatasetReconciler) reconcileData(ctx context.Context, dataset *apiv1.Da
 		return result{}, nil
 	}
 
-	dataset.Status.Ready = false
-	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionLoaded,
-		Status:             metav1.ConditionFalse,
-		Reason:             apiv1.ReasonJobNotComplete,
-		ObservedGeneration: dataset.Generation,
-		Message:            "Waiting for data loader Job to complete",
-	})
 	if err := r.Status().Update(ctx, dataset); err != nil {
 		return result{}, fmt.Errorf("updating status: %w", err)
 	}
 
-	if result, err := reconcileJob(ctx, r.Client, loadJob, apiv1.ConditionLoaded); !result.success {
-		return result, err
+	jobResult, err := reconcileJob(ctx, r.Client, loadJob)
+	if !jobResult.success {
+		dataset.Status.Ready = false
+		if !jobResult.failure {
+			meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobNotComplete,
+				ObservedGeneration: dataset.Generation,
+				Message:            "Waiting for data loader Job to complete",
+			})
+		} else {
+			meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
+				Type:               apiv1.ConditionComplete,
+				Status:             metav1.ConditionFalse,
+				Reason:             apiv1.ReasonJobFailed,
+				ObservedGeneration: dataset.Generation,
+			})
+		}
+		if err := r.Status().Update(ctx, dataset); err != nil {
+			return result{}, fmt.Errorf("updating status: %w", err)
+		}
+		return jobResult, err
 	}
 
 	dataset.Status.Ready = true
 	meta.SetStatusCondition(dataset.GetConditions(), metav1.Condition{
-		Type:               apiv1.ConditionLoaded,
+		Type:               apiv1.ConditionComplete,
 		Status:             metav1.ConditionTrue,
 		Reason:             apiv1.ReasonJobComplete,
 		ObservedGeneration: dataset.Generation,
@@ -146,10 +159,15 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 			Namespace: dataset.Namespace,
 		},
 		Spec: batchv1.JobSpec{
+			BackoffLimit: ptr.To(int32(2)), // TotalRetries = BackoffLimit + 1
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/default-container": containerName,
+					},
+					Labels: map[string]string{
+						"dataset": dataset.Name,
+						"role":    "run",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -176,10 +194,9 @@ func (r *DatasetReconciler) loadJob(ctx context.Context, dataset *apiv1.Dataset)
 	}
 
 	if err := r.Cloud.MountBucket(&job.Spec.Template.ObjectMeta, &job.Spec.Template.Spec, dataset, cloud.MountBucketConfig{
-		Name: "dataset",
+		Name: "artifacts",
 		Mounts: []cloud.BucketMount{
-			{BucketSubdir: "data", ContentSubdir: "data"},
-			{BucketSubdir: "logs", ContentSubdir: "logs"},
+			{BucketSubdir: "artifacts", ContentSubdir: "artifacts"},
 		},
 		Container: containerName,
 		ReadOnly:  false,
