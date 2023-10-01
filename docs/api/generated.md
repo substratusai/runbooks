@@ -25,6 +25,7 @@ Package v1 contains API Schema definitions for Substratus.
 _Appears in:_
 - [DatasetStatus](#datasetstatus)
 - [ModelStatus](#modelstatus)
+- [NotebookStatus](#notebookstatus)
 
 | Field | Description |
 | --- | --- |
@@ -202,8 +203,8 @@ _Appears in:_
 | `image` _string_ | Image that contains model code and dependencies. |
 | `build` _[Build](#build)_ | Build specifies how to build an image. |
 | `resources` _[Resources](#resources)_ | Resources are the compute resources required by the container. |
-| `baseModel` _[ObjectRef](#objectref)_ | BaseModel should be set in order to mount another model to be used for transfer learning. |
-| `trainingDataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
+| `model` _[ObjectRef](#objectref)_ | Model should be set in order to mount another model to be used for transfer learning. |
+| `dataset` _[ObjectRef](#objectref)_ | Dataset to mount for training. |
 | `params` _object (keys:string, values:IntOrString)_ | Parameters are passing into the model training/loading container as environment variables. Environment variable name will be `"PARAM_" + uppercase(key)`. |
 
 
@@ -278,6 +279,7 @@ _Appears in:_
 | --- | --- |
 | `ready` _boolean_ | Ready indicates that the Notebook is ready to serve. See Conditions for more details. |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#condition-v1-meta) array_ | Conditions is the list of conditions that describe the current state of the Notebook. |
+| `artifacts` _[ArtifactsStatus](#artifactsstatus)_ | Artifacts status. |
 | `buildUpload` _[UploadStatus](#uploadstatus)_ | BuildUpload contains the status of the build context upload. |
 
 

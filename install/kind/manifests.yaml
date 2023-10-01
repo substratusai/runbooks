@@ -333,16 +333,6 @@ spec:
           spec:
             description: Spec is the desired state of the Model.
             properties:
-              baseModel:
-                description: BaseModel should be set in order to mount another model
-                  to be used for transfer learning.
-                properties:
-                  name:
-                    description: Name of Kubernetes object.
-                    type: string
-                required:
-                - name
-                type: object
               build:
                 description: Build specifies how to build an image.
                 properties:
@@ -402,6 +392,15 @@ spec:
                 items:
                   type: string
                 type: array
+              dataset:
+                description: Dataset to mount for training.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
               env:
                 additionalProperties:
                   type: string
@@ -410,6 +409,16 @@ spec:
               image:
                 description: Image that contains model code and dependencies.
                 type: string
+              model:
+                description: Model should be set in order to mount another model to
+                  be used for transfer learning.
+                properties:
+                  name:
+                    description: Name of Kubernetes object.
+                    type: string
+                required:
+                - name
+                type: object
               params:
                 additionalProperties:
                   anyOf:
@@ -449,15 +458,6 @@ spec:
                     description: Memory is the amount of RAM in Gigabytes.
                     format: int64
                     type: integer
-                type: object
-              trainingDataset:
-                description: Dataset to mount for training.
-                properties:
-                  name:
-                    description: Name of Kubernetes object.
-                    type: string
-                required:
-                - name
                 type: object
             type: object
           status:
@@ -758,6 +758,12 @@ spec:
           status:
             description: Status is the observed state of the Notebook.
             properties:
+              artifacts:
+                description: Artifacts status.
+                properties:
+                  url:
+                    type: string
+                type: object
               buildUpload:
                 description: BuildUpload contains the status of the build context
                   upload.
@@ -1660,7 +1666,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.9.2
+        image: docker.io/substratusai/controller-manager:v0.10.0
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1739,7 +1745,7 @@ spec:
       - envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/sci-kind:v0.9.2
+        image: docker.io/substratusai/sci-kind:v0.10.0
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15
