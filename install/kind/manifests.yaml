@@ -1666,7 +1666,7 @@ spec:
         envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/controller-manager:v0.10.0
+        image: docker.io/substratusai/controller-manager:v0.10.1
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1745,7 +1745,7 @@ spec:
       - envFrom:
         - configMapRef:
             name: system
-        image: docker.io/substratusai/sci-kind:v0.10.0
+        image: docker.io/substratusai/sci-kind:v0.10.1
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15
