@@ -43,8 +43,8 @@ kubectl apply -f ${repo}/examples/${example}/base-server.yaml
 
 # Wait until both are ready
 # TODO: Consider adding common "Ready" condition to make this check easier.
-kubectl wait --for=condition=modelled models --all --timeout 720s
-kubectl wait --for=condition=deployed servers --all --timeout 720s
+kubectl wait --for=jsonpath='{.status.ready}'=true models --all --timeout 720s
+kubectl wait --for=condition=Ready pod -l server=facebook-opt-125m --all --timeout 720s
 
 # Forward ports to localhost
 kubectl port-forward service/$example-server 8080:8080 &
