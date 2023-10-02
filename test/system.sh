@@ -33,7 +33,11 @@ fi
 kubectl get events -A -w &
 
 # Install Substratus
-kubectl apply -k ${repo}/test/install/${cloud}
+# kubectl apply -k ${repo}/test/install/${cloud}
+skaffold run -f skaffold.kind.yaml -m registry
+sleep 5
+skaffold run -f skaffold.kind.yaml -m install --cache-artifacts=true \
+  --tolerate-failures-until-deadline=true
 
 # Import a Model
 kubectl apply -f ${repo}/examples/${example}/base-model.yaml
