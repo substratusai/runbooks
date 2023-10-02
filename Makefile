@@ -94,7 +94,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test-system-kind
-test-system-kind:
+test-system-kind: skaffold
 	./test/system.sh kind
 
 .PHONY: test-integration

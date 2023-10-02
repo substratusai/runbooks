@@ -7,6 +7,10 @@ cloud=$1
 repo=$(git rev-parse --show-toplevel)
 example="facebook-opt-125m"
 
+SOURCE_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT_DIR=$SOURCE_DIR/..
+export SKAFFOLD=${ROOT_DIR}/bin/skaffold
+
 if [[ -z "$cloud" ]]; then
 	echo "Must provide <cloud> arg"
 	exit 1
@@ -33,9 +37,9 @@ fi
 kubectl get events -A -w &
 
 # Install Substratus
-skaffold run -f skaffold.kind.yaml -m registry
+${SKAFFOLD} run -f skaffold.kind.yaml -m registry
 sleep 5
-skaffold run -f skaffold.kind.yaml -m install --cache-artifacts=true \
+${SKAFFOLD} run -f skaffold.kind.yaml -m install --cache-artifacts=true \
   --tolerate-failures-until-deadline=true
 
 # Import a Model
