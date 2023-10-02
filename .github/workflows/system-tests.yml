@@ -21,7 +21,8 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21.x'
-      - run: |
+      - name: Install latest Skaffold
+        run: |
           curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
           sudo install skaffold /usr/local/bin/
       - run: make test-system-kind
