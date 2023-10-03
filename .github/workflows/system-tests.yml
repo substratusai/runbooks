@@ -1,6 +1,7 @@
-name: System tests
-run-name: ${{ github.actor }} triggered system tests
+name: System tests kind
+run-name: ${{ github.actor }} triggered system tests running on kind
 on:
+  pull_request:
   push:
     branches:
       # Must run after docker images are built and pushed.
@@ -13,7 +14,6 @@ on:
 jobs:
   system-tests:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -21,4 +21,4 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21.x'
-      - run: make test-system
+      - run: make test-system-kind

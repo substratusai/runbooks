@@ -7,6 +7,10 @@ cloud=$1
 repo=$(git rev-parse --show-toplevel)
 example="facebook-opt-125m"
 
+SOURCE_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT_DIR=$SOURCE_DIR/..
+export SKAFFOLD=${ROOT_DIR}/bin/skaffold
+
 if [[ -z "$cloud" ]]; then
 	echo "Must provide <cloud> arg"
 	exit 1
@@ -33,7 +37,10 @@ fi
 kubectl get events -A -w &
 
 # Install Substratus
-kubectl apply -k ${repo}/test/install/${cloud}
+${SKAFFOLD} run -f skaffold.kind.yaml -m registry
+sleep 5
+${SKAFFOLD} run -f skaffold.kind.yaml -m install --cache-artifacts=true \
+  --tolerate-failures-until-deadline=true
 
 # Import a Model
 kubectl apply -f ${repo}/examples/${example}/base-model.yaml
@@ -43,8 +50,8 @@ kubectl apply -f ${repo}/examples/${example}/base-server.yaml
 
 # Wait until both are ready
 # TODO: Consider adding common "Ready" condition to make this check easier.
-kubectl wait --for=condition=modelled models --all --timeout 720s
-kubectl wait --for=condition=deployed servers --all --timeout 720s
+kubectl wait --for=jsonpath='{.status.ready}'=true models --all --timeout 720s
+kubectl wait --for=jsonpath='{.status.ready}'=true servers --all --timeout 720s
 
 # Forward ports to localhost
 kubectl port-forward service/$example-server 8080:8080 &

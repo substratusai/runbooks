@@ -1,7 +1,0 @@
-resources:
-- ../../../config/install-kind/
-images:
-  - name: docker.io/substratusai/sci-kind
-    newTag: main
-  - name: docker.io/substratusai/controller-manager
-    newTag: main
