@@ -1,32 +1,25 @@
-# Substratus
+# Substratus.AI - Kubernetes ML Platform
 
-Substratus is a cross-cloud substrate for training
-and serving ML models. It extends the Kubernetes control plane to orchestrate ML
-operations through the addition of new custom resources: Model, Server,
-Dataset, and Notebook.
+<p align="center">
+   <a href="https://github.com/substratusai/substratus/actions/workflows/system-tests.yml">
+     <img src="https://img.shields.io/github/actions/workflow/status/substratusai/substratus/system-tests.yml?branch=main&label=pipeline&style=flat" alt="continuous integration">
+   </a>
+    <a href="https://discord.gg/JeXhcmjZVm">
+        <img alt="discord-invite" src="https://dcbadge.vercel.app/api/server/JeXhcmjZVm?style=flat">
+    </a>
+</p>
 
-We created Substratus because we believe:
-
-* Installing an ML platform should take minutes not weeks.
-* Running state of the art LLMs should be single-command-simple.
-* Finetuning on your own data should work out of the box.
-* Simplicity should not exclude flexibility - all ML code should be customizable through a seamless Notebook experience.
+🚀 Serve popular OSS LLM models in minutes on CPUs or GPUs  
+🎵 Fine-tune LLM models with no/low code  
+📔 Provide a Colab style seamless Notebook experience  
+☁️ Provide a unified ML platform across clouds  
+⬆️ Easy to install with minimal dependencies
 
 Support the project by adding a star on GitHub! ❤️
 
-🗣 Join our Discord: [https://discord.gg/JeXhcmjZVm](https://discord.gg/JeXhcmjZVm)
 
-Learn more on the website:
 
-* [Intro Post](https://www.substratus.ai/blog/introducing-substratus)
-* [Overview](https://www.substratus.ai/docs/overview)
-* [Architecture](https://www.substratus.ai/docs/architecture)
-
-See what it is about in less than 2 minutes:
-
-[![Watch the video](https://img.youtube.com/vi/CLyXKJHIQ6A/hq2.jpg)](https://youtu.be/CLyXKJHIQ6A)
-
-## Try it out!
+## Quickstart
 
 Create a local Kubernetes cluster using Kind.
 
@@ -122,3 +115,12 @@ kind delete cluster --name substratus
 If you want to try out a more capable LLM, running on substantial hardware, try [Kind with
 GPU support](https://www.substratus.ai/docs/quickstart/local-kind?kind-mode=gpu),
 or try [deploying Substratus in GKE](https://www.substratus.ai/docs/quickstart/gcp).
+
+## Docs
+* [Overview](https://www.substratus.ai/docs/overview)
+* [Architecture](https://www.substratus.ai/docs/architecture)
+
+## Creators
+Feel free to contact any of us:
+* [Nick Stogner](https://www.linkedin.com/in/nstogner/)
+* [Sam Stoelinga](https://www.linkedin.com/in/samstoelinga/)
