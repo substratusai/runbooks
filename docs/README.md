@@ -1,16 +1,19 @@
-# Substratus
+# Substratus - LLM Serving and training on K8s
 
-Substratus is a cross-cloud substrate for training
-and serving ML models. It extends the Kubernetes control plane to orchestrate ML
-operations through the addition of new custom resources: Model, Server,
-Dataset, and Notebook.
+<p align="center">
+   <a href="https://github.com/substratusai/substratus/actions/workflows/system-tests.yml">
+     <img src="https://img.shields.io/github/actions/workflow/status/substratusai/substratus/system-tests.yml?branch=main&label=pipeline&style=flat" alt="continuous integration">
+   </a>
+    <a href="https://discord.gg/JeXhcmjZVm">
+        <img alt="discord-invite" src="https://dcbadge.vercel.app/api/server/JeXhcmjZVm?style=flat">
+    </a>
+</p>
 
-We created Substratus because we believe:
-
-* Installing an ML platform should take minutes not weeks.
-* Running state of the art LLMs should be single-command-simple.
-* Finetuning on your own data should work out of the box.
-* Simplicity should not exclude flexibility - all ML code should be customizable through a seamless Notebook experience.
+Turn K8s into an ML platform and maximize productivity:  
+🚀 Serve popular OSS LLM models in minutes on CPUs or GPUs  
+🎵 Fine-tune LLM models with no/low code  
+📔 Provide a Colab style seamless Notebook experience  
+☁️ Provide a unified ML platform across clouds  
 
 Support the project by adding a star on GitHub! ❤️
 
@@ -18,7 +21,6 @@ Support the project by adding a star on GitHub! ❤️
 
 Learn more on the website:
 
-* [Intro Post](https://www.substratus.ai/blog/introducing-substratus)
 * [Overview](https://www.substratus.ai/docs/overview)
 * [Architecture](https://www.substratus.ai/docs/architecture)
 
