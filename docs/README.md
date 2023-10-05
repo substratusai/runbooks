@@ -1,4 +1,4 @@
-# Substratus - LLM Serving and training on K8s
+# Substratus.AI - Kubernetes ML Platform
 
 <p align="center">
    <a href="https://github.com/substratusai/substratus/actions/workflows/system-tests.yml">
@@ -9,26 +9,17 @@
     </a>
 </p>
 
-Turn K8s into an ML platform and maximize productivity:  
 🚀 Serve popular OSS LLM models in minutes on CPUs or GPUs  
 🎵 Fine-tune LLM models with no/low code  
 📔 Provide a Colab style seamless Notebook experience  
 ☁️ Provide a unified ML platform across clouds  
+⬆️ Easy to install with minimal dependencies
 
 Support the project by adding a star on GitHub! ❤️
 
-🗣 Join our Discord: [https://discord.gg/JeXhcmjZVm](https://discord.gg/JeXhcmjZVm)
 
-Learn more on the website:
 
-* [Overview](https://www.substratus.ai/docs/overview)
-* [Architecture](https://www.substratus.ai/docs/architecture)
-
-See what it is about in less than 2 minutes:
-
-[![Watch the video](https://img.youtube.com/vi/CLyXKJHIQ6A/hq2.jpg)](https://youtu.be/CLyXKJHIQ6A)
-
-## Try it out!
+## Quickstart
 
 Create a local Kubernetes cluster using Kind.
 
@@ -124,3 +115,12 @@ kind delete cluster --name substratus
 If you want to try out a more capable LLM, running on substantial hardware, try [Kind with
 GPU support](https://www.substratus.ai/docs/quickstart/local-kind?kind-mode=gpu),
 or try [deploying Substratus in GKE](https://www.substratus.ai/docs/quickstart/gcp).
+
+## Docs
+* [Overview](https://www.substratus.ai/docs/overview)
+* [Architecture](https://www.substratus.ai/docs/architecture)
+
+## Creators
+Feel free to contact any of us:
+* [Nick Stogner](https://www.linkedin.com/in/nstogner/)
+* [Sam Stoelinga](https://www.linkedin.com/in/samstoelinga/)
