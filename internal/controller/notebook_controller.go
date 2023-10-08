@@ -431,14 +431,16 @@ func (r *NotebookReconciler) notebookPod(notebook *apiv1.Notebook, model *apiv1.
 		}
 	}
 
-	// Mounts specific to this Notebook.
-	if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, notebook, cloud.MountBucketConfig{
-		Name:      "artifacts",
-		Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "artifacts"}},
-		Container: containerName,
-		ReadOnly:  false,
-	}); err != nil {
-		return nil, fmt.Errorf("mounting notebook: %w", err)
+	// Mounts specific to this Notebook
+	if notebook.Spec.Dataset != nil || notebook.Spec.Model != nil {
+		if err := r.Cloud.MountBucket(&pod.ObjectMeta, &pod.Spec, notebook, cloud.MountBucketConfig{
+			Name:      "artifacts",
+			Mounts:    []cloud.BucketMount{{BucketSubdir: "artifacts", ContentSubdir: "artifacts"}},
+			Container: containerName,
+			ReadOnly:  false,
+		}); err != nil {
+			return nil, fmt.Errorf("mounting notebook: %w", err)
+		}
 	}
 
 	if err := ctrl.SetControllerReference(notebook, pod, r.Scheme); err != nil {
