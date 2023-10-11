@@ -244,7 +244,7 @@ func manifestToObjects(manifest []byte, substratusOnly bool) ([]client.Object, e
 			return nil, fmt.Errorf("decoding: %w", err)
 		}
 		if obj == nil {
-			log.Println("ignoring nil object: %v", doc)
+			log.Printf("ignoring nil object: %v", doc)
 			continue
 		}
 
