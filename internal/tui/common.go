@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +23,7 @@ import (
 var (
 	P       *tea.Program
 	LogFile *os.File
+	HTTPC   = &http.Client{Timeout: 30 * time.Second}
 )
 
 func init() {
@@ -130,14 +133,21 @@ func applyWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Ob
 
 type appliedMsg struct {
 	client.Object
+	index int
+	err   error
 }
 
-func applyCmd(ctx context.Context, res *client.Resource, obj client.Object) tea.Cmd {
+type applyInput struct {
+	client.Object
+	index int
+}
+
+func applyCmd(ctx context.Context, res *client.Resource, in *applyInput) tea.Cmd {
 	return func() tea.Msg {
-		if err := res.Apply(obj, true); err != nil {
-			return fmt.Errorf("applying: %w", err)
+		if err := res.Apply(in.Object, true); err != nil {
+			return appliedMsg{index: in.index, err: err}
 		}
-		return appliedMsg{Object: obj}
+		return appliedMsg{Object: in.Object, index: in.index}
 	}
 }
 

@@ -64,9 +64,10 @@ func (m NotebookModel) cleanupAndQuitCmd() tea.Msg {
 
 func (m *NotebookModel) New() NotebookModel {
 	m.manifests = (&manifestsModel{
-		Path:     m.Path,
-		Filename: m.Filename,
-		Kinds:    []string{"Notebook", "Model", "Dataset"},
+		Path:           m.Path,
+		Filename:       m.Filename,
+		SubstratusOnly: true,
+		Kinds:          []string{"Notebook", "Model", "Dataset"},
 	}).New()
 	m.upload = (&uploadModel{
 		Ctx:    m.Ctx,

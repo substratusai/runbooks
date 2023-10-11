@@ -33,6 +33,11 @@ func runCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
+		client, err := NewClient(clientset, restConfig)
+		if err != nil {
+			return fmt.Errorf("client: %w", err)
+		}
+
 		path := "."
 		if len(args) > 0 {
 			path = args[0]
@@ -46,7 +51,7 @@ func runCommand() *cobra.Command {
 				Contextual: kubeconfigNamespace,
 				Specified:  flags.namespace,
 			},
-			Client: NewClient(clientset, restConfig),
+			Client: client,
 			K8s:    clientset,
 		}).New())
 		if _, err := tui.P.Run(); err != nil {

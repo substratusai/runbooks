@@ -13,7 +13,7 @@ import (
 	"github.com/substratusai/substratus/internal/tui"
 )
 
-func serveCommand() *cobra.Command {
+func applyCommand() *cobra.Command {
 	var flags struct {
 		namespace  string
 		filename   string
@@ -23,9 +23,9 @@ func serveCommand() *cobra.Command {
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
 
-		//if flags.filename == "" {
-		//	return fmt.Errorf("Flag -f (--filename) required")
-		//}
+		if flags.filename == "" {
+			return fmt.Errorf("Flag -f (--filename) required")
+		}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -42,15 +42,9 @@ func serveCommand() *cobra.Command {
 			return fmt.Errorf("client: %w", err)
 		}
 
-		wd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("getting working directory: %w", err)
-		}
-
 		// Initialize our program
-		tui.P = tea.NewProgram((&tui.ServeModel{
+		tui.P = tea.NewProgram((&tui.ApplyModel{
 			Ctx:      cmd.Context(),
-			Path:     wd,
 			Filename: flags.filename,
 			Namespace: tui.Namespace{
 				Contextual: kubeconfigNamespace,
@@ -67,14 +61,17 @@ func serveCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "serve",
-		Aliases: []string{"srv"},
-		Short:   "Serve a model, open a browser",
-		Example: `  # Scan *.yaml files looking for a Server object to apply.
-  sub serve
+		Use:     "apply",
+		Aliases: []string{"ap"},
+		Short:   "Apply Substratus (or any Kubernetes) objects",
+		Example: `  # Scan *.yaml files looking for manifests to apply.
+  sub apply ./dir/
 
-  # Serve a given Server manifest.
-  sub serve -f manifest.yaml`,
+  # Apply a single manifest file.
+  sub apply -f manifests.yaml
+
+  # Apply a remote manifest.
+  sub apply -f https://some/manifest.yaml`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(cmd, args); err != nil {
 				fmt.Fprintln(os.Stderr, err)

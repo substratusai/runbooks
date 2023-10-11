@@ -3,7 +3,9 @@ package tui
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,8 +18,9 @@ import (
 )
 
 type manifestsModel struct {
-	Path     string
-	Filename string
+	Path           string
+	Filename       string
+	SubstratusOnly bool
 
 	// Kinds is a list of manifest kinds to include in results,
 	// ordered by preference.
@@ -38,9 +41,13 @@ func (m manifestsModel) Active() bool {
 }
 
 func (m manifestsModel) Init() tea.Cmd {
+	path := m.Path
+	if m.Filename != "" {
+		path = m.Filename
+	}
 	return tea.Sequence(
 		func() tea.Msg { return manifestsInitMsg{} },
-		findSubstratusManifests(m.Path, m.Filename),
+		findManifests(path, m.SubstratusOnly),
 	)
 }
 
@@ -57,13 +64,14 @@ func (m manifestsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, func() tea.Msg { return manifestSelectedMsg{obj: msg.obj} }
 
-	case substratusManifestsMsg:
+	case manifestsFoundMsg:
 		m.reading = completed
 
 		var n int
 		var single client.Object
+		byKind := groupObjectsByKind(msg.manifests)
 		for _, k := range m.Kinds {
-			items := msg.manifests[k]
+			items := byKind[k]
 			if single == nil && len(items) > 0 {
 				single = items[0]
 			}
@@ -106,59 +114,125 @@ type manifestSelectedMsg struct {
 	obj client.Object
 }
 
-type substratusManifestsMsg struct {
-	manifests map[string][]client.Object
+type manifestsFoundMsg struct {
+	manifests []client.Object
 }
 
-func findSubstratusManifests(path, filename string) tea.Cmd {
+func groupObjectsByKind(objs []client.Object) map[string][]client.Object {
+	g := make(map[string][]client.Object)
+	for _, o := range objs {
+		kind := o.GetObjectKind().GroupVersionKind().Kind
+		g[kind] = append(g[kind], o)
+	}
+	return g
+}
+
+func findManifests(path string, substratusOnly bool) tea.Cmd {
 	return func() tea.Msg {
-		msg := substratusManifestsMsg{
-			manifests: map[string][]client.Object{},
+		manifests, err := resolveManifests(path, substratusOnly)
+		if err != nil {
+			return fmt.Errorf("resolving manifests: %w", err)
 		}
 
-		var fp string
-		if filename != "" {
-			fp = filepath.Join(path, filename)
-			manifest, err := os.ReadFile(fp)
+		var all []client.Object
+		for _, manifest := range manifests {
+			objs, err := manifestToObjects(manifest, substratusOnly)
 			if err != nil {
-				return fmt.Errorf("reading file: %w", err)
+				return fmt.Errorf("manifest to objects: %w", err)
 			}
-			if err := manifestToObjects(manifest, msg.manifests); err != nil {
-				return fmt.Errorf("reading manifests in file: %v: %w", filename, err)
-			}
-		} else {
-			if path == "" {
-				var err error
-				path, err = os.Getwd()
-				if err != nil {
-					return err
-				}
-			}
-
-			fp = filepath.Join(path, "*.yaml")
-			matches, err := filepath.Glob(fp)
-			if err != nil {
-				return err
-			}
-			for _, p := range matches {
-				manifest, err := os.ReadFile(p)
-				if err != nil {
-					return fmt.Errorf("reading file: %w", err)
-				}
-
-				if err := manifestToObjects(manifest, msg.manifests); err != nil {
-					return fmt.Errorf("reading manifests in file: %v: %w", p, err)
-				}
-			}
+			all = append(all, objs...)
 		}
-		if len(msg.manifests) == 0 {
-			return fmt.Errorf("No manifests found: %v", fp)
+
+		if len(all) == 0 {
+			return fmt.Errorf("No manifests found: %v", path)
 		}
-		return msg
+
+		return manifestsFoundMsg{
+			manifests: all,
+		}
 	}
 }
 
-func manifestToObjects(manifest []byte, m map[string][]client.Object) error {
+func resolveManifests(path string, substratusOnly bool) ([][]byte, error) {
+	typ, err := determinePathType(path)
+	if err != nil {
+		return nil, fmt.Errorf("determining path type: %w", err)
+	}
+
+	switch typ {
+	case pathHTTP:
+		resp, err := HTTPC.Get(path)
+		if err != nil {
+			return nil, fmt.Errorf("http: %w", err)
+		}
+		defer resp.Body.Close()
+
+		// Check server response
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("http: bad status: %s", resp.Status)
+		}
+
+		manifest, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("http: reading: %w", err)
+		}
+		return [][]byte{manifest}, nil
+
+	case pathFile:
+		manifest, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading file: %w", err)
+		}
+		return [][]byte{manifest}, nil
+	case pathDir:
+		glob := filepath.Join(path, "*.yaml")
+		matches, err := filepath.Glob(glob)
+		if err != nil {
+			return nil, err
+		}
+
+		var all [][]byte
+		for _, p := range matches {
+			manifest, err := os.ReadFile(p)
+			if err != nil {
+				return nil, fmt.Errorf("reading file: %w", err)
+			}
+			all = append(all, manifest)
+		}
+		return all, nil
+
+	default:
+		return nil, fmt.Errorf("unrecognized path type: %s", typ)
+	}
+}
+
+type pathType string
+
+const (
+	pathFile = "file"
+	pathDir  = "dir"
+	pathHTTP = "http"
+)
+
+func determinePathType(path string) (pathType, error) {
+	if strings.HasPrefix(path, "http://") ||
+		strings.HasPrefix(path, "https://") {
+		return pathHTTP, nil
+	}
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if fileInfo.IsDir() {
+		return pathDir, nil
+	}
+
+	return pathFile, nil
+}
+
+func manifestToObjects(manifest []byte, substratusOnly bool) ([]client.Object, error) {
+	var m []client.Object
 	split := bytes.Split(manifest, []byte("---\n"))
 	for _, doc := range split {
 		if strings.TrimSpace(string(doc)) == "" {
@@ -167,21 +241,22 @@ func manifestToObjects(manifest []byte, m map[string][]client.Object) error {
 
 		obj, err := client.Decode(doc)
 		if err != nil {
-			return fmt.Errorf("decoding: %w", err)
+			return nil, fmt.Errorf("decoding: %w", err)
 		}
 		if obj == nil {
-			return nil
+			log.Println("ignoring nil object: %v", doc)
+			continue
 		}
 
-		switch t := obj.(type) {
-		case *apiv1.Model, *apiv1.Dataset, *apiv1.Server, *apiv1.Notebook:
-			kind := t.GetObjectKind().GroupVersionKind().Kind
-			if m[kind] == nil {
-				m[kind] = make([]client.Object, 0)
+		if substratusOnly {
+			switch obj.(type) {
+			case *apiv1.Model, *apiv1.Dataset, *apiv1.Server, *apiv1.Notebook:
+				m = append(m, obj)
 			}
-			m[kind] = append(m[kind], obj)
+		} else {
+			m = append(m, obj)
 		}
 	}
 
-	return nil
+	return m, nil
 }
