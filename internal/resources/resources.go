@@ -22,6 +22,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 			res = &apiv1.Resources{
 				CPU:    2,
 				Memory: 4,
+				Disk:   100,
 			}
 		}
 	}
@@ -33,6 +34,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 
 	resources.Requests[corev1.ResourceCPU] = *resource.NewQuantity(res.CPU, resource.DecimalSI)
 	resources.Requests[corev1.ResourceMemory] = *resource.NewQuantity(res.Memory*gigabyte, resource.BinarySI)
+	resources.Requests[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(res.Disk*gigabyte, resource.BinarySI)
 
 	if res.GPU != nil {
 		gpuInfo, ok := GetGPUInfo(cloudName, res.GPU.Type)
