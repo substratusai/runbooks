@@ -22,6 +22,7 @@ func Apply(podMetadata *metav1.ObjectMeta, podSpec *corev1.PodSpec, containerNam
 			res = &apiv1.Resources{
 				CPU:    2,
 				Memory: 4,
+				Disk:   100,
 			}
 		}
 	}
