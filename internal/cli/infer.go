@@ -41,8 +41,11 @@ func inferCommand() *cobra.Command {
 
 		_ = namespace
 
-		c := NewClient(clientset, restConfig)
-		_ = c
+		client, err := NewClient(clientset, restConfig)
+		if err != nil {
+			return fmt.Errorf("client: %w", err)
+		}
+		_ = client
 
 		// Initialize our program
 		// TODO: Use a differnt tui-model for different types of Model objects:

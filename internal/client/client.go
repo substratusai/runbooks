@@ -8,6 +8,7 @@ import (
 
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,13 +45,20 @@ type Interface interface {
 	) error
 }
 
-func NewClient(inf kubernetes.Interface, cfg *rest.Config) Interface {
-	return &Client{Interface: inf, Config: cfg}
+func NewClient(inf kubernetes.Interface, cfg *rest.Config) (Interface, error) {
+	// Create a REST mapper that tracks information about the available resources in the cluster.
+	groupResources, err := restmapper.GetAPIGroupResources(inf.Discovery())
+	if err != nil {
+		return nil, err
+	}
+	rm := restmapper.NewDiscoveryRESTMapper(groupResources)
+	return &Client{Interface: inf, Config: cfg, RESTMapper: rm}, nil
 }
 
 type Client struct {
 	kubernetes.Interface
 	Config *rest.Config
+	meta.RESTMapper
 }
 
 type Resource struct {
@@ -58,17 +66,10 @@ type Resource struct {
 }
 
 func (c *Client) Resource(obj Object) (*Resource, error) {
-	// Create a REST mapper that tracks information about the available resources in the cluster.
-	groupResources, err := restmapper.GetAPIGroupResources(c.Interface.Discovery())
-	if err != nil {
-		return nil, err
-	}
-	rm := restmapper.NewDiscoveryRESTMapper(groupResources)
-
 	// Get some metadata needed to make the REST request.
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	gk := schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}
-	mapping, err := rm.RESTMapping(gk, gvk.Version)
+	mapping, err := c.RESTMapper.RESTMapping(gk, gvk.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func (c *Client) Resource(obj Object) (*Resource, error) {
 	_ = name
 
 	// Create a client specifically for working with the object.
-	restClient, err := newRestClient(c.Config, mapping.GroupVersionKind.GroupVersion())
+	restClient, err := newRestClient(c.Config, mapping.GroupVersionKind.GroupVersion(), obj)
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +94,13 @@ func (c *Client) Resource(obj Object) (*Resource, error) {
 	return &Resource{Helper: helper}, nil
 }
 
-func newRestClient(restConfig *rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
-	// restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
-	restConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+func newRestClient(restConfig *rest.Config, gv schema.GroupVersion, obj Object) (rest.Interface, error) {
+	if _, ok := obj.(*unstructured.Unstructured); ok {
+		restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	} else {
+		restConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	}
+
 	restConfig.GroupVersion = &gv
 	if len(gv.Group) == 0 {
 		restConfig.APIPath = "/api"

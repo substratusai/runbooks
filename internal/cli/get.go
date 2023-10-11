@@ -39,7 +39,10 @@ func getCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
-		c := NewClient(clientset, restConfig)
+		client, err := NewClient(clientset, restConfig)
+		if err != nil {
+			return fmt.Errorf("client: %w", err)
+		}
 
 		var scope string
 		if len(args) > 0 {
@@ -52,7 +55,7 @@ func getCommand() *cobra.Command {
 			Scope:     scope,
 			Namespace: namespace,
 
-			Client: c,
+			Client: client,
 		}).New() /*, tea.WithAltScreen()*/)
 		if _, err := tui.P.Run(); err != nil {
 			return err

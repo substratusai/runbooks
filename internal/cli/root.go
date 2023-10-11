@@ -12,6 +12,7 @@ func Command() *cobra.Command {
 		Short: "Substratus CLI",
 	}
 
+	cmd.AddCommand(applyCommand())
 	cmd.AddCommand(notebookCommand())
 	cmd.AddCommand(runCommand())
 	cmd.AddCommand(getCommand())

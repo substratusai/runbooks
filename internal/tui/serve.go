@@ -22,6 +22,7 @@ type ServeModel struct {
 
 	// Config
 	Namespace     Namespace
+	Path          string
 	Filename      string
 	NoOpenBrowser bool
 
@@ -54,7 +55,10 @@ type ServeModel struct {
 
 func (m *ServeModel) New() ServeModel {
 	m.manifests = (&manifestsModel{
-		Kinds: []string{"Server"},
+		Path:           m.Path,
+		Filename:       m.Filename,
+		Kinds:          []string{"Server"},
+		SubstratusOnly: true,
 	}).New()
 	m.readiness = (&readinessModel{
 		Ctx:    m.Ctx,
@@ -107,7 +111,7 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resource = res
 
 		m.applying = inProgress
-		cmds = append(cmds, applyCmd(m.Ctx, m.resource, m.server.DeepCopy()))
+		cmds = append(cmds, applyCmd(m.Ctx, m.resource, &applyInput{Object: m.server.DeepCopy()}))
 	}
 
 	switch msg := msg.(type) {
@@ -117,6 +121,10 @@ func (m ServeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		apply()
 
 	case appliedMsg:
+		if msg.err != nil {
+			m.finalError = msg.err
+			break
+		}
 		m.applying = completed
 		m.server = msg.Object.(*apiv1.Server)
 

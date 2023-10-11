@@ -179,7 +179,7 @@ func (m GetModel) View() (v string) {
 			var groups []objectVersions
 
 			var lastUnversionedName string
-			// var longestName int
+
 			const longestName = 30
 			for _, name := range names {
 				o := m.objects[resource.plural][name]

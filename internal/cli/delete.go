@@ -33,7 +33,10 @@ func deleteCommand() *cobra.Command {
 			return fmt.Errorf("clientset: %w", err)
 		}
 
-		c := NewClient(clientset, restConfig)
+		client, err := NewClient(clientset, restConfig)
+		if err != nil {
+			return fmt.Errorf("client: %w", err)
+		}
 
 		// Initialize our program
 		tui.P = tea.NewProgram((&tui.DeleteModel{
@@ -43,7 +46,7 @@ func deleteCommand() *cobra.Command {
 				Contextual: kubeconfigNamespace,
 				Specified:  flags.namespace,
 			},
-			Client: c,
+			Client: client,
 		}).New())
 		if _, err := tui.P.Run(); err != nil {
 			return err
