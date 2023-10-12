@@ -18,10 +18,16 @@ func runCommand() *cobra.Command {
 		namespace  string
 		filename   string
 		kubeconfig string
+		increment  bool
+		replace    bool
 	}
 
 	run := func(cmd *cobra.Command, args []string) error {
 		defer tui.LogFile.Close()
+
+		if flags.increment && flags.replace {
+			return fmt.Errorf("flags: --increment (-i) and --replace (-r): not compatible")
+		}
 
 		kubeconfigNamespace, restConfig, err := utils.BuildConfigFromFlags("", flags.kubeconfig)
 		if err != nil {
@@ -51,8 +57,10 @@ func runCommand() *cobra.Command {
 				Contextual: kubeconfigNamespace,
 				Specified:  flags.namespace,
 			},
-			Client: client,
-			K8s:    clientset,
+			Increment: flags.increment,
+			Replace:   flags.replace,
+			Client:    client,
+			K8s:       clientset,
 		}).New())
 		if _, err := tui.P.Run(); err != nil {
 			return err
@@ -89,6 +97,8 @@ func runCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "path to Kubernetes Kubeconfig file")
 	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "namespace of Notebook")
 	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "manifest file")
+	cmd.Flags().BoolVarP(&flags.increment, "increment", "i", false, "increment the model name")
+	cmd.Flags().BoolVarP(&flags.replace, "replace", "r", false, "replace the model if it already exists")
 
 	return cmd
 }

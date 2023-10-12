@@ -24,9 +24,11 @@ type uploadModel struct {
 	Client   client.Interface
 	Resource *client.Resource
 
-	Mode     uploadMode
-	applying status
-	creating status
+	Increment bool
+	Replace   bool
+	Mode      uploadMode
+	applying  status
+	creating  status
 
 	// Original Object (could be a Dataset, Model, or Server)
 	Object client.Object
@@ -103,7 +105,7 @@ func (m uploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, applyWithUploadCmd(m.Ctx, m.Resource, m.Object.DeepCopyObject().(client.Object), m.tarball)
 		} else if m.Mode == uploadModeCreate {
 			m.creating = inProgress
-			return m, createWithUploadCmd(m.Ctx, m.Resource, m.Object.DeepCopyObject().(client.Object), m.tarball)
+			return m, createWithUploadCmd(m.Ctx, m.Resource, m.Object.DeepCopyObject().(client.Object), m.tarball, m.Increment, m.Replace)
 		} else {
 			panic("unkown upload mode")
 		}
