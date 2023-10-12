@@ -94,11 +94,11 @@ func runCommand() *cobra.Command {
 	if defaultKubeconfig == "" {
 		defaultKubeconfig = clientcmd.RecommendedHomeFile
 	}
-	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "path to Kubernetes Kubeconfig file")
-	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "namespace of Notebook")
+	cmd.Flags().StringVarP(&flags.kubeconfig, "kubeconfig", "", defaultKubeconfig, "path to kubernetes kubeconfig file")
+	cmd.Flags().StringVarP(&flags.namespace, "namespace", "n", "", "kubernetes namespace")
 	cmd.Flags().StringVarP(&flags.filename, "filename", "f", "", "manifest file")
-	cmd.Flags().BoolVarP(&flags.increment, "increment", "i", false, "increment the model name")
-	cmd.Flags().BoolVarP(&flags.replace, "replace", "r", false, "replace the model if it already exists")
+	cmd.Flags().BoolVarP(&flags.increment, "increment", "i", false, "increment the name")
+	cmd.Flags().BoolVarP(&flags.replace, "replace", "r", false, "replace if already exists")
 
 	return cmd
 }
