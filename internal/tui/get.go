@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
-	"slices"
 	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -134,119 +131,37 @@ func (m GetModel) View() (v string) {
 	scopeResource, scopeName := splitScope(m.Scope)
 
 	var total int
-	for _, resource := range []struct {
-		plural    string
-		versioned bool
-	}{
-		{plural: "notebooks", versioned: false},
-		{plural: "datasets", versioned: true},
-		{plural: "models", versioned: true},
-		{plural: "servers", versioned: false},
+	for _, resource := range []string{
+		"notebooks",
+		"datasets",
+		"models",
+		"servers",
 	} {
-		if len(m.objects[resource.plural]) == 0 {
+		if len(m.objects[resource]) == 0 {
 			continue
 		}
 
 		if scopeResource == "" {
-			v += resource.plural + "/" + "\n"
+			v += resource + "/" + "\n"
 		}
 
 		var names []string
-		for name := range m.objects[resource.plural] {
+		for name := range m.objects[resource] {
 			names = append(names, name)
 			total++
 		}
 		sort.Strings(names)
 
-		if !resource.versioned {
-			for _, name := range names {
-				o := m.objects[resource.plural][name]
+		for _, name := range names {
+			o := m.objects[resource][name]
 
-				var indicator string
-				if o.GetStatusReady() {
-					indicator = checkMark.String()
-				} else {
-					indicator = o.spinner.View()
-				}
-				v += "" + indicator + " " + name + "\n"
+			var indicator string
+			if o.GetStatusReady() {
+				indicator = checkMark.String()
+			} else {
+				indicator = o.spinner.View()
 			}
-		} else {
-			type objectVersions struct {
-				unversionedName string
-				versions        []listedObject
-			}
-
-			var groups []objectVersions
-
-			var lastUnversionedName string
-
-			const longestName = 30
-			for _, name := range names {
-				o := m.objects[resource.plural][name]
-				lowerKind := strings.TrimSuffix(resource.plural, "s")
-				unversionedName := o.GetLabels()[lowerKind]
-
-				if unversionedName != lastUnversionedName {
-					groups = append(groups, objectVersions{
-						unversionedName: unversionedName,
-						versions:        []listedObject{o},
-					})
-				} else {
-					groups[len(groups)-1].versions = append(groups[len(groups)-1].versions, o)
-				}
-
-				lastUnversionedName = unversionedName
-				//if n := len(name); n > longestName {
-				//	longestName = n + 6
-				//}
-			}
-
-			for gi, g := range groups {
-				type versionDisplay struct {
-					indicator string
-					version   string
-				}
-				var displayVersions []versionDisplay
-				for _, o := range g.versions {
-					version := o.GetLabels()["version"]
-
-					var indicator string
-					if o.GetStatusReady() {
-						indicator = checkMark.String()
-					} else if c := meta.FindStatusCondition(*o.GetConditions(), apiv1.ConditionComplete); c != nil && c.Reason == apiv1.ReasonJobFailed {
-						indicator = xMark.String()
-					} else {
-						indicator = o.spinner.View()
-					}
-					displayVersions = append(displayVersions, versionDisplay{
-						indicator: indicator,
-						version:   version,
-					})
-				}
-
-				// Latest first
-				slices.Reverse(displayVersions)
-
-				var otherVersions []string
-				for _, other := range displayVersions[1:] {
-					otherVersions = append(otherVersions, fmt.Sprintf("%v.v%v", other.indicator, other.version))
-				}
-
-				primary := displayVersions[0].indicator + " " +
-					g.unversionedName + ".v" +
-					displayVersions[0].version
-
-				verWidth := int(math.Min(float64(60), float64(m.Style.GetWidth()-m.Style.GetHorizontalMargins()-longestName-18)))
-				v += lipgloss.JoinHorizontal(
-					lipgloss.Top,
-					lipgloss.NewStyle().Width(longestName).MarginLeft(0).MarginRight(2).Align(lipgloss.Left).Render(primary),
-					lipgloss.NewStyle().Width(verWidth).MarginRight(4).Align(lipgloss.Right).Render(strings.Join(otherVersions, "  ")),
-				)
-				if gi < len(groups) {
-					v += "\n"
-				}
-			}
-
+			v += "" + indicator + " " + name + "\n"
 		}
 		v += "\n"
 	}

@@ -6,13 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/substratusai/substratus/api/v1"
@@ -155,50 +155,52 @@ type createdWithUploadMsg struct {
 	client.Object
 }
 
-func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Object, tarball *client.Tarball) tea.Cmd {
+func createWithUploadCmd(ctx context.Context, res *client.Resource, obj client.Object, tarball *client.Tarball, increment, replace bool) tea.Cmd {
 	return func() tea.Msg {
 		if err := specifyUpload(obj, tarball); err != nil {
 			return fmt.Errorf("specifying upload: %w", err)
 		}
 
-		lowerKind := strings.ToLower(obj.GetObjectKind().GroupVersionKind().Kind)
-		if obj.GetLabels() == nil {
-			obj.SetLabels(map[string]string{})
-		}
-		obj.GetLabels()[lowerKind] = obj.GetName()
-
-		list, err := res.List(obj.GetNamespace(), obj.GetObjectKind().GroupVersionKind().Version, &metav1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				lowerKind: obj.GetName(),
-			}).String(),
-		})
-		if err != nil {
-			return fmt.Errorf("listing: %w", err)
-		}
-
-		var version int
-		switch list := list.(type) {
-		case *apiv1.ModelList:
-			version, err = nextModelVersion(list)
+		if increment {
+			list, err := res.List(obj.GetNamespace(), obj.GetObjectKind().GroupVersionKind().Version, &metav1.ListOptions{})
 			if err != nil {
-				return fmt.Errorf("next model version: %w", err)
+				return fmt.Errorf("listing: %w", err)
 			}
-		case *apiv1.DatasetList:
-			version, err = nextDatasetVersion(list)
-			if err != nil {
-				return fmt.Errorf("next dataset version: %w", err)
+
+			var version int
+			switch list := list.(type) {
+			case *apiv1.ModelList:
+				version, err = nextModelVersion(list, obj.GetName())
+				if err != nil {
+					return fmt.Errorf("next model version: %w", err)
+				}
+			case *apiv1.DatasetList:
+				version, err = nextDatasetVersion(list, obj.GetName())
+				if err != nil {
+					return fmt.Errorf("next dataset version: %w", err)
+				}
+			default:
+				return fmt.Errorf("unrecognized list type: %T", list)
 			}
-		default:
-			return fmt.Errorf("unrecognized list type: %T", list)
+
+			log.Printf("Next version: %v", version)
+
+			obj.SetName(fmt.Sprintf("%v-%v", obj.GetName(), version))
 		}
 
-		log.Printf("Next version: %v", version)
-
-		obj.SetName(fmt.Sprintf("%v.v%v", obj.GetName(), version))
-		obj.GetLabels()["version"] = fmt.Sprintf("%v", version)
 		if _, err := res.Create(obj.GetNamespace(), true, obj); err != nil {
-			return fmt.Errorf("creating: %w", err)
+			if replace && apierrors.IsAlreadyExists(err) {
+				if _, err := res.Delete(obj.GetNamespace(), obj.GetName()); err != nil {
+					return fmt.Errorf("replacing: delete: %w", err)
+				}
+				if _, err := res.Create(obj.GetNamespace(), true, obj); err != nil {
+					return fmt.Errorf("replacing: creating: %w", err)
+				}
+			} else {
+				return fmt.Errorf("creating: %w", err)
+			}
 		}
+
 		return createdWithUploadMsg{Object: obj}
 	}
 }
@@ -222,10 +224,15 @@ func waitReadyCmd(ctx context.Context, res *client.Resource, obj client.Object) 
 	}
 }
 
-func nextModelVersion(list *apiv1.ModelList) (int, error) {
+func nextModelVersion(list *apiv1.ModelList, name string) (int, error) {
 	var highestVersion int
+	re := regexp.MustCompile(name + `-(\d+)`)
 	for _, item := range list.Items {
-		v, err := strconv.Atoi(item.GetLabels()["version"])
+		match := re.FindStringSubmatch(item.Name)
+		if len(match) != 2 {
+			continue
+		}
+		v, err := strconv.Atoi(match[1])
 		if err != nil {
 			return 0, fmt.Errorf("version label to int: %w", err)
 		}
@@ -237,10 +244,15 @@ func nextModelVersion(list *apiv1.ModelList) (int, error) {
 	return highestVersion + 1, nil
 }
 
-func nextDatasetVersion(list *apiv1.DatasetList) (int, error) {
+func nextDatasetVersion(list *apiv1.DatasetList, name string) (int, error) {
 	var highestVersion int
+	re := regexp.MustCompile(name + `-(\d+)`)
 	for _, item := range list.Items {
-		v, err := strconv.Atoi(item.GetLabels()["version"])
+		match := re.FindStringSubmatch(item.Name)
+		if len(match) != 2 {
+			continue
+		}
+		v, err := strconv.Atoi(match[1])
 		if err != nil {
 			return 0, fmt.Errorf("version label to int: %w", err)
 		}

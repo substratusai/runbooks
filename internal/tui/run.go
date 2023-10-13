@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -25,6 +24,8 @@ type RunModel struct {
 	Path      string
 	Filename  string
 	Namespace Namespace
+	Increment bool
+	Replace   bool
 
 	// Focal object
 	object   client.Object
@@ -49,10 +50,12 @@ func (m *RunModel) New() RunModel {
 		Kinds:    []string{"Model", "Dataset"},
 	}).New()
 	m.upload = (&uploadModel{
-		Ctx:    m.Ctx,
-		Client: m.Client,
-		Path:   m.Path,
-		Mode:   uploadModeCreate,
+		Ctx:       m.Ctx,
+		Client:    m.Client,
+		Path:      m.Path,
+		Increment: m.Increment,
+		Replace:   m.Replace,
+		Mode:      uploadModeCreate,
 	}).New()
 	m.readiness = (&readinessModel{
 		Ctx:    m.Ctx,
@@ -99,6 +102,10 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	if m.readiness.waiting == completed {
+		return m, tea.Quit
+	}
+
 	switch msg := msg.(type) {
 	case manifestSelectedMsg:
 		m.object = msg.obj
@@ -106,9 +113,6 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		res, err := m.Client.Resource(m.object)
 		if err != nil {
-			b, _ := json.Marshal(m.object)
-			log.Println("............", string(b))
-
 			m.finalError = fmt.Errorf("resource client: %w", err)
 			break
 		}
@@ -168,9 +172,10 @@ func (m RunModel) View() (v string) {
 	v += m.manifests.View()
 	v += m.upload.View()
 	v += m.readiness.View()
-	v += m.pods.View()
-
-	v += helpStyle("Press \"q\" to quit")
+	if m.readiness.waiting != completed {
+		v += m.pods.View()
+		v += helpStyle("Press \"q\" to quit")
+	}
 
 	return v
 }

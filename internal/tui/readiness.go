@@ -75,7 +75,7 @@ func (m readinessModel) View() (v string) {
 
 	if m.waiting == inProgress {
 		kind := m.Object.GetObjectKind().GroupVersionKind().Kind
-		v += fmt.Sprintf("%v:\n", kind)
+		v += fmt.Sprintf("%v (%v):\n", kind, m.Object.GetName())
 
 		if w, ok := m.Object.(interface {
 			GetConditions() *[]metav1.Condition
@@ -93,7 +93,9 @@ func (m readinessModel) View() (v string) {
 				v += "\n"
 			}
 		}
-
+	} else if m.waiting == completed {
+		kind := m.Object.GetObjectKind().GroupVersionKind().Kind
+		v += fmt.Sprintf("%v (%v): Ready\n", kind, m.Object.GetName())
 	}
 
 	return v
