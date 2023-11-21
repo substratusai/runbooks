@@ -1,23 +1,22 @@
-# Substratus.AI - Kubernetes ML Platform
+# Runbooks - Finetune LLMs on K8s with notebooks
 
 <p align="center">
-   <a href="https://github.com/substratusai/substratus/actions/workflows/system-tests.yml">
-     <img src="https://img.shields.io/github/actions/workflow/status/substratusai/substratus/system-tests.yml?branch=main&label=pipeline&style=flat" alt="continuous integration">
-   </a>
     <a href="https://discord.gg/JeXhcmjZVm">
         <img alt="discord-invite" src="https://dcbadge.vercel.app/api/server/JeXhcmjZVm?style=flat">
     </a>
 </p>
 
-🚀 Serve popular OSS LLM models in minutes on CPUs or GPUs  
+NOTICE: Changes coming! runbooks.git (previously substratus.git) will be refactored to focus on Notebooks on K8s.
+
 🎵 Fine-tune LLM models with no/low code  
 📔 Provide a Colab style seamless Notebook experience  
 ☁️ Provide a unified ML platform across clouds  
 ⬆️ Easy to install with minimal dependencies
 
+Looking for serving?  
+🚀 [substratusai/lingo](https://github.com/substratusai/lingo): Serve popular OSS LLM models in minutes on CPUs or GPUs  
+
 Support the project by adding a star on GitHub! ❤️
-
-
 
 ## Quickstart
 
