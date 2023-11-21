@@ -6,6 +6,8 @@
     </a>
 </p>
 
+NOTICE: Changes coming! runbooks.git (previously substratus.git) will be refactored to focus on Notebooks on K8s.
+
 🎵 Fine-tune LLM models with no/low code  
 📔 Provide a Colab style seamless Notebook experience  
 ☁️ Provide a unified ML platform across clouds  
