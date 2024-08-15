@@ -1,4 +1,4 @@
-# Runbooks - Finetune LLMs on K8s with notebooks
+# NO LONGER ACTIVE
 
 <p align="center">
     <a href="https://discord.gg/JeXhcmjZVm">
